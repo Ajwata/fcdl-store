@@ -1,21 +1,39 @@
 export const navigationItems = [
   { label: "Головна", href: "/" },
+  { label: "Бронювання", href: "/#booking" },
+  { label: "Новини", href: "/#news" },
   { label: "Галерея", href: "/#gallery" },
-  { label: "Відгуки", href: "/#reviews" },
-  { label: "Трансляція", href: "/#live" },
-  { label: "Бронювання", href: "/booking" },
+  { label: "Камери", href: "/#cameras" },
 ];
 
-export const heroHighlights = [
-  "3 сектори або все поле",
-  "Живий розклад без накладок",
-  "Швидке бронювання зі смартфона",
+export const heroSlides = [
+  {
+    id: 1,
+    title: "Бронюй футбольне поле онлайн за хвилину",
+    subtitle: "Живий розклад, зручний вибір секторів і швидке підтвердження без дзвінків.",
+    cta: "Забронювати",
+    image: "https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=1800&q=80",
+  },
+  {
+    id: 2,
+    title: "Комфортні умови для тренувань і матчів",
+    subtitle: "Освітлення, підготовлене покриття і зручні слоти щодня.",
+    cta: "Обрати час",
+    image: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1800&q=80",
+  },
+  {
+    id: 3,
+    title: "Розклад, оплата та історія в одному сервісі",
+    subtitle: "Бачиш усе: бронювання, статуси матчів, відгуки та платежі.",
+    cta: "Перейти до бронювання",
+    image: "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1800&q=80",
+  },
 ];
 
-export const heroStats = [
-  { value: "1280+", label: "зіграних матчів" },
-  { value: "4.9/5", label: "середня оцінка клієнтів" },
-  { value: "06:00-22:00", label: "графік у вихідні" },
+export const statsCards = [
+  { value: "1 280", label: "бронювань" },
+  { value: "740", label: "клієнтів" },
+  { value: "4.9", label: "середня оцінка" },
 ];
 
 export const landingFeatures = [
@@ -86,15 +104,29 @@ export const testimonials = [
 ];
 
 export const liveFeatures = [
-  "Вбудована YouTube Live трансляція на сторінці",
-  "Останні результати та анонси матчів поруч",
-  "Архів записів і найяскравіші моменти матчів",
+  "Камера 1: центральний ракурс поля",
+  "Камера 2: трибуна та зона замін",
+  "Камера 3: огляд воротарської зони",
 ];
 
-export const footerLinks = [
-  { label: "Умови оренди", href: "#" },
-  { label: "Політика оплати", href: "#" },
-  { label: "Контакти", href: "#" },
+export const footerNavLinks = [
+  { label: "Головна", href: "/" },
+  { label: "Бронювання", href: "/#booking" },
+  { label: "Новини", href: "/#news" },
+  { label: "Галерея", href: "/#gallery" },
+  { label: "Камери", href: "/#cameras" },
+];
+
+export const footerDocLinks = [
+  { label: "Правила", href: "#" },
+  { label: "Політика конфіденційності", href: "#" },
+  { label: "Умови оплати", href: "#" },
+];
+
+export const footerSocialLinks = [
+  { label: "Instagram", href: "#" },
+  { label: "Telegram", href: "#" },
+  { label: "YouTube", href: "#" },
 ];
 
 export const bookingDays = [
@@ -116,4 +148,25 @@ export const bookingSlots = [
   { time: "19:00", left: "Вільно", center: "Вільно", right: "Зайнято", full: "Недоступно" },
   { time: "20:00", left: "Вільно", center: "Вільно", right: "Вільно", full: "Доступно" },
   { time: "21:00", left: "Вільно", center: "Вільно", right: "Вільно", full: "Доступно" },
+];
+
+export const newsItems = [
+  {
+    id: 1,
+    title: "Відкрито новий вечірній слот у п'ятницю",
+    date: "27 березня 2026",
+    image: "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=1000&q=80",
+  },
+  {
+    id: 2,
+    title: "Підготовка поля до весняного турніру завершена",
+    date: "24 березня 2026",
+    image: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=1000&q=80",
+  },
+  {
+    id: 3,
+    title: "Оновлені правила скасування бронювання",
+    date: "20 березня 2026",
+    image: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1000&q=80",
+  },
 ];

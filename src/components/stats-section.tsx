@@ -1,0 +1,162 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+type StatDef = {
+  target: number;
+  decimals: number;
+  suffix: string;
+  outOf?: string;
+  label: string;
+  description: string;
+  isThousands?: boolean;
+};
+
+const STATS: StatDef[] = [
+  {
+    target: 1280,
+    decimals: 0,
+    suffix: "+",
+    label: "бронювань",
+    description: "Успішних бронювань з моменту запуску сервісу",
+    isThousands: true,
+  },
+  {
+    target: 740,
+    decimals: 0,
+    suffix: "+",
+    label: "клієнтів",
+    description: "Команд і гравців що обрали наш майданчик",
+  },
+  {
+    target: 4.9,
+    decimals: 1,
+    suffix: "",
+    outOf: "/ 5",
+    label: "рейтинг",
+    description: "Середня оцінка за якість поля та сервіс",
+  },
+];
+
+function formatCountValue(n: number, decimals: number, isThousands?: boolean): string {
+  if (decimals > 0) return n.toFixed(decimals);
+  const integer = Math.round(n);
+  if (isThousands && integer >= 1000) {
+    const thousands = Math.floor(integer / 1000);
+    const rest = integer % 1000;
+    return `${thousands}\u00a0${String(rest).padStart(3, "0")}`;
+  }
+  return String(integer);
+}
+
+function CountUp({
+  target,
+  decimals,
+  suffix,
+  outOf,
+  isThousands,
+  active,
+}: Pick<StatDef, "target" | "decimals" | "suffix" | "outOf" | "isThousands"> & {
+  active: boolean;
+}) {
+  const [count, setCount] = useState(0);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const duration = 1800;
+    let startTime: number | null = null;
+
+    const step = (ts: number) => {
+      if (!startTime) startTime = ts;
+      const progress = Math.min((ts - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(eased * target);
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        setCount(target);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [active, target]);
+
+  const display = formatCountValue(count, decimals, isThousands);
+
+  return (
+    <span className="font-display stats-number">
+      {display}
+      {suffix && <span className="stats-suffix">{suffix}</span>}
+      {outOf && <span className="stats-out-of">{outOf}</span>}
+    </span>
+  );
+}
+
+export function StatsSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [triggered, setTriggered] = useState(false);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTriggered(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <section ref={sectionRef} id="stats" className="stats-section">
+      <div className="stats-inner">
+        <div className="stats-header">
+          <span className="stats-eyebrow">Цифри говорять</span>
+          <h2 className="stats-title font-display">Успіх у деталях</h2>
+        </div>
+
+        <div className="stats-grid">
+          {STATS.map((stat, i) => (
+            <div
+              key={stat.label}
+              className="stats-item"
+              style={{ animationDelay: `${i * 120}ms` }}
+            >
+              <div className="stats-item-inner">
+                <div className="stats-value-row">
+                  <CountUp
+                    target={stat.target}
+                    decimals={stat.decimals}
+                    suffix={stat.suffix}
+                    outOf={stat.outOf}
+                    isThousands={stat.isThousands}
+                    active={triggered}
+                  />
+                </div>
+                <p className="stats-label">{stat.label}</p>
+                <p className="stats-desc">{stat.description}</p>
+              </div>
+
+              {i < STATS.length - 1 && <div className="stats-divider" aria-hidden />}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="stats-bg-dot-grid" aria-hidden />
+      <div className="stats-bg-glow-left" aria-hidden />
+      <div className="stats-bg-glow-right" aria-hidden />
+    </section>
+  );
+}
