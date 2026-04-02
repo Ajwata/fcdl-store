@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Manrope } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 
-const displayFont = Bebas_Neue({
+const displayFont = Montserrat({
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: "400",
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
-const bodyFont = Manrope({
+const bodyFont = Montserrat({
   variable: "--font-body",
   subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
