@@ -166,6 +166,67 @@ export default function Home() {
           </div>
         </section>
 
+        <section id="promotions" className="section-bg-alt">
+          <div className="mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">Акції</p>
+                <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
+                  Актуальні пропозиції
+                </h2>
+              </div>
+              <p className="max-w-2xl text-base leading-7 text-slate-600">
+                Спеціальні умови для регулярних матчів, командних тренувань та повноформатних ігор.
+              </p>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+              <article className="relative overflow-hidden rounded-[26px] border border-[var(--blue-100)] shadow-[0_18px_48px_rgba(8,26,51,0.1)] lg:min-h-[460px]">
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.2), rgba(8,26,51,0.72)), url(${heroSlides[0].image})` }}
+                />
+                <div className="relative z-10 flex min-h-[360px] flex-col justify-end p-6 text-white sm:p-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--green-100)]">Головна акція</p>
+                  <h3 className="mt-3 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">{heroSlides[0].title}</h3>
+                  <p className="mt-3 max-w-2xl text-base leading-7 text-white/84">{heroSlides[0].subtitle}</p>
+                  <Link
+                    href="#booking"
+                    className="mt-6 inline-flex w-fit items-center justify-center rounded-full bg-[var(--green-700)] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
+                  >
+                    {heroSlides[0].cta}
+                  </Link>
+                </div>
+              </article>
+
+              <div className="grid gap-5">
+                {heroSlides.slice(1).map((slide, index) => (
+                  <article
+                    key={slide.id}
+                    className="relative overflow-hidden rounded-[24px] border border-[var(--blue-100)] shadow-[0_14px_34px_rgba(8,26,51,0.1)]"
+                    style={{ animationDelay: `${80 + index * 90}ms` }}
+                  >
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.2), rgba(8,26,51,0.72)), url(${slide.image})` }}
+                    />
+                    <div className="relative z-10 flex min-h-[220px] flex-col justify-end p-5 text-white">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--green-100)]">Спецпропозиція</p>
+                      <h3 className="mt-2 text-xl font-bold leading-snug">{slide.title}</h3>
+                      <Link
+                        href="#booking"
+                        className="mt-4 inline-flex w-fit items-center justify-center rounded-full bg-[var(--green-700)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] !text-white transition hover:bg-[var(--green-800)]"
+                      >
+                        {slide.cta}
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <StatsSection />
 
         <section id="reviews" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">

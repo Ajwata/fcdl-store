@@ -45,6 +45,14 @@ function toTime(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function rangesOverlap(startA: number, endA: number, startB: number, endB: number): boolean {
   return startA < endB && startB < endA;
 }
@@ -58,6 +66,8 @@ export function HomeBookingInteractive() {
   const [nextCartItemId, setNextCartItemId] = useState(1);
   const [bookingPopupOpen, setBookingPopupOpen] = useState(false);
   const [cartPopupOpen, setCartPopupOpen] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => toIsoDate(new Date()));
+  const [calendarSectorFilter, setCalendarSectorFilter] = useState<Sector | "all">("all");
 
   const isAuthorized = false;
   const pricePerHour = selectedSector ? sectorPrice[selectedSector] : 0;
@@ -147,6 +157,14 @@ export function HomeBookingInteractive() {
     setBookingPopupOpen(true);
   };
 
+  const startBookingFromCalendar = (sector: Sector, date: string, hour?: number) => {
+    setSelectedSector(sector);
+    setSelectedDate(date);
+    setSelectedSlot(typeof hour === "number" ? toTime(hour) : null);
+    setSelectedDuration(null);
+    setBookingPopupOpen(true);
+  };
+
   const addCurrentSelectionToCart = () => {
     if (!selectedSector || !selectedDate || !selectedSlot || !selectedDuration) {
       return;
@@ -172,6 +190,27 @@ export function HomeBookingInteractive() {
   };
 
   const totalCartPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+  const calendarHours = useMemo(() => {
+    return Array.from({ length: operatingHours.endHour - operatingHours.startHour }, (_, index) => operatingHours.startHour + index);
+  }, [operatingHours]);
+
+  const calendarRows = useMemo(() => {
+    const visibleSectors = calendarSectorFilter === "all"
+      ? sectors.map((sector) => sector.name)
+      : [calendarSectorFilter];
+
+    return visibleSectors.map((sectorName) => {
+      const slots = mockedBookedSlots
+        .filter((item) => item.date === calendarDate && item.sector === sectorName)
+        .sort((a, b) => a.startHour - b.startHour);
+
+      return {
+        sector: sectorName,
+        slots,
+      };
+    });
+  }, [calendarDate, calendarSectorFilter]);
 
   return (
     <section id="booking" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
@@ -306,6 +345,106 @@ export function HomeBookingInteractive() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div className="mt-8 rounded-[30px] border border-[var(--blue-100)] bg-white/92 p-5 shadow-[0_18px_46px_rgba(8,26,51,0.08)] sm:p-7">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--green-700)]">Календар зайнятості</p>
+            <h3 className="mt-2 text-2xl font-semibold text-[var(--blue-950)] sm:text-3xl">Вільні та заброньовані години</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Обери дату і перевір, які години вже зайняті по кожному полю.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 md:min-w-[420px]">
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              Дата
+              <input
+                type="date"
+                value={calendarDate}
+                onChange={(event) => setCalendarDate(event.target.value)}
+                className="mt-2 w-full rounded-[12px] border border-[var(--blue-100)] bg-white px-3 py-2.5 text-sm text-[var(--blue-950)]"
+              />
+            </label>
+
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              Поле
+              <select
+                value={calendarSectorFilter}
+                onChange={(event) => setCalendarSectorFilter(event.target.value as Sector | "all")}
+                className="mt-2 w-full rounded-[12px] border border-[var(--blue-100)] bg-white px-3 py-2.5 text-sm text-[var(--blue-950)]"
+              >
+                <option value="all">Усі поля</option>
+                {sectors.map((sector) => (
+                  <option key={sector.name} value={sector.name}>{sector.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {calendarRows.map((row) => (
+            <article key={row.sector} className="rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)]/65 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-base font-semibold text-[var(--blue-950)]">{row.sector}</p>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[var(--blue-700)]">
+                    {row.slots.length} бронювань
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startBookingFromCalendar(row.sector, calendarDate)}
+                    className="rounded-full border border-[var(--green-200)] bg-[var(--green-100)] px-3 py-1 text-xs font-semibold text-[var(--green-800)] transition hover:border-[var(--green-700)] hover:bg-[var(--green-200)]"
+                  >
+                    Бронювати на цю дату
+                  </button>
+                </div>
+              </div>
+
+              {row.slots.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {row.slots.map((slot, index) => (
+                    <span
+                      key={`${slot.sector}-${slot.date}-${slot.startHour}-${index}`}
+                      className="rounded-full bg-[var(--blue-900)] px-3 py-1 text-xs font-semibold text-white"
+                    >
+                      {toTime(slot.startHour)} - {toTime(slot.startHour + slot.durationHours)}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-500">На цю дату вільно.</p>
+              )}
+
+              <div className="mt-4 grid grid-cols-4 gap-1.5 sm:grid-cols-8">
+                {calendarHours.map((hour) => {
+                  const blocked = row.slots.some((slot) =>
+                    rangesOverlap(hour, hour + 1, slot.startHour, slot.startHour + slot.durationHours),
+                  );
+
+                  return (
+                    <button
+                      type="button"
+                      key={`${row.sector}-${hour}`}
+                      disabled={blocked}
+                      onClick={() => startBookingFromCalendar(row.sector, calendarDate, hour)}
+                      className={`rounded px-2 py-1 text-center text-[10px] font-semibold ${
+                        blocked
+                          ? "cursor-not-allowed bg-rose-100 text-rose-700"
+                          : "bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200"
+                      }`}
+                    >
+                      {String(hour).padStart(2, "0")}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">Натисни на зелену годину, щоб одразу перейти до бронювання.</p>
+            </article>
+          ))}
         </div>
       </div>
 
