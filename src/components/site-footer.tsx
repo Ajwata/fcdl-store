@@ -1,10 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { footerDocLinks, footerNavLinks, footerSocialLinks } from "@/data/site-content";
 import logoImage from "@/img/logo.jpg";
 
-export function SiteFooter() {
+type FooterLink = {
+  label: string;
+  href: string;
+};
+
+type SiteFooterProps = {
+  footerNavLinks: FooterLink[];
+  footerDocLinks: FooterLink[];
+  footerSocialLinks: FooterLink[];
+};
+
+export function SiteFooter({ footerNavLinks, footerDocLinks, footerSocialLinks }: SiteFooterProps) {
   return (
     <footer className="mt-auto border-t border-white/40 bg-[var(--blue-950)] text-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[1.05fr_0.8fr_0.8fr_0.8fr] lg:px-10">

@@ -2,14 +2,86 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
-import { navigationItems } from "@/data/site-content";
 import logoImage from "@/img/logo.jpg";
 
-export function SiteHeader() {
+type NavigationItem = {
+  label: string;
+  href: string;
+};
+
+type SiteHeaderProps = {
+  navigationItems: NavigationItem[];
+};
+
+export function SiteHeader({ navigationItems }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isAuthorized = false;
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [notificationsCount, setNotificationsCount] = useState(0);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [accountName, setAccountName] = useState("Кабінет");
+  const [accountAvatar, setAccountAvatar] = useState("");
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSession = async () => {
+      try {
+        const response = await fetch("/api/account/session", { cache: "no-store" });
+        const result = (await response.json()) as {
+          authenticated?: boolean;
+          notificationsCount?: number;
+          user?: { name?: string; avatarUrl?: string } | null;
+        };
+        if (cancelled) return;
+        setIsAuthorized(Boolean(result.authenticated));
+        setNotificationsCount(result.notificationsCount ?? 0);
+        setAccountName(result.user?.name?.trim() || "Кабінет");
+        setAccountAvatar(result.user?.avatarUrl ?? "");
+      } catch {
+        if (cancelled) return;
+        setIsAuthorized(false);
+        setNotificationsCount(0);
+        setAccountName("Кабінет");
+        setAccountAvatar("");
+      }
+    };
+
+    void loadSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    const onWindowClick = (event: MouseEvent) => {
+      if (!accountMenuRef.current) return;
+      if (!accountMenuRef.current.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    if (accountMenuOpen) {
+      window.addEventListener("mousedown", onWindowClick);
+    }
+    return () => {
+      window.removeEventListener("mousedown", onWindowClick);
+    };
+  }, [accountMenuOpen]);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setIsAuthorized(false);
+    setNotificationsCount(0);
+    setAccountMenuOpen(false);
+    router.push("/account/login");
+    router.refresh();
+  };
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/60 bg-white/82 shadow-[0_8px_26px_rgba(8,26,51,0.08)] backdrop-blur-xl">
@@ -42,15 +114,65 @@ export function SiteHeader() {
           </button>
 
           {isAuthorized ? (
-            <button
-              type="button"
-              className="cta-secondary inline-flex items-center justify-center rounded-full bg-[var(--blue-900)] px-4 py-2.5 text-xs font-extrabold uppercase tracking-[0.12em] !text-white transition hover:bg-[var(--blue-800)] sm:px-5 sm:py-3 sm:text-sm sm:tracking-[0.14em]"
-            >
-              Особистий кабінет
-            </button>
+            <>
+              <Link
+                href="/account/notifications"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--blue-200)] bg-white/90 text-[var(--blue-900)] transition hover:bg-[var(--blue-50)]"
+                aria-label="Сповіщення"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.389 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {notificationsCount > 0 && (
+                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {notificationsCount > 9 ? "9+" : notificationsCount}
+                  </span>
+                )}
+              </Link>
+
+              <div ref={accountMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((prev) => !prev)}
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--blue-200)] bg-white/95 px-2.5 py-1.5 text-[var(--blue-900)] transition hover:bg-[var(--blue-50)]"
+                >
+                  <img
+                    src={accountAvatar || "/window.svg"}
+                    alt="Аватар"
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                  <span className="hidden max-w-[120px] truncate text-xs font-extrabold uppercase tracking-[0.08em] sm:block">
+                    {accountName}
+                  </span>
+                </button>
+
+                {accountMenuOpen && (
+                  <div className="absolute right-0 top-12 z-30 w-64 rounded-2xl border border-[var(--blue-100)] bg-white p-2 shadow-[0_20px_50px_rgba(8,26,51,0.18)]">
+                    <p className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Меню кабінету</p>
+                    <div className="space-y-1">
+                      <Link href="/account" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Огляд</Link>
+                      <Link href="/account/bookings" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Бронювання</Link>
+                      <Link href="/account/payments" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Платежі</Link>
+                      <Link href="/account/notifications" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Сповіщення</Link>
+                      <Link href="/account/profile" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Профіль</Link>
+                      <Link href="/#booking" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl bg-[var(--green-700)] px-3 py-2 text-sm font-semibold !text-white hover:bg-[var(--green-800)]">Нова бронь</Link>
+                    </div>
+                    <div className="mt-2 border-t border-[var(--blue-100)] pt-2">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-rose-700 hover:bg-rose-50"
+                      >
+                        Вийти з кабінету
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <Link
-              href="#"
+              href="/account/login"
               className="cta-secondary inline-flex items-center justify-center rounded-full bg-[var(--blue-900)] px-4 py-2.5 text-xs font-extrabold uppercase tracking-[0.12em] !text-white transition hover:bg-[var(--blue-800)] sm:px-5 sm:py-3 sm:text-sm sm:tracking-[0.14em]"
             >
               Увійти

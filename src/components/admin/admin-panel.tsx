@@ -1,0 +1,1058 @@
+﻿"use client";
+
+import { useMemo, useState } from "react";
+
+import { ImageUploadButton } from "@/components/admin/image-upload-button";
+import { VideoUploadButton } from "@/components/admin/video-upload-button";
+import { CmsContent } from "@/data/cms-defaults";
+
+type AdminPanelProps = {
+  initialContent: CmsContent;
+};
+
+type TabKey = "home" | "news" | "gallery" | "streams" | "reviews" | "navigation";
+
+const tabs: Array<{ key: TabKey; label: string }> = [
+  { key: "home", label: "Головна" },
+  { key: "news", label: "Новини" },
+  { key: "gallery", label: "Галерея" },
+  { key: "streams", label: "Камери" },
+  { key: "reviews", label: "Відгуки" },
+  { key: "navigation", label: "Меню та футер" },
+];
+
+function makeSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+const inputClass =
+  "w-full rounded-[12px] border border-[var(--blue-200)] bg-white px-3 py-2 text-sm text-[var(--blue-950)] outline-none ring-[var(--green-700)] transition focus:ring-2";
+const textareaClass =
+  "w-full rounded-[12px] border border-[var(--blue-200)] bg-white px-3 py-2 text-sm text-[var(--blue-950)] outline-none ring-[var(--green-700)] transition focus:ring-2";
+
+function FieldLabel({ children }: { children: string }) {
+  return <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{children}</p>;
+}
+
+function SectionTitle({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="mb-3">
+      <h2 className="text-xl font-bold text-[var(--blue-950)]">{title}</h2>
+      {hint && <p className="mt-1 text-sm text-slate-600">{hint}</p>}
+    </div>
+  );
+}
+
+export function AdminPanel({ initialContent }: AdminPanelProps) {
+  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [content, setContent] = useState<CmsContent>(initialContent);
+  const [status, setStatus] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  const nextNewsId = useMemo(() => (Math.max(0, ...content.newsItems.map((item) => item.id)) || 0) + 1, [content.newsItems]);
+
+  const updateContent = (next: CmsContent) => {
+    setContent(next);
+    setStatus("");
+  };
+
+  const removeByIndex = <T,>(items: T[], index: number) => items.filter((_, i) => i !== index);
+
+  const save = async () => {
+    setStatus("");
+    setSaving(true);
+
+    try {
+      const response = await fetch("/api/admin/content", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setStatus(result.error ?? "Не вдалося зберегти зміни.");
+        return;
+      }
+
+      setStatus("Зміни збережено успішно.");
+    } catch {
+      setStatus("Помилка мережі. Спробуйте ще раз.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-5xl">
+      <div className="mb-7 rounded-[22px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--green-700)]">Контент сайту</p>
+        <h1 className="mt-2 text-3xl font-bold text-[var(--blue-950)]">Керування контентом сайту</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Редагуйте тексти, новини, фото та посилання у зручних формах.
+        </p>
+
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center justify-center rounded-full bg-[var(--green-700)] px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[var(--green-800)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "Збереження..." : "Зберегти зміни"}
+          </button>
+        </div>
+
+        {status && <p className="mt-3 text-sm font-semibold text-[var(--blue-900)]">{status}</p>}
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              activeTab === tab.key
+                ? "bg-[var(--blue-900)] text-white"
+                : "border border-[var(--blue-200)] bg-white text-[var(--blue-900)] hover:bg-[var(--blue-50)]"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "home" && (
+        <div className="space-y-5">
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Відео-фон першого екрана" hint="Це відео показується на desktop у hero-блоці" />
+            <div>
+              <FieldLabel>URL відео (MP4)</FieldLabel>
+              <div className="flex gap-2">
+                <input
+                  value={content.heroVideoUrl}
+                  onChange={(event) => updateContent({ ...content, heroVideoUrl: event.target.value })}
+                  className={inputClass}
+                  placeholder="/img/background.mp4 або https://.../video.mp4"
+                />
+                <VideoUploadButton
+                  onUploaded={(url) => {
+                    updateContent({ ...content, heroVideoUrl: url });
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">Рекомендовано MP4 з авто-відтворенням без звуку. На мобільних використовується зображення першого слайду.</p>
+            </div>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Hero-слайди" hint="Головний блок першого екрана" />
+            <div className="space-y-4">
+              {content.heroSlides.map((slide, index) => (
+                <div key={slide.id} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--blue-900)]">Слайд #{index + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateContent({
+                          ...content,
+                          heroSlides: removeByIndex(content.heroSlides, index),
+                        })
+                      }
+                      className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                    >
+                      Видалити
+                    </button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <FieldLabel>Заголовок</FieldLabel>
+                      <input
+                        value={slide.title}
+                        onChange={(event) => {
+                          const heroSlides = [...content.heroSlides];
+                          heroSlides[index] = { ...slide, title: event.target.value };
+                          updateContent({ ...content, heroSlides });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Кнопка</FieldLabel>
+                      <input
+                        value={slide.cta}
+                        onChange={(event) => {
+                          const heroSlides = [...content.heroSlides];
+                          heroSlides[index] = { ...slide, cta: event.target.value };
+                          updateContent({ ...content, heroSlides });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <FieldLabel>Підзаголовок</FieldLabel>
+                    <textarea
+                      value={slide.subtitle}
+                      onChange={(event) => {
+                        const heroSlides = [...content.heroSlides];
+                        heroSlides[index] = { ...slide, subtitle: event.target.value };
+                        updateContent({ ...content, heroSlides });
+                      }}
+                      rows={3}
+                      className={textareaClass}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <FieldLabel>URL зображення</FieldLabel>
+                    <div className="flex gap-2">
+                      <input
+                        value={slide.image}
+                        onChange={(event) => {
+                          const heroSlides = [...content.heroSlides];
+                          heroSlides[index] = { ...slide, image: event.target.value };
+                          updateContent({ ...content, heroSlides });
+                        }}
+                        className={inputClass}
+                      />
+                      <ImageUploadButton
+                        onUploaded={(url) => {
+                          const heroSlides = [...content.heroSlides];
+                          heroSlides[index] = { ...slide, image: url };
+                          updateContent({ ...content, heroSlides });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                updateContent({
+                  ...content,
+                  heroSlides: [
+                    ...content.heroSlides,
+                    {
+                      id: Date.now(),
+                      title: "Новий слайд",
+                      subtitle: "Опис слайду",
+                      cta: "Детальніше",
+                      image: "",
+                    },
+                  ],
+                })
+              }
+              className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+            >
+              Додати слайд
+            </button>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Акції" hint="Редагування карток акцій" />
+            <div className="space-y-4">
+              {content.promoOffers.map((offer, index) => (
+                <div key={offer.id} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--blue-900)]">Акція #{index + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateContent({
+                          ...content,
+                          promoOffers: removeByIndex(content.promoOffers, index),
+                        })
+                      }
+                      className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                    >
+                      Видалити
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <FieldLabel>Назва</FieldLabel>
+                      <input
+                        value={offer.title}
+                        onChange={(event) => {
+                          const promoOffers = [...content.promoOffers];
+                          promoOffers[index] = { ...offer, title: event.target.value };
+                          updateContent({ ...content, promoOffers });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Badge</FieldLabel>
+                      <input
+                        value={offer.tag}
+                        onChange={(event) => {
+                          const promoOffers = [...content.promoOffers];
+                          promoOffers[index] = { ...offer, tag: event.target.value };
+                          updateContent({ ...content, promoOffers });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <FieldLabel>Вигода</FieldLabel>
+                      <input
+                        value={offer.benefit}
+                        onChange={(event) => {
+                          const promoOffers = [...content.promoOffers];
+                          promoOffers[index] = { ...offer, benefit: event.target.value };
+                          updateContent({ ...content, promoOffers });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Термін</FieldLabel>
+                      <input
+                        value={offer.validUntil}
+                        onChange={(event) => {
+                          const promoOffers = [...content.promoOffers];
+                          promoOffers[index] = { ...offer, validUntil: event.target.value };
+                          updateContent({ ...content, promoOffers });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <FieldLabel>Опис</FieldLabel>
+                    <textarea
+                      value={offer.description}
+                      onChange={(event) => {
+                        const promoOffers = [...content.promoOffers];
+                        promoOffers[index] = { ...offer, description: event.target.value };
+                        updateContent({ ...content, promoOffers });
+                      }}
+                      rows={3}
+                      className={textareaClass}
+                    />
+                  </div>
+
+                  <div className="mt-3">
+                    <FieldLabel>Умови</FieldLabel>
+                    <textarea
+                      value={offer.terms}
+                      onChange={(event) => {
+                        const promoOffers = [...content.promoOffers];
+                        promoOffers[index] = { ...offer, terms: event.target.value };
+                        updateContent({ ...content, promoOffers });
+                      }}
+                      rows={2}
+                      className={textareaClass}
+                    />
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <FieldLabel>Текст кнопки</FieldLabel>
+                      <input
+                        value={offer.cta}
+                        onChange={(event) => {
+                          const promoOffers = [...content.promoOffers];
+                          promoOffers[index] = { ...offer, cta: event.target.value };
+                          updateContent({ ...content, promoOffers });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Посилання</FieldLabel>
+                      <input
+                        value={offer.href}
+                        onChange={(event) => {
+                          const promoOffers = [...content.promoOffers];
+                          promoOffers[index] = { ...offer, href: event.target.value };
+                          updateContent({ ...content, promoOffers });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <FieldLabel>URL зображення</FieldLabel>
+                      <div className="flex gap-2">
+                        <input
+                          value={offer.image}
+                          onChange={(event) => {
+                            const promoOffers = [...content.promoOffers];
+                            promoOffers[index] = { ...offer, image: event.target.value };
+                            updateContent({ ...content, promoOffers });
+                          }}
+                          className={inputClass}
+                        />
+                        <ImageUploadButton
+                          onUploaded={(url) => {
+                            const promoOffers = [...content.promoOffers];
+                            promoOffers[index] = { ...offer, image: url };
+                            updateContent({ ...content, promoOffers });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <FieldLabel>Додатковий текст</FieldLabel>
+                      <input
+                        value={offer.usedBy}
+                        onChange={(event) => {
+                          const promoOffers = [...content.promoOffers];
+                          promoOffers[index] = { ...offer, usedBy: event.target.value };
+                          updateContent({ ...content, promoOffers });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                updateContent({
+                  ...content,
+                  promoOffers: [
+                    ...content.promoOffers,
+                    {
+                      id: `promo-${Date.now()}`,
+                      tag: "Спецпропозиція",
+                      title: "Нова акція",
+                      description: "Опис акції",
+                      benefit: "Вигода",
+                      validUntil: "Актуально",
+                      terms: "Умови",
+                      cta: "Перейти до бронювання",
+                      href: "#booking",
+                      image: "",
+                      usedBy: "",
+                    },
+                  ],
+                })
+              }
+              className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+            >
+              Додати акцію
+            </button>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Тексти секцій головної" />
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <p className="mb-2 text-sm font-semibold text-[var(--blue-900)]">Галерея</p>
+                <FieldLabel>Badge</FieldLabel>
+                <input
+                  value={content.homeGallerySection.badge}
+                  onChange={(event) => updateContent({ ...content, homeGallerySection: { ...content.homeGallerySection, badge: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Заголовок</FieldLabel>
+                <input
+                  value={content.homeGallerySection.title}
+                  onChange={(event) => updateContent({ ...content, homeGallerySection: { ...content.homeGallerySection, title: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Опис</FieldLabel>
+                <textarea
+                  rows={3}
+                  value={content.homeGallerySection.description}
+                  onChange={(event) => updateContent({ ...content, homeGallerySection: { ...content.homeGallerySection, description: event.target.value } })}
+                  className={textareaClass}
+                />
+              </div>
+
+              <div className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <p className="mb-2 text-sm font-semibold text-[var(--blue-900)]">Акції</p>
+                <FieldLabel>Badge</FieldLabel>
+                <input
+                  value={content.homePromotionsSection.badge}
+                  onChange={(event) => updateContent({ ...content, homePromotionsSection: { ...content.homePromotionsSection, badge: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Заголовок</FieldLabel>
+                <input
+                  value={content.homePromotionsSection.title}
+                  onChange={(event) => updateContent({ ...content, homePromotionsSection: { ...content.homePromotionsSection, title: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Опис</FieldLabel>
+                <textarea
+                  rows={3}
+                  value={content.homePromotionsSection.description}
+                  onChange={(event) => updateContent({ ...content, homePromotionsSection: { ...content.homePromotionsSection, description: event.target.value } })}
+                  className={textareaClass}
+                />
+              </div>
+
+              <div className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <p className="mb-2 text-sm font-semibold text-[var(--blue-900)]">Новини</p>
+                <FieldLabel>Badge</FieldLabel>
+                <input
+                  value={content.homeNewsSection.badge}
+                  onChange={(event) => updateContent({ ...content, homeNewsSection: { ...content.homeNewsSection, badge: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Заголовок</FieldLabel>
+                <input
+                  value={content.homeNewsSection.title}
+                  onChange={(event) => updateContent({ ...content, homeNewsSection: { ...content.homeNewsSection, title: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Опис</FieldLabel>
+                <textarea
+                  rows={3}
+                  value={content.homeNewsSection.description}
+                  onChange={(event) => updateContent({ ...content, homeNewsSection: { ...content.homeNewsSection, description: event.target.value } })}
+                  className={textareaClass}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === "news" && (
+        <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+          <SectionTitle title="Новини" hint="Додавайте та редагуйте новини" />
+          <div className="space-y-4">
+            {content.newsItems.map((news, index) => (
+              <div key={news.id} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[var(--blue-900)]">Новина #{index + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateContent({
+                        ...content,
+                        newsItems: removeByIndex(content.newsItems, index),
+                      })
+                    }
+                    className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                  >
+                    Видалити
+                  </button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <FieldLabel>Заголовок</FieldLabel>
+                    <input
+                      value={news.title}
+                      onChange={(event) => {
+                        const newsItems = [...content.newsItems];
+                        const title = event.target.value;
+                        newsItems[index] = {
+                          ...news,
+                          title,
+                          slug: news.slug || makeSlug(title),
+                        };
+                        updateContent({ ...content, newsItems });
+                      }}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>Дата</FieldLabel>
+                    <input
+                      value={news.date}
+                      onChange={(event) => {
+                        const newsItems = [...content.newsItems];
+                        newsItems[index] = { ...news, date: event.target.value };
+                        updateContent({ ...content, newsItems });
+                      }}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <FieldLabel>Slug (URL)</FieldLabel>
+                  <input
+                    value={news.slug}
+                    onChange={(event) => {
+                      const newsItems = [...content.newsItems];
+                      newsItems[index] = { ...news, slug: makeSlug(event.target.value) };
+                      updateContent({ ...content, newsItems });
+                    }}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="mt-3">
+                  <FieldLabel>URL зображення</FieldLabel>
+                  <div className="flex gap-2">
+                    <input
+                      value={news.image}
+                      onChange={(event) => {
+                        const newsItems = [...content.newsItems];
+                        newsItems[index] = { ...news, image: event.target.value };
+                        updateContent({ ...content, newsItems });
+                      }}
+                      className={inputClass}
+                    />
+                    <ImageUploadButton
+                      onUploaded={(url) => {
+                        const newsItems = [...content.newsItems];
+                        newsItems[index] = { ...news, image: url };
+                        updateContent({ ...content, newsItems });
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <FieldLabel>Короткий опис</FieldLabel>
+                  <textarea
+                    rows={3}
+                    value={news.excerpt}
+                    onChange={(event) => {
+                      const newsItems = [...content.newsItems];
+                      newsItems[index] = { ...news, excerpt: event.target.value };
+                      updateContent({ ...content, newsItems });
+                    }}
+                    className={textareaClass}
+                  />
+                </div>
+
+                <div className="mt-3">
+                  <FieldLabel>Повний текст (HTML)</FieldLabel>
+                  <textarea
+                    rows={10}
+                    value={news.content}
+                    onChange={(event) => {
+                      const newsItems = [...content.newsItems];
+                      newsItems[index] = { ...news, content: event.target.value };
+                      updateContent({ ...content, newsItems });
+                    }}
+                    className={textareaClass}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              updateContent({
+                ...content,
+                newsItems: [
+                  ...content.newsItems,
+                  {
+                    id: nextNewsId,
+                    slug: `news-${nextNewsId}`,
+                    title: "Нова новина",
+                    excerpt: "Короткий опис",
+                    date: "",
+                    image: "",
+                    content: "<p>Текст новини</p>",
+                  },
+                ],
+              })
+            }
+            className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+          >
+            Додати новину
+          </button>
+        </section>
+      )}
+
+      {activeTab === "gallery" && (
+        <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+          <SectionTitle title="Галерея" hint="Додавайте фото, підписи і назви" />
+          <div className="space-y-4">
+            {content.galleryItems.map((item, index) => (
+              <div key={`${item.title}-${index}`} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[var(--blue-900)]">Фото #{index + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateContent({
+                        ...content,
+                        galleryItems: removeByIndex(content.galleryItems, index),
+                      })
+                    }
+                    className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                  >
+                    Видалити
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <FieldLabel>Назва</FieldLabel>
+                    <input
+                      value={item.title}
+                      onChange={(event) => {
+                        const galleryItems = [...content.galleryItems];
+                        galleryItems[index] = { ...item, title: event.target.value };
+                        updateContent({ ...content, galleryItems });
+                      }}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>URL фото</FieldLabel>
+                    <div className="flex gap-2">
+                      <input
+                        value={item.image}
+                        onChange={(event) => {
+                          const galleryItems = [...content.galleryItems];
+                          galleryItems[index] = { ...item, image: event.target.value };
+                          updateContent({ ...content, galleryItems });
+                        }}
+                        className={inputClass}
+                      />
+                      <ImageUploadButton
+                        onUploaded={(url) => {
+                          const galleryItems = [...content.galleryItems];
+                          galleryItems[index] = { ...item, image: url };
+                          updateContent({ ...content, galleryItems });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <FieldLabel>Підпис</FieldLabel>
+                  <textarea
+                    rows={3}
+                    value={item.caption}
+                    onChange={(event) => {
+                      const galleryItems = [...content.galleryItems];
+                      galleryItems[index] = { ...item, caption: event.target.value };
+                      updateContent({ ...content, galleryItems });
+                    }}
+                    className={textareaClass}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              updateContent({
+                ...content,
+                galleryItems: [
+                  ...content.galleryItems,
+                  {
+                    title: "Нове фото",
+                    caption: "Опис фото",
+                    image: "",
+                  },
+                ],
+              })
+            }
+            className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+          >
+            Додати фото
+          </button>
+        </section>
+      )}
+
+      {activeTab === "streams" && (
+        <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+          <SectionTitle title="Камери" hint="Редагування текстів та YouTube-посилань" />
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <FieldLabel>Badge</FieldLabel>
+              <input
+                value={content.liveStreamsSection.badge}
+                onChange={(event) =>
+                  updateContent({
+                    ...content,
+                    liveStreamsSection: { ...content.liveStreamsSection, badge: event.target.value },
+                  })
+                }
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <FieldLabel>Заголовок</FieldLabel>
+              <input
+                value={content.liveStreamsSection.title}
+                onChange={(event) =>
+                  updateContent({
+                    ...content,
+                    liveStreamsSection: { ...content.liveStreamsSection, title: event.target.value },
+                  })
+                }
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <FieldLabel>Опис</FieldLabel>
+            <textarea
+              rows={3}
+              value={content.liveStreamsSection.description}
+              onChange={(event) =>
+                updateContent({
+                  ...content,
+                  liveStreamsSection: { ...content.liveStreamsSection, description: event.target.value },
+                })
+              }
+              className={textareaClass}
+            />
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {content.liveStreamsSection.streams.map((stream, index) => (
+              <div key={stream.id} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[var(--blue-900)]">Камера #{index + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateContent({
+                        ...content,
+                        liveStreamsSection: {
+                          ...content.liveStreamsSection,
+                          streams: removeByIndex(content.liveStreamsSection.streams, index),
+                        },
+                      })
+                    }
+                    className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                  >
+                    Видалити
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input
+                    value={stream.title}
+                    onChange={(event) => {
+                      const streams = [...content.liveStreamsSection.streams];
+                      streams[index] = { ...stream, title: event.target.value };
+                      updateContent({
+                        ...content,
+                        liveStreamsSection: { ...content.liveStreamsSection, streams },
+                      });
+                    }}
+                    placeholder="Назва"
+                    className={inputClass}
+                  />
+                  <input
+                    value={stream.url}
+                    onChange={(event) => {
+                      const streams = [...content.liveStreamsSection.streams];
+                      streams[index] = { ...stream, url: event.target.value };
+                      updateContent({
+                        ...content,
+                        liveStreamsSection: { ...content.liveStreamsSection, streams },
+                      });
+                    }}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              updateContent({
+                ...content,
+                liveStreamsSection: {
+                  ...content.liveStreamsSection,
+                  streams: [
+                    ...content.liveStreamsSection.streams,
+                    {
+                      id: `stream-${Date.now()}`,
+                      title: "Нова камера",
+                      url: "",
+                    },
+                  ],
+                },
+              })
+            }
+            className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+          >
+            Додати камеру
+          </button>
+        </section>
+      )}
+
+      {activeTab === "reviews" && (
+        <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+          <SectionTitle title="Відгуки" />
+          <div className="space-y-4">
+            {content.testimonials.map((review, index) => (
+              <div key={`${review.name}-${index}`} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[var(--blue-900)]">Відгук #{index + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateContent({
+                        ...content,
+                        testimonials: removeByIndex(content.testimonials, index),
+                      })
+                    }
+                    className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                  >
+                    Видалити
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input
+                    value={review.name}
+                    onChange={(event) => {
+                      const testimonials = [...content.testimonials];
+                      testimonials[index] = { ...review, name: event.target.value };
+                      updateContent({ ...content, testimonials });
+                    }}
+                    placeholder="Ім'я"
+                    className={inputClass}
+                  />
+                  <input
+                    value={review.rating}
+                    onChange={(event) => {
+                      const testimonials = [...content.testimonials];
+                      testimonials[index] = { ...review, rating: event.target.value };
+                      updateContent({ ...content, testimonials });
+                    }}
+                    placeholder="Оцінка"
+                    className={inputClass}
+                  />
+                </div>
+                <textarea
+                  rows={3}
+                  value={review.text}
+                  onChange={(event) => {
+                    const testimonials = [...content.testimonials];
+                    testimonials[index] = { ...review, text: event.target.value };
+                    updateContent({ ...content, testimonials });
+                  }}
+                  className={`${textareaClass} mt-3`}
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              updateContent({
+                ...content,
+                testimonials: [
+                  ...content.testimonials,
+                  {
+                    name: "Новий клієнт",
+                    text: "Текст відгуку",
+                    rating: "5.0",
+                  },
+                ],
+              })
+            }
+            className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+          >
+            Додати відгук
+          </button>
+        </section>
+      )}
+
+      {activeTab === "navigation" && (
+        <div className="space-y-5">
+          {[
+            { key: "navigationItems", title: "Верхнє меню" },
+            { key: "footerNavLinks", title: "Футер: Навігація" },
+            { key: "footerDocLinks", title: "Футер: Документи" },
+            { key: "footerSocialLinks", title: "Футер: Соцмережі" },
+          ].map((block) => {
+            const list = content[block.key as "navigationItems" | "footerNavLinks" | "footerDocLinks" | "footerSocialLinks"];
+
+            return (
+              <section key={block.key} className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+                <SectionTitle title={block.title} />
+                <div className="space-y-3">
+                  {list.map((item, index) => (
+                    <div key={`${item.label}-${index}`} className="grid gap-2 rounded-[12px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-3 md:grid-cols-[1fr_1fr_auto] md:items-center">
+                      <input
+                        value={item.label}
+                        onChange={(event) => {
+                          const next = [...list];
+                          next[index] = { ...item, label: event.target.value };
+                          updateContent({ ...content, [block.key]: next } as CmsContent);
+                        }}
+                        placeholder="Назва"
+                        className={inputClass}
+                      />
+                      <input
+                        value={item.href}
+                        onChange={(event) => {
+                          const next = [...list];
+                          next[index] = { ...item, href: event.target.value };
+                          updateContent({ ...content, [block.key]: next } as CmsContent);
+                        }}
+                        placeholder="Посилання"
+                        className={inputClass}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = removeByIndex(list, index);
+                          updateContent({ ...content, [block.key]: next } as CmsContent);
+                        }}
+                        className="rounded-full border border-red-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                      >
+                        Видалити
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = [...list, { label: "Нове посилання", href: "/" }];
+                    updateContent({ ...content, [block.key]: next } as CmsContent);
+                  }}
+                  className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+                >
+                  Додати посилання
+                </button>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-8 flex justify-end">
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="inline-flex items-center justify-center rounded-full bg-[var(--green-700)] px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[var(--green-800)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {saving ? "Збереження..." : "Зберегти зміни"}
+        </button>
+      </div>
+    </div>
+  );
+}

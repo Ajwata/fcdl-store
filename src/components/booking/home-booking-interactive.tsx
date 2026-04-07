@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Sector = "№1" | "№2" | "№3" | "№4";
 
@@ -14,12 +15,37 @@ type CartItem = {
   totalPrice: number;
 };
 
-const sectorPrice: Record<Sector, number> = {
-  "№1": 900,
-  "№2": 800,
-  "№3": 900,
-  "№4": 2500,
+type PricingConfig = {
+  eveningStartHour: number;
+  sectors: Record<string, { dayPrice: number; eveningPrice: number }>;
 };
+
+const BOOKING_CART_STORAGE_KEY = "booking_cart_v1";
+
+const pricingFallback: PricingConfig = {
+  eveningStartHour: 18,
+  sectors: {
+    "№1": { dayPrice: 900, eveningPrice: 1100 },
+    "№2": { dayPrice: 800, eveningPrice: 1000 },
+    "№3": { dayPrice: 900, eveningPrice: 1100 },
+    "№4": { dayPrice: 2500, eveningPrice: 3000 },
+  },
+};
+
+function calcTotalPrice(pricing: PricingConfig, sector: string, startHour: number, durationHours: number): number {
+  const entry = pricing.sectors[sector];
+  if (!entry) return 0;
+  let total = 0;
+  for (let h = 0; h < durationHours; h++) {
+    const hour = startHour + h;
+    total += hour >= pricing.eveningStartHour ? entry.eveningPrice : entry.dayPrice;
+  }
+  return total;
+}
+
+function applyDiscount(amount: number, discountPercent: number): number {
+  return Math.round((amount * (100 - discountPercent)) / 100);
+}
 
 const sectors: Array<{ name: Sector; note: string; dimensions: string }> = [
   { name: "№1", note: "До 30 гравців • Парні матчі та тренування", dimensions: "Ширина 20м • Довжина 40м" },
@@ -27,6 +53,15 @@ const sectors: Array<{ name: Sector; note: string; dimensions: string }> = [
   { name: "№3", note: "Стандартне • Офіційні матчі та турніри", dimensions: "Ширина 20м • Довжина 40м" },
   { name: "№4", note: "Повнорозмірне • Професійні матчі та чемпіонати", dimensions: "Ширина 60м • Довжина 40м" },
 ];
+
+function getSectorDisplay(sector: Sector): { label: string; dimensions: string } {
+  const match = sectors.find((item) => item.name === sector);
+
+  return {
+    label: `Поле ${sector}`,
+    dimensions: match?.dimensions ?? "",
+  };
+}
 
 const durationOptions = Array.from({ length: 13 }, (_, index) => index + 1);
 
@@ -58,6 +93,8 @@ function rangesOverlap(startA: number, endA: number, startB: number, endB: numbe
 }
 
 export function HomeBookingInteractive() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -68,11 +105,117 @@ export function HomeBookingInteractive() {
   const [cartPopupOpen, setCartPopupOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => toIsoDate(new Date()));
   const [calendarSectorFilter, setCalendarSectorFilter] = useState<Sector | "all">("all");
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [pricing, setPricing] = useState<PricingConfig>(pricingFallback);
+  const [cartHydrated, setCartHydrated] = useState(false);
+  const autoCheckoutTriggeredRef = useRef(false);
+  const [discountPercent, setDiscountPercent] = useState(0);
 
-  const isAuthorized = false;
-  const pricePerHour = selectedSector ? sectorPrice[selectedSector] : 0;
-  const totalPrice = selectedDuration ? pricePerHour * selectedDuration : 0;
+  const totalPrice = useMemo(() => {
+    if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
+    const base = calcTotalPrice(pricing, selectedSector, toHour(selectedSlot), selectedDuration);
+    return applyDiscount(base, discountPercent);
+  }, [pricing, discountPercent, selectedSector, selectedSlot, selectedDuration]);
+
   const popupOpen = bookingPopupOpen;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSession = async () => {
+      try {
+        const response = await fetch("/api/account/session", { cache: "no-store" });
+        const result = (await response.json()) as { authenticated?: boolean; discountPercent?: number };
+        if (cancelled) return;
+        setIsAuthorized(Boolean(result.authenticated));
+        setDiscountPercent(Math.max(0, Math.min(90, Math.round(result.discountPercent ?? 0))));
+      } catch {
+        if (cancelled) return;
+        setIsAuthorized(false);
+        setDiscountPercent(0);
+      } finally {
+        if (cancelled) return;
+        setAuthResolved(true);
+      }
+    };
+
+    void loadSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      try {
+        const res = await fetch("/api/pricing", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as PricingConfig;
+          setPricing(data);
+        }
+      } catch {
+        // keep fallback
+      }
+    };
+    void loadPricing();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(BOOKING_CART_STORAGE_KEY);
+      if (!raw) {
+        setCartHydrated(true);
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as { items?: CartItem[]; nextId?: number };
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      const safeItems = items.filter((item) =>
+        item &&
+        typeof item.id === "number" &&
+        typeof item.sector === "string" &&
+        typeof item.date === "string" &&
+        typeof item.startTime === "string" &&
+        typeof item.endTime === "string" &&
+        typeof item.durationHours === "number" &&
+        typeof item.totalPrice === "number",
+      );
+
+      if (safeItems.length > 0) {
+        setCartItems(safeItems);
+        setNextCartItemId(
+          typeof parsed.nextId === "number" && parsed.nextId > 0
+            ? parsed.nextId
+            : Math.max(...safeItems.map((item) => item.id), 0) + 1,
+        );
+      }
+    } catch {
+      // Ignore corrupted local cart payload.
+    } finally {
+      setCartHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!cartHydrated) return;
+
+    try {
+      if (cartItems.length === 0) {
+        window.localStorage.removeItem(BOOKING_CART_STORAGE_KEY);
+        return;
+      }
+
+      window.localStorage.setItem(
+        BOOKING_CART_STORAGE_KEY,
+        JSON.stringify({ items: cartItems, nextId: nextCartItemId }),
+      );
+    } catch {
+      // localStorage can be unavailable in private mode.
+    }
+  }, [cartHydrated, cartItems, nextCartItemId]);
 
   const removeCartItem = (id: number) => {
     setCartItems((items) => items.filter((item) => item.id !== id));
@@ -187,7 +330,69 @@ export function HomeBookingInteractive() {
     ]);
     setNextCartItemId((prev) => prev + 1);
     setCartPopupOpen(true);
+    setSubmitError("");
   };
+
+  const submitCart = async (successRedirect = "/account/bookings") => {
+    if (cartItems.length === 0) {
+      setSubmitError("Кошик порожній");
+      return;
+    }
+
+    setSubmitBusy(true);
+    setSubmitError("");
+    try {
+      const response = await fetch("/api/account/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cartItems.map((item) => ({
+            sector: item.sector,
+            date: item.date,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            durationHours: item.durationHours,
+            totalPrice: item.totalPrice,
+          })),
+        }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setSubmitError(result.error ?? "Не вдалося створити бронювання");
+        return;
+      }
+
+      setCartItems([]);
+      try {
+        window.localStorage.removeItem(BOOKING_CART_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      setCartPopupOpen(false);
+      router.push(successRedirect);
+    } catch {
+      setSubmitError("Помилка мережі. Спробуйте ще раз.");
+    } finally {
+      setSubmitBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const postLoginAction = searchParams.get("postLogin");
+    if (postLoginAction !== "checkout") return;
+    if (!authResolved || !cartHydrated || !isAuthorized) return;
+    if (autoCheckoutTriggeredRef.current) return;
+
+    if (cartItems.length === 0) {
+      router.replace("/account/payments");
+      return;
+    }
+
+    autoCheckoutTriggeredRef.current = true;
+    setCartPopupOpen(false);
+    void submitCart("/account/payments");
+  }, [authResolved, cartHydrated, isAuthorized, cartItems.length, router, searchParams]);
 
   const totalCartPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
@@ -246,7 +451,7 @@ export function HomeBookingInteractive() {
         <div className="pointer-events-none absolute -right-14 bottom-8 h-40 w-40 rounded-full bg-[var(--green-200)]/55 blur-3xl" />
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          {sectors.map(({ name, note }) => {
+          {sectors.map(({ name, note, dimensions }) => {
             const isSelected = selectedSector === name;
 
             return (
@@ -338,9 +543,10 @@ export function HomeBookingInteractive() {
                 </div>
                 {/* Info below visual */}
                 <div className={`flex flex-1 flex-col p-4 ${isSelected ? "bg-[#f0faf4]" : "bg-white"}`}>
-                  <p className="text-base font-bold text-[var(--blue-950)]">{name}</p>
+                  <p className="text-base font-bold text-[var(--blue-950)]">Поле {name}</p>
+                  <p className="mt-1 text-[11px] font-semibold leading-snug text-[var(--blue-700)]">{dimensions}</p>
                   <p className="mt-1.5 text-sm font-normal leading-snug text-[var(--blue-800)]">{note}</p>
-                  <p className="mt-auto pt-3 text-lg font-bold text-[var(--green-700)]">Від {sectorPrice[name]} грн/год</p>
+                  <p className="mt-auto pt-3 text-lg font-bold text-[var(--green-700)]">Від {pricing.sectors[name]?.dayPrice ?? "—"} грн/год</p>
                 </div>
               </button>
             );
@@ -389,7 +595,10 @@ export function HomeBookingInteractive() {
           {calendarRows.map((row) => (
             <article key={row.sector} className="rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)]/65 p-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-base font-semibold text-[var(--blue-950)]">{row.sector}</p>
+                <div>
+                  <p className="text-base font-semibold text-[var(--blue-950)]">{getSectorDisplay(row.sector).label}</p>
+                  <p className="text-[11px] font-semibold text-[var(--blue-700)]">{getSectorDisplay(row.sector).dimensions}</p>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[var(--blue-700)]">
                     {row.slots.length} бронювань
@@ -437,7 +646,7 @@ export function HomeBookingInteractive() {
                           : "bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200"
                       }`}
                     >
-                      {String(hour).padStart(2, "0")}
+                      {toTime(hour)}
                     </button>
                   );
                 })}
@@ -485,7 +694,10 @@ export function HomeBookingInteractive() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--green-700)]">Бронювання сектора</p>
-                <h3 className="mt-2 text-2xl font-bold text-[var(--blue-950)] sm:text-3xl">{selectedSector ?? "Обери сектор"}</h3>
+                <h3 className="mt-2 text-2xl font-bold text-[var(--blue-950)] sm:text-3xl">{selectedSector ? getSectorDisplay(selectedSector).label : "Обери сектор"}</h3>
+                {selectedSector && (
+                  <p className="mt-1 text-xs font-semibold text-[var(--blue-700)]">{getSectorDisplay(selectedSector).dimensions}</p>
+                )}
               </div>
               <button
                 type="button"
@@ -499,9 +711,9 @@ export function HomeBookingInteractive() {
 
             {popupStep === "sector" && (
               <div className="mt-7">
-                <p className="text-sm font-semibold text-[var(--blue-900)]">Крок 1. Обери сектор</p>
+                <p className="text-sm font-semibold text-[var(--blue-900)]">Обери сектор</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {sectors.map(({ name, note }) => (
+                  {sectors.map(({ name, note, dimensions }) => (
                     <button
                       key={name}
                       type="button"
@@ -517,9 +729,10 @@ export function HomeBookingInteractive() {
                           : "border-[var(--blue-100)] bg-[var(--blue-50)] hover:border-[var(--green-700)]"
                       }`}
                     >
-                      <p className="text-sm font-semibold text-[var(--blue-950)]">{name}</p>
+                      <p className="text-sm font-semibold text-[var(--blue-950)]">Поле {name}</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-[var(--blue-700)]">{dimensions}</p>
                       <p className="mt-0.5 text-xs text-[var(--blue-800)]">{note}</p>
-                      <p className="mt-2 text-xs font-bold text-[var(--green-700)]">Від {sectorPrice[name]} грн</p>
+                      <p className="mt-2 text-xs font-bold text-[var(--green-700)]">День: {pricing.sectors[name]?.dayPrice ?? "—"} / Вечір: {pricing.sectors[name]?.eveningPrice ?? "—"} грн/год</p>
                     </button>
                   ))}
                 </div>
@@ -528,7 +741,7 @@ export function HomeBookingInteractive() {
 
             {popupStep === "date" && (
               <div className="mt-7">
-                <p className="text-sm font-semibold text-[var(--blue-900)]">Крок 2. Обери дату</p>
+                <p className="text-sm font-semibold text-[var(--blue-900)]">Обери дату</p>
                 <input
                   type="date"
                   value={selectedDate}
@@ -544,7 +757,7 @@ export function HomeBookingInteractive() {
 
             {popupStep === "slots" && (
               <div className="mt-7">
-                <p className="text-sm font-semibold text-[var(--blue-900)]">Крок 3. Обери час</p>
+                <p className="text-sm font-semibold text-[var(--blue-900)]">Обери час</p>
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {availableStartSlots.map((slotItem) => (
                     <button
@@ -566,7 +779,7 @@ export function HomeBookingInteractive() {
 
             {popupStep === "duration" && (
               <div className="mt-7">
-                <p className="text-sm font-semibold text-[var(--blue-900)]">Крок 4. Обери тривалість</p>
+                <p className="text-sm font-semibold text-[var(--blue-900)]">Обери тривалість</p>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {availableDurations.map((item) => (
                     <button
@@ -585,13 +798,18 @@ export function HomeBookingInteractive() {
 
             {popupStep === "summary" && (
               <div className="mt-7 space-y-4">
-                <p className="text-sm font-semibold text-[var(--blue-900)]">Крок 5. Підтвердження</p>
+                <p className="text-sm font-semibold text-[var(--blue-900)]">Підтвердження</p>
                 <div className="rounded-[16px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
-                  <p className="text-xs text-[var(--blue-700)]">Сектор: <span className="font-semibold text-[var(--blue-950)]">{selectedSector}</span></p>
+                  <p className="text-xs text-[var(--blue-700)]">Сектор: <span className="font-semibold text-[var(--blue-950)]">{selectedSector ? getSectorDisplay(selectedSector).label : ""}</span></p>
                   <p className="mt-1 text-xs text-[var(--blue-700)]">Date: <span className="font-semibold text-[var(--blue-950)]">{selectedDate}</span></p>
                   <p className="mt-1 text-xs text-[var(--blue-700)]">Hour: <span className="font-semibold text-[var(--blue-950)]">{selectedSlot}</span></p>
                   <p className="mt-1 text-xs text-[var(--blue-700)]">Duration: <span className="font-semibold text-[var(--blue-950)]">{selectedDuration} год</span></p>
-                  <p className="mt-3 border-t border-[var(--blue-100)] pt-3 text-sm text-[var(--blue-700)]">Rate: <span className="font-semibold text-[var(--blue-950)]">{pricePerHour} грн/год</span></p>
+                  <p className="mt-3 border-t border-[var(--blue-100)] pt-3 text-xs text-[var(--blue-700)]">
+                    Тариф: День {pricing.sectors[selectedSector ?? ""]?.dayPrice ?? "—"} грн/год · Вечір {pricing.sectors[selectedSector ?? ""]?.eveningPrice ?? "—"} грн/год
+                  </p>
+                  {discountPercent > 0 && (
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">Персональна знижка: {discountPercent}%</p>
+                  )}
                   <p className="mt-2 text-lg font-bold text-[var(--green-700)]">Ціна: {totalPrice} грн</p>
                 </div>
                 <button
@@ -631,7 +849,8 @@ export function HomeBookingInteractive() {
             <div className="mt-6 space-y-3">
               {cartItems.map((item) => (
                 <div key={item.id} className="rounded-[16px] border border-[var(--blue-100)] bg-[var(--blue-50)] px-4 py-4 text-sm text-slate-600">
-                  <p className="font-bold text-[var(--blue-950)]">{item.sector}</p>
+                  <p className="font-bold text-[var(--blue-950)]">{getSectorDisplay(item.sector).label}</p>
+                  <p className="text-xs font-semibold text-[var(--blue-700)]">{getSectorDisplay(item.sector).dimensions}</p>
                   <p>Дата: {item.date}</p>
                   <p>Час: {item.startTime} - {item.endTime}</p>
                   <p>Тривалість: {item.durationHours} год</p>
@@ -652,10 +871,28 @@ export function HomeBookingInteractive() {
               <p className="mt-2 text-4xl font-black text-[var(--blue-950)]">{totalCartPrice} грн</p>
             </div>
 
+            {submitError && (
+              <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+                {submitError}
+              </p>
+            )}
+
             <div className="mt-7 space-y-3">
-              {!isAuthorized ? (
+              {!authResolved ? (
                 <button
                   type="button"
+                  disabled
+                  className="cta-secondary w-full rounded-full bg-[var(--blue-900)] px-5 py-3 text-sm font-extrabold uppercase tracking-[0.14em] !text-white opacity-70"
+                >
+                  Перевіряємо сесію...
+                </button>
+              ) : !isAuthorized ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCartPopupOpen(false);
+                    router.push(`/account/login?redirect=${encodeURIComponent("/?postLogin=checkout")}`);
+                  }}
                   className="cta-secondary w-full rounded-full bg-[var(--blue-900)] px-5 py-3 text-sm font-extrabold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--blue-800)]"
                 >
                   Увійти або зареєструватися
@@ -663,9 +900,13 @@ export function HomeBookingInteractive() {
               ) : (
                 <button
                   type="button"
+                  onClick={() => {
+                    void submitCart();
+                  }}
+                  disabled={submitBusy}
                   className="cta-primary w-full rounded-full bg-[var(--green-700)] px-5 py-3 text-sm font-extrabold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
                 >
-                  Оплатити
+                  {submitBusy ? "Створюємо бронювання..." : "Підтвердити бронювання"}
                 </button>
               )}
             </div>

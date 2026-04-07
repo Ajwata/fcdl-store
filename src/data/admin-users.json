@@ -1,0 +1,18 @@
+[
+  {
+    "id": "admin-root",
+    "login": "admin",
+    "name": "Головний адміністратор",
+    "role": "superadmin",
+    "passwordHash": "scrypt$root-admin$95c51999474ee52a426892960b97b7689e84594ca5e6d8a4b00bd3aeb1e44382",
+    "createdAt": "1970-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "admin-1775485365302",
+    "login": "ajwata",
+    "name": "Artem",
+    "role": "manager",
+    "passwordHash": "scrypt$483c650bc03e4aab99db12cea21a387f$e236f5c12a5b879cea0454c508043d95458746b257ee10ee25e895ace77f4801",
+    "createdAt": "2026-04-06T14:22:45.327Z"
+  }
+]

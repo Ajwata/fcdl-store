@@ -2,36 +2,41 @@ import Link from "next/link";
 
 import { HomeBookingInteractive } from "@/components/booking/home-booking-interactive";
 import { HeroCarousel } from "@/components/hero-carousel";
+import { LiveStreams } from "@/components/live-streams";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { StatsSection } from "@/components/stats-section";
-import {
-  galleryItems,
-  heroSlides,
-  newsItems,
-  testimonials,
-} from "@/data/site-content";
+import { getCmsContent } from "@/lib/cms-content";
+import { getPublicClientReviews } from "@/lib/client-engagement";
 
-export default function Home() {
-  const averageRating = (
-    testimonials.reduce((sum, review) => sum + Number(review.rating), 0) / testimonials.length
-  ).toFixed(1);
+export default async function Home() {
+  const cms = await getCmsContent();
+  const { galleryItems, heroSlides, newsItems } = cms;
+  const latestReviews = await getPublicClientReviews(3);
+  const allReviews = await getPublicClientReviews();
+
+  const totalReviews = allReviews.length;
+  const averageRating = totalReviews > 0
+    ? (allReviews.reduce((sum, review) => sum + Number(review.rating), 0) / totalReviews).toFixed(1)
+    : "0.0";
   const averageStars = Math.floor(Number(averageRating));
-  const totalReviews = testimonials.length;
 
-  const ratingScale = [
-    { label: "5.0", percent: 92 },
-    { label: "4.0", percent: 8 },
-    { label: "3.0", percent: 0 },
-    { label: "2.0", percent: 0 },
-    { label: "1.0", percent: 0 },
-  ];
+  const ratingScale = [5, 4, 3, 2, 1].map((rating) => {
+    const count = allReviews.filter((item) => Math.round(item.rating) === rating).length;
+    const percent = totalReviews > 0 ? Math.round((count / totalReviews) * 100) : 0;
+    return { label: `${rating}.0`, percent };
+  });
+
+  const promoOffers = cms.promoOffers;
+
+  const featuredNews = newsItems[0];
+  const secondaryNews = newsItems.slice(1, 4);
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader navigationItems={cms.navigationItems} />
       <main className="page-shell flex-1">
-        <HeroCarousel slides={heroSlides} />
+        <HeroCarousel slides={heroSlides} videoUrl={cms.heroVideoUrl} />
 
         <HomeBookingInteractive />
 
@@ -39,13 +44,13 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-bold uppercase tracking-[0.3em] text-[var(--green-200)]">Галерея</p>
+                <p className="text-sm font-bold uppercase tracking-[0.3em] text-[var(--green-200)]">{cms.homeGallerySection.badge}</p>
                 <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-white sm:text-5xl">
-                  Реальний настрій поля
+                  {cms.homeGallerySection.title}
                 </h2>
               </div>
               <p className="max-w-xl text-base leading-7 text-white/55">
-                Атмосфера матчів, зона поля та фотозвіти з ігор на одній сторінці.
+                {cms.homeGallerySection.description}
               </p>
             </div>
 
@@ -79,8 +84,8 @@ export default function Home() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Link href="#" className="ui-link text-sm font-semibold uppercase tracking-[0.14em] !text-white">
-                    Дивитися все
+                  <Link href="/gallery" className="ui-link text-sm font-semibold uppercase tracking-[0.14em] !text-white">
+                    {cms.homeGallerySection.ctaText}
                   </Link>
                 </div>
               </div>
@@ -89,135 +94,88 @@ export default function Home() {
         </section>
 
         <section id="cameras" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <article className="live-panel animate-rise">
-              <p className="text-sm font-bold uppercase tracking-[0.3em] text-[var(--green-700)]">Камери</p>
-              <h2 className="mt-4 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
-                Дивіться онлайн трансляції матчів
-              </h2>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-                На головній показуємо одну актуальну трансляцію, а всі інші ракурси та архів матчів доступні на окремій сторінці камер.
-              </p>
-              <div className="live-video-shell mt-8">
-                <div className="live-video-placeholder">
-                  <span className="play-pulse" />
-                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/70">Онлайн перегляд</p>
-                  <p className="mt-2 text-2xl font-bold text-white">Пряма трансляція матчу</p>
-                </div>
-              </div>
-            </article>
-
-            <div className="grid gap-5">
-              <article className="panel-card animate-rise overflow-hidden bg-[var(--blue-950)] text-white" style={{ animationDelay: "220ms" }}>
-                <div className="relative">
-                  <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/8 blur-2xl" />
-                  <div className="absolute -bottom-14 -left-8 h-32 w-32 rounded-full bg-[var(--green-700)]/25 blur-2xl" />
-
-                  <div className="relative z-10">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">
-                      <span className="h-2 w-2 rounded-full bg-[#ff5f5f] shadow-[0_0_12px_rgba(255,95,95,0.9)]" />
-                      Інші ракурси
-                    </span>
-
-                    <h3 className="mt-5 text-3xl font-bold leading-tight text-white">
-                      Всі додаткові камери дивіться на окремій сторінці
-                    </h3>
-
-                    <p className="mt-4 text-base leading-7 text-white/72">
-                      Там будуть доступні інші ракурси, швидке перемикання між камерами та повний перегляд усіх трансляцій в одному місці.
-                    </p>
-
-                    <div className="mt-6 rounded-[24px] border border-white/12 bg-white/6 p-4">
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(160deg,#164a2e_0%,#123120_100%)] p-3">
-                          <div className="relative flex h-20 items-center justify-center rounded-[12px] border border-white/10 bg-white/8">
-                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/16 bg-white/14 backdrop-blur-sm">
-                              <span className="ml-0.5 h-0 w-0 border-y-[6px] border-y-transparent border-l-[10px] border-l-white" />
-                            </span>
-                          </div>
-                        </div>
-                        <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(160deg,#10345f_0%,#0d223e_100%)] p-3">
-                          <div className="relative flex h-20 items-center justify-center rounded-[12px] border border-white/10 bg-white/8">
-                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/16 bg-white/14 backdrop-blur-sm">
-                              <span className="ml-0.5 h-0 w-0 border-y-[6px] border-y-transparent border-l-[10px] border-l-white" />
-                            </span>
-                          </div>
-                        </div>
-                        <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(160deg,#1f4f90_0%,#122f5b_46%,#0d1e3a_100%)] p-3">
-                          <div className="relative flex h-20 items-center justify-center rounded-[12px] border border-white/10 bg-white/8">
-                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/16 bg-white/14 backdrop-blur-sm">
-                              <span className="ml-0.5 h-0 w-0 border-y-[6px] border-y-transparent border-l-[10px] border-l-white" />
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <a
-                      href="#"
-                      className="cta-secondary mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] !text-[var(--blue-950)] transition hover:bg-[var(--blue-50)]"
-                    >
-                      Перейти до всіх камер
-                    </a>
-                  </div>
-                </div>
-              </article>
-            </div>
-          </div>
+          <LiveStreams
+            badge={cms.liveStreamsSection.badge}
+            title={cms.liveStreamsSection.title}
+            description={cms.liveStreamsSection.description}
+            streams={cms.liveStreamsSection.streams}
+          />
         </section>
 
         <section id="promotions" className="section-bg-alt">
           <div className="mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">Акції</p>
+                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">{cms.homePromotionsSection.badge}</p>
                 <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
-                  Актуальні пропозиції
+                  {cms.homePromotionsSection.title}
                 </h2>
               </div>
               <p className="max-w-2xl text-base leading-7 text-slate-600">
-                Спеціальні умови для регулярних матчів, командних тренувань та повноформатних ігор.
+                {cms.homePromotionsSection.description}
               </p>
             </div>
 
             <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-              <article className="relative overflow-hidden rounded-[26px] border border-[var(--blue-100)] shadow-[0_18px_48px_rgba(8,26,51,0.1)] lg:min-h-[460px]">
-                <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.2), rgba(8,26,51,0.72)), url(${heroSlides[0].image})` }}
-                />
-                <div className="relative z-10 flex min-h-[360px] flex-col justify-end p-6 text-white sm:p-8">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--green-100)]">Головна акція</p>
-                  <h3 className="mt-3 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">{heroSlides[0].title}</h3>
-                  <p className="mt-3 max-w-2xl text-base leading-7 text-white/84">{heroSlides[0].subtitle}</p>
-                  <Link
-                    href="#booking"
-                    className="mt-6 inline-flex w-fit items-center justify-center rounded-full bg-[var(--green-700)] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
-                  >
-                    {heroSlides[0].cta}
-                  </Link>
-                </div>
-              </article>
+              {promoOffers[0] && (
+                <article className="relative overflow-hidden rounded-[26px] border border-[var(--blue-100)] shadow-[0_18px_48px_rgba(8,26,51,0.1)] lg:min-h-[460px]">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.32), rgba(8,26,51,0.9)), url(${promoOffers[0].image})` }}
+                  />
+                  <div className="relative z-10 flex min-h-[360px] flex-col justify-end p-6 text-white sm:p-8">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="inline-flex rounded-full border border-white/35 bg-white/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/92">
+                        {promoOffers[0].tag}
+                      </p>
+                      <p className="inline-flex rounded-full border border-[var(--green-200)]/70 bg-[var(--green-700)]/45 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--green-100)]">
+                        {promoOffers[0].benefit}
+                      </p>
+                    </div>
+                    <h3 className="mt-3 max-w-2xl text-3xl font-bold leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:text-4xl">{promoOffers[0].title}</h3>
+                    <p className="mt-3 max-w-2xl text-base leading-7 text-white/92 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]">{promoOffers[0].description}</p>
+                    <div className="mt-5 grid gap-1 text-sm text-white/90">
+                      <p className="font-semibold text-[var(--green-100)]">{promoOffers[0].validUntil}</p>
+                      <p className="text-white/78">{promoOffers[0].terms}</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/72">{promoOffers[0].usedBy}</p>
+                    </div>
+                    <Link
+                      href={promoOffers[0].href}
+                      className="mt-6 inline-flex w-fit items-center justify-center rounded-full bg-[var(--green-700)] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
+                    >
+                      {promoOffers[0].cta}
+                    </Link>
+                  </div>
+                </article>
+              )}
 
               <div className="grid gap-5">
-                {heroSlides.slice(1).map((slide, index) => (
+                {promoOffers.slice(1).map((offer, index) => (
                   <article
-                    key={slide.id}
+                    key={offer.id}
                     className="relative overflow-hidden rounded-[24px] border border-[var(--blue-100)] shadow-[0_14px_34px_rgba(8,26,51,0.1)]"
                     style={{ animationDelay: `${80 + index * 90}ms` }}
                   >
                     <div
                       className="absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.2), rgba(8,26,51,0.72)), url(${slide.image})` }}
+                      style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.3), rgba(8,26,51,0.88)), url(${offer.image})` }}
                     />
                     <div className="relative z-10 flex min-h-[220px] flex-col justify-end p-5 text-white">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--green-100)]">Спецпропозиція</p>
-                      <h3 className="mt-2 text-xl font-bold leading-snug">{slide.title}</h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--green-100)]">{offer.tag}</p>
+                        <p className="rounded-full border border-[var(--green-200)]/65 bg-[var(--green-700)]/45 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--green-100)]">
+                          {offer.benefit}
+                        </p>
+                      </div>
+                      <h3 className="mt-2 text-xl font-bold leading-snug drop-shadow-[0_2px_7px_rgba(0,0,0,0.45)]">{offer.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-white/92 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]">{offer.description}</p>
+                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/72">{offer.validUntil}</p>
+                      <p className="mt-1 text-xs text-white/72">{offer.terms}</p>
                       <Link
-                        href="#booking"
+                        href={offer.href}
                         className="mt-4 inline-flex w-fit items-center justify-center rounded-full bg-[var(--green-700)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] !text-white transition hover:bg-[var(--green-800)]"
                       >
-                        {slide.cta}
+                        {offer.cta}
                       </Link>
                     </div>
                   </article>
@@ -268,7 +226,7 @@ export default function Home() {
               </div>
 
               <Link
-                href="#booking"
+                href="/account/bookings"
                 className="cta-primary mt-8 inline-flex items-center justify-center rounded-full bg-[var(--green-700)] px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
               >
                 Залиши відгук
@@ -278,12 +236,21 @@ export default function Home() {
             <div className="grid gap-4">
               <div className="flex items-end justify-between gap-3 px-1">
                 <h3 className="text-2xl font-bold text-[var(--blue-950)]">Відгуки клієнтів</h3>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Реальні коментарі</p>
+                <Link href="/reviews" className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--blue-700)] hover:text-[var(--green-700)]">
+                  Усі відгуки
+                </Link>
               </div>
 
-              {testimonials.map((review, index) => (
+              {latestReviews.length === 0 ? (
+                <article className="panel-card animate-rise bg-white/92">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--green-700)]">Відгуки клієнтів</p>
+                  <p className="mt-4 text-base leading-7 text-slate-600">
+                    Поки що немає опублікованих відгуків. Після завершення матчу клієнти можуть залишити відгук у своєму кабінеті.
+                  </p>
+                </article>
+              ) : latestReviews.map((review, index) => (
                 <article
-                  key={review.name}
+                  key={review.id}
                   className="panel-card animate-rise bg-white/92"
                   style={{ animationDelay: `${120 + index * 90}ms` }}
                 >
@@ -302,7 +269,7 @@ export default function Home() {
                   </div>
                   <p className="mt-4 text-lg leading-8 text-slate-700">“{review.text}”</p>
                   <div className="mt-6 flex items-center justify-between gap-3">
-                    <p className="text-sm font-bold uppercase tracking-[0.14em] text-[var(--blue-950)]">{review.name.split(",")[0]}</p>
+                    <p className="text-sm font-bold uppercase tracking-[0.14em] text-[var(--blue-950)]">{review.clientName}</p>
                     <p className="text-sm font-semibold text-[var(--blue-700)]">{review.rating} / 5</p>
                   </div>
                 </article>
@@ -315,55 +282,65 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
             <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">Новини</p>
-                <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">Останні оновлення</h2>
+                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">{cms.homeNewsSection.badge}</p>
+                <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">{cms.homeNewsSection.title}</h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-                  Актуальні анонси, зміни розкладу та важливі апдейти по матчах і сервісу.
+                  {cms.homeNewsSection.description}
                 </p>
               </div>
               <Link
-                href="#"
+                href="/news"
                 className="cta-secondary inline-flex items-center justify-center rounded-full bg-[var(--blue-900)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--blue-800)]"
               >
-                Усі новини
+                {cms.homeNewsSection.allNewsCta}
               </Link>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-              <article className="relative overflow-hidden rounded-[30px] border border-[var(--blue-100)] shadow-[0_20px_60px_rgba(8,26,51,0.12)] min-h-[420px]">
-                <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.08), rgba(8,26,51,0.7)), url(${newsItems[0].image})` }}
-                />
-                <div className="relative z-10 flex h-full flex-col justify-end p-7 sm:p-8">
-                  <p className="inline-flex w-fit rounded-full border border-white/28 bg-white/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/82">
-                    Головна новина
-                  </p>
-                  <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--green-100)]">{newsItems[0].date}</p>
-                  <h3 className="mt-3 max-w-2xl text-3xl font-bold leading-tight text-white sm:text-4xl">{newsItems[0].title}</h3>
-                </div>
-              </article>
-
-              <div className="grid gap-5">
-                {newsItems.slice(1).map((news) => (
-                  <article key={news.id} className="panel-card overflow-hidden bg-white p-0 transition hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(8,26,51,0.14)]">
-                    <div className="h-44 w-full bg-center bg-cover" style={{ backgroundImage: `url(${news.image})` }} />
-                    <div className="p-6">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--green-700)]">{news.date}</p>
-                      <h3 className="mt-3 text-xl font-bold leading-snug text-[var(--blue-950)]">{news.title}</h3>
-                      <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--blue-700)]">
-                        Детальніше
-                        <span aria-hidden>→</span>
-                      </div>
+            <div className="grid gap-5">
+              {featuredNews && (
+                <Link href={`/news/${featuredNews.slug}`} className="block">
+                  <article className="relative overflow-hidden rounded-[30px] border border-[var(--blue-100)] shadow-[0_20px_60px_rgba(8,26,51,0.12)] min-h-[420px] transition hover:shadow-[0_28px_80px_rgba(8,26,51,0.18)]">
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.08), rgba(8,26,51,0.7)), url(${featuredNews.image})` }}
+                    />
+                    <div className="relative z-10 flex h-full flex-col justify-end p-7 sm:p-8">
+                      <p className="inline-flex w-fit rounded-full border border-white/28 bg-white/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/82">
+                        Головна новина
+                      </p>
+                      <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--green-100)]">{featuredNews.date}</p>
+                      <h3 className="mt-3 max-w-2xl text-3xl font-bold leading-tight text-white sm:text-4xl">{featuredNews.title}</h3>
                     </div>
                   </article>
+                </Link>
+              )}
+
+              <div className="grid gap-5 sm:grid-cols-3">
+                {secondaryNews.map((news) => (
+                  <Link key={news.id} href={`/news/${news.slug}`} className="block h-full">
+                    <article className="panel-card overflow-hidden bg-white p-0 transition hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(8,26,51,0.14)] flex flex-col h-full">
+                      <div className="h-40 w-full flex-shrink-0 bg-center bg-cover" style={{ backgroundImage: `url(${news.image})` }} />
+                      <div className="flex flex-1 flex-col p-5">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--green-700)]">{news.date}</p>
+                        <h3 className="mt-3 text-lg font-bold leading-snug text-[var(--blue-950)]">{news.title}</h3>
+                        <div className="mt-auto pt-4 inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--blue-700)]">
+                          Детальніше
+                          <span aria-hidden>→</span>
+                        </div>
+                      </div>
+                    </article>
+                  </Link>
                 ))}
               </div>
             </div>
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter
+        footerNavLinks={cms.footerNavLinks}
+        footerDocLinks={cms.footerDocLinks}
+        footerSocialLinks={cms.footerSocialLinks}
+      />
     </>
   );
 }
