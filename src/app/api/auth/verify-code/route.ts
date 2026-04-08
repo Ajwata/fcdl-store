@@ -16,7 +16,6 @@ export async function POST(request: Request) {
     code?: string;
     name?: string;
     mode?: "login" | "register";
-    email?: string;
     password?: string;
     acceptedTerms?: boolean;
   };
@@ -57,9 +56,6 @@ export async function POST(request: Request) {
   }
 
   if (mode === "register") {
-    if (!body.email?.trim()) {
-      return NextResponse.json({ error: "Для реєстрації вкажіть email" }, { status: 400 });
-    }
     if (!body.password?.trim() || body.password.trim().length < 8) {
       return NextResponse.json({ error: "Для реєстрації вкажіть пароль (мінімум 8 символів)" }, { status: 400 });
     }
@@ -70,7 +66,6 @@ export async function POST(request: Request) {
 
   const user = mode === "register"
     ? await createClientUser(body.phone, body.name ?? "", {
-        email: body.email,
       password: body.password,
       })
     : await touchClientUserLogin(existingUser!.id);

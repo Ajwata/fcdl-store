@@ -54,7 +54,6 @@ export default async function AccountProfilePage() {
 
         <AccountProfileEditor
           initialName={user.name}
-          initialEmail={user.email}
           initialPhone={user.phone}
           initialAvatarUrl={user.avatarUrl}
         />

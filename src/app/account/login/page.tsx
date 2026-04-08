@@ -10,7 +10,6 @@ export default function AccountLoginPage() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [step, setStep] = useState<Step>("phone");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -57,15 +56,6 @@ export default function AccountLoginPage() {
     }
 
     if (mode === "register") {
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail) {
-        setError("Для реєстрації вкажіть email");
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-        setError("Вкажіть коректний email");
-        return;
-      }
       if (password.trim().length < 8) {
         setError("Для реєстрації потрібен пароль мінімум 8 символів");
         return;
@@ -76,11 +66,6 @@ export default function AccountLoginPage() {
       }
       if (!acceptedTerms) {
         setError("Підтвердіть правила та політику");
-        return;
-      }
-    } else {
-      if (!password.trim()) {
-        setError("Введіть пароль");
         return;
       }
     }
@@ -94,7 +79,7 @@ export default function AccountLoginPage() {
       const response = await fetch("/api/auth/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, mode, password }),
+        body: JSON.stringify({ phone, mode: "register", password }),
       });
       const result = (await response.json()) as { error?: string; phone?: string; devCode?: string };
 
@@ -129,8 +114,7 @@ export default function AccountLoginPage() {
           phone,
           code,
           name,
-          mode,
-          email,
+          mode: "register",
           password,
           acceptedTerms,
         }),
@@ -151,12 +135,48 @@ export default function AccountLoginPage() {
     }
   };
 
+  const loginWithPassword = async () => {
+    if (!phone.trim()) {
+      setError("Вкажіть номер телефону");
+      return;
+    }
+    if (!password.trim()) {
+      setError("Введіть пароль");
+      return;
+    }
+
+    setError("");
+    setStatus("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password }),
+      });
+      const result = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setError(result.error ?? "Не вдалося увійти");
+        return;
+      }
+
+      setStatus("Вхід виконано успішно");
+      router.push(redirectTo);
+    } catch {
+      setError("Помилка мережі. Спробуйте ще раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="page-shell min-h-screen px-4 py-16 sm:px-6 lg:px-10">
       <div className="mx-auto w-full max-w-md rounded-3xl border border-[var(--blue-100)] bg-white p-6 shadow-[0_24px_60px_rgba(8,26,51,0.12)] sm:p-8">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--green-700)]">Кабінет клієнта</p>
-        <h1 className="mt-2 text-3xl font-bold text-[var(--blue-950)]">{mode === "login" ? "Вхід по SMS" : "Реєстрація по SMS"}</h1>
-        <p className="mt-2 text-sm text-slate-600">{mode === "login" ? "Увійдіть за номером телефону та кодом з SMS." : "Створіть акаунт за номером телефону та кодом з SMS."}</p>
+        <h1 className="mt-2 text-3xl font-bold text-[var(--blue-950)]">{mode === "login" ? "Вхід" : "Реєстрація по SMS"}</h1>
+        <p className="mt-2 text-sm text-slate-600">{mode === "login" ? "Увійдіть за номером телефону та паролем." : "Створіть акаунт за номером телефону та кодом з SMS."}</p>
 
         <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-2 text-xs font-semibold uppercase tracking-[0.12em]">
           <button
@@ -168,7 +188,6 @@ export default function AccountLoginPage() {
               setError("");
               setStatus("");
               setDevCodeHint("");
-              setEmail("");
               setPassword("");
               setConfirmPassword("");
               setAcceptedTerms(false);
@@ -186,7 +205,6 @@ export default function AccountLoginPage() {
               setError("");
               setStatus("");
               setDevCodeHint("");
-              setEmail("");
               setPassword("");
               setConfirmPassword("");
               setAcceptedTerms(false);
@@ -197,12 +215,14 @@ export default function AccountLoginPage() {
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-2 text-xs font-semibold uppercase tracking-[0.12em]">
-          <div className={`rounded-xl px-3 py-2 text-center ${step === "phone" ? "bg-white text-[var(--blue-900)]" : "text-slate-500"}`}>1. Телефон</div>
-          <div className={`rounded-xl px-3 py-2 text-center ${step === "code" ? "bg-white text-[var(--blue-900)]" : "text-slate-500"}`}>2. SMS код</div>
-        </div>
+        {mode === "register" && (
+          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-2 text-xs font-semibold uppercase tracking-[0.12em]">
+            <div className={`rounded-xl px-3 py-2 text-center ${step === "phone" ? "bg-white text-[var(--blue-900)]" : "text-slate-500"}`}>1. Телефон</div>
+            <div className={`rounded-xl px-3 py-2 text-center ${step === "code" ? "bg-white text-[var(--blue-900)]" : "text-slate-500"}`}>2. SMS код</div>
+          </div>
+        )}
 
-        {step === "phone" && (
+        {(mode === "login" || step === "phone") && (
           <div className="mt-6 space-y-4">
             {mode === "register" && (
               <>
@@ -213,16 +233,6 @@ export default function AccountLoginPage() {
                     onChange={(event) => setName(event.target.value)}
                     className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
                     placeholder="Ваше ім'я"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Email</label>
-                  <input
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
-                    placeholder="you@email.com"
                   />
                 </div>
                 <label className="flex items-start gap-2 rounded-xl border border-[var(--blue-100)] bg-[var(--blue-50)] px-3 py-2 text-xs text-slate-600">
@@ -276,16 +286,16 @@ export default function AccountLoginPage() {
 
             <button
               type="button"
-              onClick={sendCode}
+              onClick={mode === "login" ? loginWithPassword : sendCode}
               disabled={loading}
               className="w-full rounded-full bg-[var(--green-700)] px-5 py-3 text-sm font-bold uppercase tracking-[0.12em] text-white transition hover:bg-[var(--green-800)] disabled:opacity-60"
             >
-              {loading ? "Відправка..." : mode === "login" ? "Отримати код для входу" : "Отримати код для реєстрації"}
+              {loading ? "Обробка..." : mode === "login" ? "Увійти" : "Отримати код для реєстрації"}
             </button>
           </div>
         )}
 
-        {step === "code" && (
+        {mode === "register" && step === "code" && (
           <div className="mt-6 space-y-4">
             <div>
               <label className="mb-1 block text-sm font-semibold text-slate-700">Код з SMS</label>
@@ -304,7 +314,7 @@ export default function AccountLoginPage() {
               disabled={loading}
               className="w-full rounded-full bg-[var(--blue-900)] px-5 py-3 text-sm font-bold uppercase tracking-[0.12em] text-white transition hover:bg-[var(--blue-800)] disabled:opacity-60"
             >
-              {loading ? "Перевірка..." : mode === "login" ? "Увійти" : "Зареєструватися"}
+              {loading ? "Перевірка..." : "Зареєструватися"}
             </button>
 
             <button
