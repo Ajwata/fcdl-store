@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { AccountNav } from "@/components/account/account-nav";
-import { PayBookingButton } from "@/components/account/pay-booking-button";
 import { filterBookingsForUser, getBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
@@ -77,7 +76,7 @@ export default async function AccountPaymentsPage() {
             <p className="font-semibold text-[var(--blue-950)]">Варіанти оплати</p>
             <p className="mt-1">1) Готівкою на локації.</p>
             <p className="mt-1">2) Переказом на IBAN за реквізитами адміністратора.</p>
-            <p className="mt-2 text-xs text-slate-500">Після фактичної оплати натисніть кнопку підтвердження біля бронювання.</p>
+            <p className="mt-2 text-xs text-slate-500">Після фактичної оплати статус виставляє адміністратор.</p>
           </div>
         </div>
 
@@ -103,9 +102,6 @@ export default async function AccountPaymentsPage() {
                       >
                         Квитанція
                       </a>
-                      {booking.paymentStatus === "unpaid" && booking.status !== "cancelled" && (
-                        <PayBookingButton bookingId={booking.id} />
-                      )}
                     </div>
                   </div>
                 </div>
