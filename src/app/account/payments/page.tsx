@@ -49,7 +49,7 @@ export default async function AccountPaymentsPage() {
       <section className="mx-auto w-full max-w-6xl space-y-6">
         <AccountNav
           title="Платежі та рахунки"
-          subtitle={`${user?.name ?? "Клієнт"}, тут ви бачите актуальні суми до сплати та історію оплат.`}
+          subtitle={`${user?.name ?? "Клієнт"}, доступні варіанти оплати: готівка або переказ на IBAN.`}
         />
 
         <div className="rounded-3xl border border-[var(--blue-100)] bg-white p-6 shadow-[0_24px_60px_rgba(8,26,51,0.12)] sm:p-8">
@@ -71,6 +71,13 @@ export default async function AccountPaymentsPage() {
           <div className="mt-5 flex flex-wrap gap-2">
             <Link href="/#booking" className="rounded-full bg-[var(--green-700)] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] !text-white">Нова бронь</Link>
             <a href="/api/account/documents/export" className="rounded-full border border-[var(--blue-200)] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--blue-900)]">Експорт CSV</a>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-4 text-sm text-slate-700">
+            <p className="font-semibold text-[var(--blue-950)]">Варіанти оплати</p>
+            <p className="mt-1">1) Готівкою на локації.</p>
+            <p className="mt-1">2) Переказом на IBAN за реквізитами адміністратора.</p>
+            <p className="mt-2 text-xs text-slate-500">Після фактичної оплати натисніть кнопку підтвердження біля бронювання.</p>
           </div>
         </div>
 

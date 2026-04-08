@@ -30,7 +30,7 @@ export function PayBookingButton({ bookingId }: PayBookingButtonProps) {
       disabled={loading}
       className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-white disabled:opacity-60"
     >
-      {loading ? "..." : "Оплатити"}
+      {loading ? "..." : "Підтвердити оплату"}
     </button>
   );
 }

@@ -48,15 +48,15 @@ export async function POST(
   bookings[index] = {
     ...booking,
     paymentStatus: "paid",
-    notes: `${booking.notes ? `${booking.notes}. ` : ""}Оплачено онлайн (${receiptId})`,
+    notes: `${booking.notes ? `${booking.notes}. ` : ""}Підтверджено клієнтом: оплата готівкою/IBAN (${receiptId})`,
   };
   await saveBookings(bookings);
 
   await addClientNotification(
     payload.uid,
     user.phone,
-    "Оплата прийнята",
-    `Оплату за бронювання ${bookings[index].date} (${bookings[index].totalPrice} грн) успішно зараховано.`,
+    "Оплата підтверджена",
+    `Ми зафіксували оплату за бронювання ${bookings[index].date} (${bookings[index].totalPrice} грн).`,
     "success",
   );
 
