@@ -292,7 +292,7 @@ export function AccountBookings({ initialBookings, initialReviews }: AccountBook
             </div>
           ) : (
             tabItems.map((booking) => {
-              const canCancel = isFutureBooking(booking) && (booking.status === "pending" || booking.status === "confirmed");
+              const canCancel = isFutureBooking(booking) && booking.status === "pending";
               const existingReview: ClientReview | null = reviewByBookingId.get(booking.id) ?? null;
 
               return (

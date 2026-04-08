@@ -48,6 +48,10 @@ export async function POST(
     return NextResponse.json({ error: "Не можна скасувати завершене бронювання" }, { status: 400 });
   }
 
+  if (booking.status === "confirmed") {
+    return NextResponse.json({ error: "Підтверджене адміністратором бронювання не можна скасувати" }, { status: 400 });
+  }
+
   if (!isFutureBooking(booking.date, booking.startTime)) {
     return NextResponse.json({ error: "Скасування можливе тільки для майбутніх бронювань" }, { status: 400 });
   }
