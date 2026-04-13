@@ -1,4 +1,4 @@
-﻿-- CreateTable
+-- CreateTable
 CREATE TABLE `ClientUser` (
     `id` VARCHAR(191) NOT NULL,
     `phone` VARCHAR(191) NOT NULL,
