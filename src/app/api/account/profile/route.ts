@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getClientUserById, toPublicClientUser, updateClientUser } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, createClientSessionToken, verifyClientSessionToken } from "@/lib/client-session";
+import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -49,7 +50,7 @@ export async function PATCH(request: Request) {
       sameSite: "lax",
       maxAge: 30 * 24 * 60 * 60,
       path: "/",
-      secure: process.env.NODE_ENV === "production",
+      secure: shouldUseSecureCookies(request),
     });
 
     return response;

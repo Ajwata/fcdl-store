@@ -5,6 +5,7 @@ import { rebindBookingsToUser } from "@/lib/bookings";
 import { isValidPhone, normalizePhone, updateClientUser, verifySmsCode } from "@/lib/client-auth";
 import { migrateClientEngagementIdentity } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, createClientSessionToken, verifyClientSessionToken } from "@/lib/client-session";
+import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       sameSite: "lax",
       maxAge: 30 * 24 * 60 * 60,
       path: "/",
-      secure: process.env.NODE_ENV === "production",
+      secure: shouldUseSecureCookies(request),
     });
 
     return response;

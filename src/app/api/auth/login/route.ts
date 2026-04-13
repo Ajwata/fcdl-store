@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getClientUserByPhone, toPublicClientUser, touchClientUserLogin, validateClientLoginPassword } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, createClientSessionToken } from "@/lib/client-session";
+import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     sameSite: "lax",
     maxAge: 30 * 24 * 60 * 60,
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(request),
   });
 
   return response;

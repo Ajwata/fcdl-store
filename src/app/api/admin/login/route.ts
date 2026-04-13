@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { COOKIE_NAME, createSessionToken } from "@/lib/auth";
+import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 import { verifyAdminCredentials } from "@/lib/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     sameSite: "lax",
     maxAge: 24 * 60 * 60,
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(request),
   });
   return response;
 }
