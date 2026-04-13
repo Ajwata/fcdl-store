@@ -19,6 +19,10 @@
     {
       "label": "Камери",
       "href": "/#cameras"
+    },
+    {
+      "label": "Контакти",
+      "href": "/#contacts"
     }
   ],
   "heroSlides": [

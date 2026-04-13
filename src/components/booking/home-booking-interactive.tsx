@@ -20,6 +20,16 @@ type PricingConfig = {
   sectors: Record<string, { dayPrice: number; eveningPrice: number }>;
 };
 
+type AvailabilitySlot = {
+  id: string;
+  date: string;
+  sector: Sector;
+  startHour: number;
+  durationHours: number;
+  status: "pending" | "confirmed";
+  paymentStatus: "unpaid" | "verification" | "paid" | "refunded";
+};
+
 const BOOKING_CART_STORAGE_KEY = "booking_cart_v1";
 
 const pricingFallback: PricingConfig = {
@@ -65,13 +75,6 @@ function getSectorDisplay(sector: Sector): { label: string; dimensions: string }
 
 const durationOptions = Array.from({ length: 13 }, (_, index) => index + 1);
 
-// Тимчасові зайняті слоти. Пізніше це має приходити з backend.
-const mockedBookedSlots: Array<{ date: string; sector: Sector; startHour: number; durationHours: number }> = [
-  { date: "2026-04-03", sector: "№2", startHour: 18, durationHours: 2 },
-  { date: "2026-04-04", sector: "№1", startHour: 9, durationHours: 1 },
-  { date: "2026-04-05", sector: "№4", startHour: 20, durationHours: 1 },
-];
-
 function toHour(slot: string): number {
   return Number(slot.split(":")[0]);
 }
@@ -86,6 +89,11 @@ function toIsoDate(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function isPastHour(date: string, hour: number): boolean {
+  const slotStart = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00`);
+  return slotStart.getTime() <= Date.now();
 }
 
 function rangesOverlap(startA: number, endA: number, startB: number, endB: number): boolean {
@@ -113,6 +121,7 @@ export function HomeBookingInteractive() {
   const [cartHydrated, setCartHydrated] = useState(false);
   const autoCheckoutTriggeredRef = useRef(false);
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [availabilityByDate, setAvailabilityByDate] = useState<Record<string, AvailabilitySlot[]>>({});
 
   const totalPrice = useMemo(() => {
     if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
@@ -217,6 +226,96 @@ export function HomeBookingInteractive() {
     }
   }, [cartHydrated, cartItems, nextCartItemId]);
 
+  useEffect(() => {
+    const dates = Array.from(new Set([calendarDate, selectedDate].filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))));
+    if (dates.length === 0) return;
+
+    let cancelled = false;
+
+    const loadAvailability = async () => {
+      try {
+        const responses = await Promise.all(
+          dates.map(async (date) => {
+            const response = await fetch(`/api/availability?date=${encodeURIComponent(date)}`, { cache: "no-store" });
+            if (!response.ok) {
+              return { date, slots: [] as AvailabilitySlot[] };
+            }
+
+            const result = (await response.json()) as {
+              slots?: Array<{
+                id: string;
+                date: string;
+                sector: Sector;
+                startTime: string;
+                endTime: string;
+                status: "pending" | "confirmed";
+                paymentStatus: "unpaid" | "verification" | "paid" | "refunded";
+              }>;
+            };
+
+            const slots = Array.isArray(result.slots)
+              ? result.slots
+                  .map((slot) => {
+                    const startHour = toHour(slot.startTime);
+                    const endHour = toHour(slot.endTime);
+                    const durationHours = Math.max(1, endHour - startHour);
+                    return {
+                      id: slot.id,
+                      date: slot.date,
+                      sector: slot.sector,
+                      startHour,
+                      durationHours,
+                      status: slot.status,
+                      paymentStatus: slot.paymentStatus,
+                    } as AvailabilitySlot;
+                  })
+                  .filter((slot) => Number.isFinite(slot.startHour) && Number.isFinite(slot.durationHours))
+              : [];
+
+            return { date, slots };
+          }),
+        );
+
+        if (cancelled) return;
+        setAvailabilityByDate((prev) => {
+          const next = { ...prev };
+          for (const item of responses) {
+            next[item.date] = item.slots;
+          }
+          return next;
+        });
+      } catch {
+        if (cancelled) return;
+      }
+    };
+
+    void loadAvailability();
+
+    const intervalId = window.setInterval(() => {
+      void loadAvailability();
+    }, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [calendarDate, selectedDate]);
+
+  const selectedDateSectorSlots = useMemo(() => {
+    if (!selectedDate || !selectedSector) return [] as AvailabilitySlot[];
+    return (availabilityByDate[selectedDate] ?? []).filter((item) => item.sector === selectedSector);
+  }, [availabilityByDate, selectedDate, selectedSector]);
+
+  const selectedPaidSlots = useMemo(
+    () => selectedDateSectorSlots.filter((item) => item.paymentStatus === "paid" || item.paymentStatus === "verification"),
+    [selectedDateSectorSlots],
+  );
+
+  const selectedUnpaidSlots = useMemo(
+    () => selectedDateSectorSlots.filter((item) => item.paymentStatus === "unpaid"),
+    [selectedDateSectorSlots],
+  );
+
   const removeCartItem = (id: number) => {
     setCartItems((items) => items.filter((item) => item.id !== id));
   };
@@ -226,23 +325,27 @@ export function HomeBookingInteractive() {
 
   const availableStartSlots = useMemo(() => {
     if (!selectedDate || !selectedSector) {
-      return [] as Array<{ slot: string; disabled: boolean }>;
+      return [] as Array<{ slot: string; disabled: boolean; claimants: number }>;
     }
 
     return Array.from({ length: operatingHours.endHour - operatingHours.startHour }, (_, index) => {
       const startHour = operatingHours.startHour + index;
-      const blocked = mockedBookedSlots.some((item) =>
-        item.date === selectedDate &&
-        item.sector === selectedSector &&
+      const blocked = selectedPaidSlots.some((item) =>
         rangesOverlap(startHour, startHour + 1, item.startHour, item.startHour + item.durationHours),
       );
+      const past = isPastHour(selectedDate, startHour);
+
+      const claimants = selectedUnpaidSlots.filter((item) =>
+        rangesOverlap(startHour, startHour + 1, item.startHour, item.startHour + item.durationHours),
+      ).length;
 
       return {
         slot: toTime(startHour),
-        disabled: blocked,
+        disabled: blocked || past,
+        claimants,
       };
     });
-  }, [selectedDate, selectedSector, operatingHours]);
+  }, [selectedDate, selectedSector, operatingHours, selectedPaidSlots, selectedUnpaidSlots]);
 
   const availableDurations = useMemo(() => {
     if (!selectedDate || !selectedSector || !selectedSlot) {
@@ -255,9 +358,7 @@ export function HomeBookingInteractive() {
       const endHour = startHour + hours;
       const outOfSchedule = endHour > operatingHours.endHour;
 
-      const intersectsBooked = mockedBookedSlots.some((item) =>
-        item.date === selectedDate &&
-        item.sector === selectedSector &&
+      const intersectsBooked = selectedPaidSlots.some((item) =>
         rangesOverlap(startHour, endHour, item.startHour, item.startHour + item.durationHours),
       );
 
@@ -266,7 +367,7 @@ export function HomeBookingInteractive() {
         disabled: outOfSchedule || intersectsBooked,
       };
     });
-  }, [selectedDate, selectedSector, selectedSlot, operatingHours]);
+  }, [selectedDate, selectedSector, selectedSlot, operatingHours, selectedPaidSlots]);
 
   const popupStep = useMemo(() => {
     if (!selectedSector) {
@@ -370,7 +471,7 @@ export function HomeBookingInteractive() {
         // ignore
       }
       setCartPopupOpen(false);
-      router.push(successRedirect);
+      window.location.assign(successRedirect);
     } catch {
       setSubmitError("Помилка мережі. Спробуйте ще раз.");
     } finally {
@@ -406,16 +507,18 @@ export function HomeBookingInteractive() {
       : [calendarSectorFilter];
 
     return visibleSectors.map((sectorName) => {
-      const slots = mockedBookedSlots
-        .filter((item) => item.date === calendarDate && item.sector === sectorName)
+      const slots = (availabilityByDate[calendarDate] ?? [])
+        .filter((item) => item.sector === sectorName)
         .sort((a, b) => a.startHour - b.startHour);
 
       return {
         sector: sectorName,
         slots,
+        paidCount: slots.filter((slot) => slot.paymentStatus === "paid" || slot.paymentStatus === "verification").length,
+        claimCount: slots.filter((slot) => slot.paymentStatus === "unpaid").length,
       };
     });
-  }, [calendarDate, calendarSectorFilter]);
+  }, [availabilityByDate, calendarDate, calendarSectorFilter]);
 
   return (
     <section id="booking" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
@@ -599,28 +702,21 @@ export function HomeBookingInteractive() {
                   <p className="text-base font-semibold text-[var(--blue-950)]">{getSectorDisplay(row.sector).label}</p>
                   <p className="text-[11px] font-semibold text-[var(--blue-700)]">{getSectorDisplay(row.sector).dimensions}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[var(--blue-700)]">
-                    {row.slots.length} бронювань
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => startBookingFromCalendar(row.sector, calendarDate)}
-                    className="rounded-full border border-[var(--green-200)] bg-[var(--green-100)] px-3 py-1 text-xs font-semibold text-[var(--green-800)] transition hover:border-[var(--green-700)] hover:bg-[var(--green-200)]"
-                  >
-                    Бронювати на цю дату
-                  </button>
-                </div>
+                <div />
               </div>
 
               {row.slots.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {row.slots.map((slot, index) => (
+                  {row.slots.map((slot) => (
                     <span
-                      key={`${slot.sector}-${slot.date}-${slot.startHour}-${index}`}
-                      className="rounded-full bg-[var(--blue-900)] px-3 py-1 text-xs font-semibold text-white"
+                      key={slot.id}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        slot.paymentStatus === "paid" || slot.paymentStatus === "verification"
+                          ? "bg-rose-600 text-white"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
                     >
-                      {toTime(slot.startHour)} - {toTime(slot.startHour + slot.durationHours)}
+                      {toTime(slot.startHour)} - {toTime(slot.startHour + slot.durationHours)} {slot.paymentStatus === "paid" || slot.paymentStatus === "verification" ? "(заброньовано)" : "(є заявки)"}
                     </span>
                   ))}
                 </div>
@@ -628,30 +724,60 @@ export function HomeBookingInteractive() {
                 <p className="mt-3 text-sm text-slate-500">На цю дату вільно.</p>
               )}
 
+              <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">Вільно</span>
+                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-amber-900">В очікуванні</span>
+                <span className="rounded-full bg-rose-600 px-2 py-0.5 text-white">Заброньовано</span>
+              </div>
+
               <div className="mt-4 grid grid-cols-4 gap-1.5 sm:grid-cols-8">
                 {calendarHours.map((hour) => {
                   const blocked = row.slots.some((slot) =>
+                    (slot.paymentStatus === "paid" || slot.paymentStatus === "verification") &&
                     rangesOverlap(hour, hour + 1, slot.startHour, slot.startHour + slot.durationHours),
                   );
+                  const claimants = row.slots.filter((slot) =>
+                    slot.paymentStatus !== "paid" &&
+                    slot.paymentStatus !== "verification" &&
+                    rangesOverlap(hour, hour + 1, slot.startHour, slot.startHour + slot.durationHours),
+                  ).length;
+                  const past = isPastHour(calendarDate, hour);
+
+                  const hourState = past ? "past" : blocked ? "booked" : claimants > 0 ? "waiting" : "free";
 
                   return (
                     <button
                       type="button"
                       key={`${row.sector}-${hour}`}
-                      disabled={blocked}
+                      disabled={blocked || past}
                       onClick={() => startBookingFromCalendar(row.sector, calendarDate, hour)}
                       className={`rounded px-2 py-1 text-center text-[10px] font-semibold ${
-                        blocked
-                          ? "cursor-not-allowed bg-rose-100 text-rose-700"
-                          : "bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200"
+                        hourState === "past"
+                          ? "cursor-not-allowed bg-slate-200 text-slate-500"
+                          : hourState === "booked"
+                          ? "cursor-not-allowed bg-rose-600 text-white"
+                          : hourState === "waiting"
+                            ? "bg-amber-200 text-amber-900 transition hover:bg-amber-300"
+                            : "bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200"
                       }`}
+                      title={
+                        hourState === "past"
+                          ? "Час уже минув"
+                          : hourState === "booked"
+                          ? "Заброньовано"
+                          : hourState === "waiting"
+                            ? `В очікуванні: ${claimants}`
+                            : "Вільно"
+                      }
                     >
-                      {toTime(hour)}
+                      {toTime(hour)}{claimants > 0 ? ` • ${claimants}` : ""}
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-slate-500">Натисни на зелену годину, щоб одразу перейти до бронювання.</p>
+              <p className="mt-2 text-xs text-slate-500">
+                <span className="font-semibold text-emerald-700">Зелений</span>: вільно. <span className="font-semibold text-amber-800">Жовтий</span>: вже є заявки, але ще можна подати бронювання. <span className="font-semibold text-rose-700">Червоний</span>: квитанцію вже надіслано або оплату підтверджено - слот недоступний.
+              </p>
             </article>
           ))}
         </div>
@@ -768,9 +894,15 @@ export function HomeBookingInteractive() {
                         setSelectedSlot(slotItem.slot);
                         setSelectedDuration(null);
                       }}
-                      className="ui-chip-button rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] px-3 py-3 text-sm font-bold text-[var(--blue-900)] transition hover:border-[var(--green-700)] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                      className={`ui-chip-button rounded-[14px] border px-3 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 ${
+                        slotItem.disabled
+                          ? "border-slate-200 bg-slate-100 text-slate-400"
+                          : slotItem.claimants > 0
+                            ? "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400"
+                            : "border-[var(--blue-100)] bg-[var(--blue-50)] text-[var(--blue-900)] hover:border-[var(--green-700)]"
+                      }`}
                     >
-                      {slotItem.slot}
+                      {slotItem.slot}{slotItem.claimants > 0 ? ` (${slotItem.claimants})` : ""}
                     </button>
                   ))}
                 </div>

@@ -36,6 +36,11 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
       ...cmsDefaults.homeNewsSection,
       ...(partial.homeNewsSection ?? {}),
     },
+    paymentRequisites: {
+      ...cmsDefaults.paymentRequisites,
+      ...(partial.paymentRequisites ?? {}),
+    },
+    adminContacts: partial.adminContacts ?? cmsDefaults.adminContacts,
   };
 }
 

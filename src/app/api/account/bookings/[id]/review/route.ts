@@ -7,6 +7,10 @@ import { addClientNotification, createClientReview, getClientReviewByBooking } f
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
+function hasEndedByTime(date: string, endTime: string): boolean {
+  return new Date(`${date}T${endTime}:00`).getTime() <= Date.now();
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -48,7 +52,7 @@ export async function POST(
     return NextResponse.json({ error: "Недостатньо прав" }, { status: 403 });
   }
 
-  if (booking.status !== "completed") {
+  if (!hasEndedByTime(booking.date, booking.endTime) || booking.status === "cancelled") {
     return NextResponse.json({ error: "Відгук доступний тільки після завершеної гри" }, { status: 400 });
   }
 

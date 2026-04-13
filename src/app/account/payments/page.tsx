@@ -2,18 +2,24 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { AccountNav } from "@/components/account/account-nav";
+import { PaymentProofButton } from "@/components/account/payment-proof-button";
 import { filterBookingsForUser, getBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { getCmsContent } from "@/lib/cms-content";
+
+export const dynamic = "force-dynamic";
 
 const paymentLabel = {
   unpaid: "Не оплачено",
+  verification: "Перевірка оплати",
   paid: "Оплачено",
   refunded: "Повернено",
 } as const;
 
 const paymentClass = {
   unpaid: "text-rose-700 bg-rose-100",
+  verification: "text-amber-800 bg-amber-100",
   paid: "text-emerald-700 bg-emerald-100",
   refunded: "text-slate-700 bg-slate-200",
 } as const;
@@ -36,6 +42,7 @@ export default async function AccountPaymentsPage() {
   }
 
   const user = await getClientUserById(payload.uid);
+  const cms = await getCmsContent();
   const bookings = filterBookingsForUser(await getBookings(), payload.uid, user?.phone ?? payload.phone).sort((a, b) =>
     `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`),
   );
@@ -75,8 +82,8 @@ export default async function AccountPaymentsPage() {
           <div className="mt-4 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-4 text-sm text-slate-700">
             <p className="font-semibold text-[var(--blue-950)]">Варіанти оплати</p>
             <p className="mt-1">1) Готівкою на локації.</p>
-            <p className="mt-1">2) Переказом на IBAN за реквізитами адміністратора.</p>
-            <p className="mt-2 text-xs text-slate-500">Після фактичної оплати статус виставляє адміністратор.</p>
+            <p className="mt-1">2) Переказом на IBAN за реквізитами нижче.</p>
+            <p className="mt-2 text-xs text-slate-500">Для кожного бронювання натисніть "Отримати реквізити". У попапі можна скопіювати дані та одразу відправити квитанцію.</p>
           </div>
         </div>
 
@@ -91,6 +98,11 @@ export default async function AccountPaymentsPage() {
                     <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--blue-700)]">Поле {booking.sector}</p>
                     <p className="mt-1 text-base font-semibold text-[var(--blue-950)]">{booking.date} · {booking.startTime}-{booking.endTime}</p>
                     <p className="mt-1 text-sm text-slate-600">Статус броні: {booking.status}</p>
+                    {(booking.paymentStatus === "unpaid" || booking.paymentStatus === "verification") && (booking.paymentDueAt || booking.adminDecisionDueAt) && (
+                      <p className="mt-1 text-xs font-semibold text-amber-700">
+                        Час на оплату: {new Date((booking.paymentDueAt ?? booking.adminDecisionDueAt)!).toLocaleString("uk-UA")}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${paymentClass[booking.paymentStatus]}`}>{paymentLabel[booking.paymentStatus]}</span>
@@ -103,6 +115,19 @@ export default async function AccountPaymentsPage() {
                         Квитанція
                       </a>
                     </div>
+                    {booking.paymentStatus === "unpaid" && booking.status !== "cancelled" && booking.status !== "completed" && (
+                      <PaymentProofButton bookingId={booking.id} paymentRequisites={cms.paymentRequisites} />
+                    )}
+                    {booking.paymentProofUrl && (
+                      <a
+                        href={booking.paymentProofUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-semibold text-[var(--blue-800)] underline"
+                      >
+                        Переглянути завантажену квитанцію
+                      </a>
+                    )}
                   </div>
                 </div>
               </article>

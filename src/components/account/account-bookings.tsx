@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 
 import type { Booking } from "@/lib/bookings";
 import type { ClientReview } from "@/lib/client-engagement";
+import type { PaymentRequisites } from "@/data/cms-defaults";
 
 type AccountBookingsProps = {
   initialBookings: Booking[];
   initialReviews: ClientReview[];
+  paymentRequisites: PaymentRequisites;
 };
 
 type OccupiedSlot = {
@@ -33,12 +35,14 @@ const statusClass: Record<Booking["status"], string> = {
 
 const paymentLabel: Record<Booking["paymentStatus"], string> = {
   unpaid: "Не оплачено",
+  verification: "Перевірка оплати",
   paid: "Оплачено",
   refunded: "Повернено",
 };
 
 const paymentClass: Record<Booking["paymentStatus"], string> = {
   unpaid: "text-rose-600",
+  verification: "text-amber-700",
   paid: "text-emerald-700",
   refunded: "text-slate-500",
 };
@@ -47,8 +51,16 @@ function toDateTime(date: string, time: string): Date {
   return new Date(`${date}T${time}:00`);
 }
 
-function isFutureBooking(booking: Booking): boolean {
-  return toDateTime(booking.date, booking.startTime).getTime() > Date.now();
+function isActiveBooking(booking: Booking): boolean {
+  return booking.status === "pending" || booking.status === "confirmed";
+}
+
+function isFutureByTime(booking: Booking): boolean {
+  return toDateTime(booking.date, booking.endTime).getTime() > Date.now();
+}
+
+function hasEndedByTime(booking: Booking): boolean {
+  return !isFutureByTime(booking);
 }
 
 function sortByDateDesc(items: Booking[]): Booking[] {
@@ -78,15 +90,60 @@ function getRepeatEndTime(startTime: string, durationHours: number): string {
   return toTime(toMinutes(startTime) + durationHours * 60);
 }
 
-export function AccountBookings({ initialBookings, initialReviews }: AccountBookingsProps) {
+export function AccountBookings({ initialBookings, initialReviews, paymentRequisites }: AccountBookingsProps) {
   const [bookings, setBookings] = useState<Booking[]>(sortByDateDesc(initialBookings));
-  const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
+  const [activeTab, setActiveTab] = useState<"upcoming" | "history">(
+    initialBookings.some((item) => isActiveBooking(item)) ? "upcoming" : "history",
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [reviews, setReviews] = useState<ClientReview[]>(initialReviews);
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, { rating: number; text: string }>>({});
   const [repeatDrafts, setRepeatDrafts] = useState<Record<string, { date: string; startTime: string; durationHours: number }>>({});
   const [occupiedSlotsByKey, setOccupiedSlotsByKey] = useState<Record<string, OccupiedSlot[]>>({});
+  const [requisitesBookingId, setRequisitesBookingId] = useState<string | null>(null);
+  const [requisitesStatus, setRequisitesStatus] = useState("");
+  const [requisitesError, setRequisitesError] = useState("");
+
+  const copyToClipboard = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setRequisitesError("");
+      setRequisitesStatus(`${label} скопійовано`);
+    } catch {
+      setRequisitesStatus("");
+      setRequisitesError("Не вдалося скопіювати");
+    }
+  };
+
+  const uploadPaymentReceipt = async (bookingId: string, file: File) => {
+    setRequisitesError("");
+    setRequisitesStatus("");
+    setBusyId(bookingId);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`/api/account/bookings/${bookingId}/payment-proof`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = (await response.json()) as { error?: string; booking?: Booking };
+      if (!response.ok || !result.booking) {
+        setRequisitesError(result.error ?? "Не вдалося відправити квитанцію");
+        return;
+      }
+
+      setBookings((prev) => prev.map((item) => (item.id === bookingId ? result.booking! : item)));
+      setRequisitesStatus("Квитанцію відправлено. Статус: перевірка оплати.");
+    } catch {
+      setRequisitesError("Помилка мережі. Спробуйте ще раз.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const getAvailabilityKey = (bookingId: string, date: string) => `${bookingId}-${date}`;
 
@@ -107,18 +164,18 @@ export function AccountBookings({ initialBookings, initialReviews }: AccountBook
   };
 
   const upcomingBookings = useMemo(
-    () => bookings.filter((item) => isFutureBooking(item)).sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`)),
+    () => bookings.filter((item) => isActiveBooking(item)).sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`)),
     [bookings],
   );
 
   const historyBookings = useMemo(
-    () => bookings.filter((item) => !isFutureBooking(item)).sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`)),
+    () => bookings.filter((item) => !isActiveBooking(item)).sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`)),
     [bookings],
   );
 
   const stats = useMemo(() => {
     const total = bookings.length;
-    const upcoming = bookings.filter((item) => isFutureBooking(item) && item.status !== "cancelled").length;
+    const upcoming = bookings.filter((item) => isActiveBooking(item)).length;
     const cancelled = bookings.filter((item) => item.status === "cancelled").length;
     return { total, upcoming, cancelled };
   }, [bookings]);
@@ -288,12 +345,21 @@ export function AccountBookings({ initialBookings, initialReviews }: AccountBook
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {tabItems.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[var(--blue-200)] bg-white px-6 py-10 text-center text-sm text-slate-600 sm:col-span-2">
-              Тут поки немає записів у цьому розділі.
+              {activeTab === "upcoming" && historyBookings.length > 0
+                ? "У майбутніх записах порожньо. Перейдіть у вкладку 'Історія' - там є ваші бронювання."
+                : "Тут поки немає записів у цьому розділі."}
             </div>
           ) : (
             tabItems.map((booking) => {
-              const canCancel = isFutureBooking(booking) && booking.status === "pending";
+              const canCancel = isFutureByTime(booking) && booking.status === "pending";
               const existingReview: ClientReview | null = reviewByBookingId.get(booking.id) ?? null;
+              const canOpenRequisites =
+                (booking.status === "pending" || booking.status === "confirmed") &&
+                booking.paymentStatus === "unpaid";
+              const canLeaveReview =
+                booking.status !== "cancelled" &&
+                booking.paymentStatus === "paid" &&
+                hasEndedByTime(booking);
 
               return (
                 <article key={booking.id} className="rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
@@ -312,6 +378,19 @@ export function AccountBookings({ initialBookings, initialReviews }: AccountBook
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-lg font-bold text-[var(--blue-950)]">{booking.totalPrice.toLocaleString("uk-UA")} грн</p>
                     <div className="flex flex-wrap gap-2">
+                      {canOpenRequisites && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRequisitesBookingId(booking.id);
+                            setRequisitesStatus("");
+                            setRequisitesError("");
+                          }}
+                          className="rounded-full border border-[var(--green-200)] bg-[var(--green-100)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.1em] text-[var(--green-800)]"
+                        >
+                          Отримати реквізити
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => onRepeatBooking(booking)}
@@ -426,7 +505,7 @@ export function AccountBookings({ initialBookings, initialReviews }: AccountBook
                     </div>
                   )}
 
-                  {booking.status === "completed" && booking.paymentStatus === "paid" && !existingReview && (
+                  {canLeaveReview && !existingReview && (
                     <div className="mt-4 space-y-2 rounded-xl border border-[var(--blue-100)] bg-white p-3">
                       <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--blue-700)]">Оцінка та відгук</p>
                       <div className="flex flex-wrap gap-2">
@@ -474,7 +553,7 @@ export function AccountBookings({ initialBookings, initialReviews }: AccountBook
                     </div>
                   )}
 
-                  {booking.status === "completed" && booking.paymentStatus === "paid" && existingReview && (
+                  {canLeaveReview && existingReview && (
                     <div className="mt-4 space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                       <p className="text-xs font-bold uppercase tracking-[0.1em] text-emerald-700">Відгук збережено</p>
                       <p className="text-sm font-semibold text-emerald-900">Оцінка: {existingReview.rating} з 5</p>
@@ -488,6 +567,67 @@ export function AccountBookings({ initialBookings, initialReviews }: AccountBook
           )}
         </div>
       </div>
+
+      {requisitesBookingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(8,26,51,0.65)] px-4 py-6">
+          <div className="w-full max-w-xl rounded-[24px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_24px_60px_rgba(8,26,51,0.18)] sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--green-700)]">Оплата</p>
+                <h3 className="mt-1 text-xl font-bold text-[var(--blue-950)]">Реквізити для переказу</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRequisitesBookingId(null)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--blue-200)] bg-white text-[var(--blue-900)]"
+                aria-label="Закрити"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-4 text-sm text-[var(--blue-900)]">
+              <div className="flex items-start justify-between gap-3">
+                <p><span className="font-semibold">Отримувач:</span> {paymentRequisites.recipient}</p>
+                <button type="button" onClick={() => void copyToClipboard(paymentRequisites.recipient, "Отримувач")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <p><span className="font-semibold">IBAN:</span> {paymentRequisites.iban}</p>
+                <button type="button" onClick={() => void copyToClipboard(paymentRequisites.iban, "IBAN")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <p><span className="font-semibold">Банк:</span> {paymentRequisites.bank}</p>
+                <button type="button" onClick={() => void copyToClipboard(paymentRequisites.bank, "Банк")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <p><span className="font-semibold">Призначення:</span> {paymentRequisites.purpose}</p>
+                <button type="button" onClick={() => void copyToClipboard(paymentRequisites.purpose, "Призначення")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-[var(--blue-100)] bg-white p-4">
+              <p className="text-sm font-semibold text-[var(--blue-950)]">Після оплати надішліть квитанцію</p>
+              <label className={`mt-3 inline-flex cursor-pointer items-center justify-center rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.1em] ${busyId === requisitesBookingId ? "cursor-not-allowed bg-slate-200 text-slate-400" : "bg-[var(--green-700)] text-white hover:bg-[var(--green-800)]"}`}>
+                {busyId === requisitesBookingId ? "Завантаження..." : "Відправити квитанцію"}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  disabled={busyId === requisitesBookingId}
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!file || !requisitesBookingId) return;
+                    void uploadPaymentReceipt(requisitesBookingId, file);
+                  }}
+                />
+              </label>
+              {requisitesStatus && <p className="mt-2 text-xs font-semibold text-emerald-700">{requisitesStatus}</p>}
+              {requisitesError && <p className="mt-2 text-xs font-semibold text-rose-700">{requisitesError}</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

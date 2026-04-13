@@ -7,8 +7,10 @@ import { getClientUserById } from "@/lib/client-auth";
 import { getClientNotifications } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 
-function isFutureBooking(date: string, time: string): boolean {
-  return new Date(`${date}T${time}:00`).getTime() > Date.now();
+export const dynamic = "force-dynamic";
+
+function isActiveBookingStatus(status: string): boolean {
+  return status === "pending" || status === "confirmed";
 }
 
 export default async function AccountPage() {
@@ -46,9 +48,9 @@ export default async function AccountPage() {
     `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`),
   );
 
-  const upcoming = userBookings.filter((item) => item.status !== "cancelled" && isFutureBooking(item.date, item.startTime));
+  const upcoming = userBookings.filter((item) => isActiveBookingStatus(item.status));
   const unpaid = userBookings.filter((item) => item.paymentStatus === "unpaid" && item.status !== "cancelled");
-  const nextMatch = upcoming[0] ?? null;
+  const nextMatch = [...upcoming].sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`))[0] ?? null;
 
   return (
     <main className="page-shell min-h-screen px-4 py-10 sm:px-6 lg:px-10">

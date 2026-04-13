@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AdminContactsSection } from "@/components/admin-contacts-section";
 import { HomeBookingInteractive } from "@/components/booking/home-booking-interactive";
 import { HeroCarousel } from "@/components/hero-carousel";
 import { LiveStreams } from "@/components/live-streams";
@@ -335,6 +336,8 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        <AdminContactsSection contacts={cms.adminContacts} />
       </main>
       <SiteFooter
         footerNavLinks={cms.footerNavLinks}

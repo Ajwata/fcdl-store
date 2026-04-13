@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { autoCompleteExpiredPaidBookings, filterBookingsForUser, getBookings, saveBookings } from "@/lib/bookings";
@@ -6,6 +7,7 @@ import { getClientUserById } from "@/lib/client-auth";
 import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts";
 import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { getPaymentSettings } from "@/lib/payment-settings";
 import { getPricing, calcSlotPrice } from "@/lib/pricing";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
@@ -88,6 +90,7 @@ export async function POST(request: Request) {
   }
 
   const bookings = await getBookings();
+  const paymentSettings = await getPaymentSettings();
   const pricing = await getPricing();
   const discountPercent = await getClientDiscountPercent(user.phone);
   const preparedItems: Array<CreateBookingItem & { canonicalTotalPrice: number; canonicalPricePerHour: number }> = [];
@@ -118,6 +121,7 @@ export async function POST(request: Request) {
 
     const conflictExisting = bookings.find((booking) =>
       booking.status !== "cancelled" &&
+      (booking.paymentStatus === "paid" || booking.paymentStatus === "verification") &&
       booking.date === item.date &&
       booking.sector === item.sector &&
       overlaps(item.startTime, item.endTime, booking.startTime, booking.endTime),
@@ -139,6 +143,7 @@ export async function POST(request: Request) {
   }
 
   const createdAt = new Date().toISOString();
+  const adminDecisionDueAt = new Date(Date.now() + paymentSettings.adminDecisionHours * 60 * 60 * 1000).toISOString();
   const createdBookings = preparedItems.map((item) => ({
     id: `booking-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     clientUserId: payload.uid,
@@ -154,12 +159,19 @@ export async function POST(request: Request) {
     totalPrice: item.canonicalTotalPrice,
     status: "pending" as const,
     paymentStatus: "unpaid" as const,
+    paymentMethod: "cash" as const,
+    adminDecisionDueAt,
     createdAt,
     notes: "Створено з календаря клієнтом",
   }));
 
   bookings.push(...createdBookings);
   await saveBookings(bookings);
+  revalidatePath("/");
+  revalidatePath("/account");
+  revalidatePath("/account/bookings");
+  revalidatePath("/account/payments");
+  revalidatePath("/admin/bookings");
 
   await addClientNotification(
     payload.uid,

@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Football Booking App
 
-## Getting Started
+Next.js 16 project with SMS-based client authentication.
 
-First, run the development server:
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App will start on http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+By default, auth data is stored in JSON files (local mode):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `USE_DATABASE=false`
 
-## Learn More
+Switch to MySQL by setting `USE_DATABASE=true` and `DATABASE_URL`.
 
-To learn more about Next.js, take a look at the following resources:
+## Production Deploy on ukraine.com.ua VPS
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This project is prepared for VPS deploy (Node.js + Nginx + PM2).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. Server requirements
 
-## Deploy on Vercel
+- Ubuntu 22.04+
+- Node.js 20 LTS
+- Nginx
+- PM2
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Install base software
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Run on VPS:
+
+```bash
+chmod +x scripts/vps-setup.sh
+./scripts/vps-setup.sh
+```
+
+### 3. Upload project and configure environment
+
+Copy project to `/var/www/football`, then create `.env.local` in project root:
+
+```dotenv
+ALPHASMS_API_KEY=your-real-key
+USE_DATABASE=true
+DATABASE_URL="mysql://user:password@127.0.0.1:3306/football"
+```
+
+For first deploy with DB, run migrations:
+
+```bash
+npm run db:generate
+npm run db:deploy
+```
+
+### 4. Build and start app
+
+```bash
+cd /var/www/football
+npm ci
+npm run build
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:3000
+```
+
+### 5. Configure Nginx reverse proxy
+
+Use config template from `deploy/nginx-football.conf`:
+
+```bash
+sudo cp deploy/nginx-football.conf /etc/nginx/sites-available/football
+sudo nano /etc/nginx/sites-available/football
+```
+
+Change `server_name` to your real domain, then enable config:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/football /etc/nginx/sites-enabled/football
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 6. Enable SSL (Let's Encrypt)
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+```
+
+### 7. Update releases
+
+```bash
+cd /var/www/football
+git pull
+npm ci
+npm run build
+pm2 restart football-app
+```
+
+## Useful Commands
+
+```bash
+pm2 status
+pm2 logs football-app
+pm2 restart football-app
+sudo systemctl status nginx
+```

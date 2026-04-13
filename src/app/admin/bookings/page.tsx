@@ -20,13 +20,15 @@ const statusLabels: Record<string, string> = {
 };
 
 const paymentColors: Record<string, string> = {
-  unpaid: "text-red-500",
+  unpaid: "text-amber-700",
+  verification: "text-amber-700",
   paid: "text-emerald-600",
   refunded: "text-slate-400",
 };
 
 const paymentLabels: Record<string, string> = {
   unpaid: "Не оплачено",
+  verification: "Перевірка оплати",
   paid: "Оплачено",
   refunded: "Повернено",
 };
@@ -65,6 +67,16 @@ export default function BookingsPage() {
     void fetchBookings();
   }, [fetchBookings]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void fetchBookings();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [fetchBookings]);
+
   const updateBooking = async (
     id: string,
     updates: Partial<Pick<Booking, "status" | "paymentStatus">>,
@@ -94,6 +106,9 @@ export default function BookingsPage() {
     .sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
 
   const pendingCount = bookings.filter((b) => b.status === "pending").length;
+  const confirmedUnreadCount = bookings.filter(
+    (b) => b.status === "confirmed" && b.paymentStatus === "verification",
+  ).length;
   const totalRevenue = bookings
     .filter((b) => b.paymentStatus === "paid")
     .reduce((s, b) => s + b.totalPrice, 0);
@@ -139,6 +154,11 @@ export default function BookingsPage() {
               {opt.value === "pending" && pendingCount > 0 && (
                 <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-white">
                   {pendingCount}
+                </span>
+              )}
+              {opt.value === "confirmed" && confirmedUnreadCount > 0 && (
+                <span className="ml-1.5 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {confirmedUnreadCount}
                 </span>
               )}
             </button>
@@ -218,9 +238,25 @@ export default function BookingsPage() {
                         className={`rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium outline-none transition focus:ring-1 focus:ring-[var(--green-700)] ${paymentColors[b.paymentStatus] ?? ""}`}
                       >
                         <option value="unpaid">Не оплачено</option>
+                        <option value="verification">Перевірка оплати</option>
                         <option value="paid">Оплачено</option>
                         <option value="refunded">Повернено</option>
                       </select>
+                      {b.paymentProofUrl && (
+                        <div className="mt-1 space-y-1">
+                          <a
+                            href={b.paymentProofUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-xs font-semibold text-[var(--blue-800)] underline"
+                          >
+                            Квитанція від клієнта
+                          </a>
+                          {b.paymentProofUploadedAt && (
+                            <p className="text-[10px] text-slate-400">{new Date(b.paymentProofUploadedAt).toLocaleString("uk-UA")}</p>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
@@ -235,17 +271,6 @@ export default function BookingsPage() {
                             Підтвердити
                           </button>
                         )}
-                        {(b.status === "pending" || b.status === "confirmed") && (
-                          <button
-                            disabled={saving === b.id}
-                            onClick={() =>
-                              updateBooking(b.id, { status: "completed" as BookingStatus })
-                            }
-                            className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600 ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-50"
-                          >
-                            Завершити
-                          </button>
-                        )}
                         {b.status !== "cancelled" && (
                           <button
                             disabled={saving === b.id}
@@ -255,6 +280,20 @@ export default function BookingsPage() {
                             className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-200 transition hover:bg-red-100 disabled:opacity-50"
                           >
                             Скасувати
+                          </button>
+                        )}
+                        {b.status !== "cancelled" && (b.paymentStatus === "paid" || b.paymentStatus === "verification") && (
+                          <button
+                            disabled={saving === b.id}
+                            onClick={() =>
+                              updateBooking(b.id, {
+                                status: "cancelled" as BookingStatus,
+                                paymentStatus: "refunded" as PaymentStatus,
+                              })
+                            }
+                            className="rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 ring-1 ring-orange-200 transition hover:bg-orange-100 disabled:opacity-50"
+                          >
+                            Повернення
                           </button>
                         )}
                       </div>

@@ -1,8 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { getBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+
+function hasNotEnded(date: string, endTime: string): boolean {
+  return new Date(`${date}T${endTime}:00`).getTime() > Date.now();
+}
 
 export async function GET(request: Request) {
   const cookieStore = await cookies();
@@ -21,8 +25,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Некоректні параметри" }, { status: 400 });
   }
 
-  const slots = (await getBookings())
-    .filter((item) => item.status !== "cancelled" && item.date === date && item.sector === sector)
+  const slots = (await autoCompleteExpiredPaidBookings())
+    .filter((item) => item.status !== "cancelled")
+    .filter((item) => item.status !== "completed" || hasNotEnded(item.date, item.endTime))
+    .filter((item) => item.paymentStatus === "paid" || item.paymentStatus === "verification")
+    .filter((item) => item.date === date && item.sector === sector)
     .map((item) => ({
       id: item.id,
       startTime: item.startTime,

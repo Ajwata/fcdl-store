@@ -88,6 +88,23 @@ export type HomeNewsSection = {
   allNewsCta: string;
 };
 
+export type PaymentRequisites = {
+  recipient: string;
+  iban: string;
+  bank: string;
+  purpose: string;
+};
+
+export type AdminContactCard = {
+  id: string;
+  name: string;
+  description?: string;
+  role?: string;
+  phone: string;
+  telegram?: string;
+  photo: string;
+};
+
 export type CmsContent = {
   navigationItems: NavLink[];
   heroVideoUrl: string;
@@ -103,6 +120,8 @@ export type CmsContent = {
   homeGallerySection: HomeGallerySection;
   homePromotionsSection: HomePromotionsSection;
   homeNewsSection: HomeNewsSection;
+  paymentRequisites: PaymentRequisites;
+  adminContacts: AdminContactCard[];
 };
 
 export const cmsDefaults: CmsContent = {
@@ -195,4 +214,19 @@ export const cmsDefaults: CmsContent = {
     description: "Актуальні анонси, зміни розкладу та важливі апдейти по матчах і сервісу.",
     allNewsCta: "Усі новини",
   },
+  paymentRequisites: {
+    recipient: "ФОП Іваненко Іван Іванович",
+    iban: "UA123456789012345678901234567",
+    bank: "АТ КБ ПриватБанк",
+    purpose: "Оплата за бронювання поля FCDL.STORE",
+  },
+  adminContacts: [
+    {
+      id: "admin-1",
+      name: "Адміністрація поля",
+      description: "Єдиний контакт для бронювання, оплати та уточнення деталей матчу.",
+      phone: "+380670000000",
+      photo: "",
+    },
+  ],
 };

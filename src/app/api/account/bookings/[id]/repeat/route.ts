@@ -1,11 +1,13 @@
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { getBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts";
 import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { getPaymentSettings } from "@/lib/payment-settings";
 import { calcSlotPrice, getPricing } from "@/lib/pricing";
 
 function toDate(date: string): Date {
@@ -56,7 +58,8 @@ export async function POST(
   }
 
   const { id } = await params;
-  const bookings = await getBookings();
+  const bookings = await autoCompleteExpiredPaidBookings();
+  const paymentSettings = await getPaymentSettings();
   const source = bookings.find((item) => item.id === id);
 
   if (!source) {
@@ -108,6 +111,7 @@ export async function POST(
 
   const hasConflict = bookings.some((item) =>
     item.status !== "cancelled" &&
+    (item.paymentStatus === "paid" || item.paymentStatus === "verification") &&
     item.sector === source.sector &&
     item.date === targetDate &&
     overlaps(targetStartTime, targetEndTime, item.startTime, item.endTime),
@@ -130,12 +134,19 @@ export async function POST(
     totalPrice: discountedTotalPrice,
     status: "pending" as const,
     paymentStatus: "unpaid" as const,
+    paymentMethod: "cash" as const,
+    adminDecisionDueAt: new Date(Date.now() + paymentSettings.adminDecisionHours * 60 * 60 * 1000).toISOString(),
     createdAt: new Date().toISOString(),
     notes: `Повтор бронювання з ${source.date}`,
   };
 
   bookings.push(repeated);
   await saveBookings(bookings);
+  revalidatePath("/");
+  revalidatePath("/account");
+  revalidatePath("/account/bookings");
+  revalidatePath("/account/payments");
+  revalidatePath("/admin/bookings");
 
   await addClientNotification(
     payload.uid,

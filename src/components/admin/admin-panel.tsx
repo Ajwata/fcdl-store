@@ -530,6 +530,64 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
               </div>
             </div>
           </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Реквізити для оплати" hint="Ці дані бачить клієнт у кабінеті на сторінці платежів" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Отримувач</FieldLabel>
+                <input
+                  value={content.paymentRequisites.recipient}
+                  onChange={(event) =>
+                    updateContent({
+                      ...content,
+                      paymentRequisites: { ...content.paymentRequisites, recipient: event.target.value },
+                    })
+                  }
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>IBAN</FieldLabel>
+                <input
+                  value={content.paymentRequisites.iban}
+                  onChange={(event) =>
+                    updateContent({
+                      ...content,
+                      paymentRequisites: { ...content.paymentRequisites, iban: event.target.value },
+                    })
+                  }
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Банк</FieldLabel>
+                <input
+                  value={content.paymentRequisites.bank}
+                  onChange={(event) =>
+                    updateContent({
+                      ...content,
+                      paymentRequisites: { ...content.paymentRequisites, bank: event.target.value },
+                    })
+                  }
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Призначення платежу</FieldLabel>
+                <input
+                  value={content.paymentRequisites.purpose}
+                  onChange={(event) =>
+                    updateContent({
+                      ...content,
+                      paymentRequisites: { ...content.paymentRequisites, purpose: event.target.value },
+                    })
+                  }
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </section>
         </div>
       )}
 
@@ -1040,6 +1098,82 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
               </section>
             );
           })}
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Публічний контакт адміністрації" hint="На сайті показується один загальний контакт без прив'язки до конкретної людини" />
+            {(() => {
+              const admin = content.adminContacts[0] ?? {
+                id: "admin-1",
+                name: "Адміністрація поля",
+                description: "Єдиний контакт для бронювання, оплати та уточнення деталей матчу.",
+                phone: "+380",
+                photo: "",
+              };
+
+              const updateAdmin = (updates: Partial<typeof admin>) => {
+                updateContent({
+                  ...content,
+                  adminContacts: [{ ...admin, ...updates }],
+                });
+              };
+
+              return (
+                <div className="rounded-[16px] border border-[var(--blue-100)] bg-[linear-gradient(135deg,#f8fbff_0%,#eef7ff_58%,#f4fbf7_100%)] p-4 sm:p-5">
+                  <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="space-y-3">
+                      <div>
+                        <FieldLabel>Заголовок блоку</FieldLabel>
+                        <input
+                          value={admin.name}
+                          onChange={(event) => updateAdmin({ name: event.target.value })}
+                          placeholder="Наприклад: Адміністрація поля"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Опис</FieldLabel>
+                        <textarea
+                          value={admin.description ?? ""}
+                          onChange={(event) => updateAdmin({ description: event.target.value })}
+                          rows={3}
+                          placeholder="Короткий текст під заголовком"
+                          className={textareaClass}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Телефон</FieldLabel>
+                        <input
+                          value={admin.phone}
+                          onChange={(event) => updateAdmin({ phone: event.target.value })}
+                          placeholder="Телефон"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Фото/зображення блоку</FieldLabel>
+                        <div className="flex gap-2">
+                          <input
+                            value={admin.photo}
+                            onChange={(event) => updateAdmin({ photo: event.target.value })}
+                            placeholder="URL фото"
+                            className={inputClass}
+                          />
+                          <ImageUploadButton onUploaded={(url) => updateAdmin({ photo: url })} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[18px] border border-[var(--blue-100)] bg-white p-4 shadow-[0_10px_30px_rgba(8,26,51,0.05)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--green-700)]">Попередній перегляд</p>
+                      <p className="mt-3 text-2xl font-bold text-[var(--blue-950)]">{admin.name || "Адміністрація поля"}</p>
+                      <p className="mt-2 text-sm text-slate-600">{admin.description || "Єдиний публічний номер для бронювання, оплат та уточнення деталей матчу."}</p>
+                      <p className="mt-4 text-lg font-semibold text-[var(--green-800)]">{admin.phone || "+380"}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </section>
         </div>
       )}
 

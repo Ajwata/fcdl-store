@@ -1,20 +1,10 @@
 [
   {
-    "id": "client-1775477156516",
+    "id": "client-1775825698690",
     "phone": "+380970312970",
     "name": "Artem",
-    "createdAt": "2026-04-06T12:05:56.516Z",
-    "lastLoginAt": "2026-04-07T10:47:24.235Z",
-    "avatarUrl": "/uploads/avatars/avatar-380970312970-1775479195978.jpg",
-    "email": "shonraprince@gmail.com",
-    "passwordHash": "scrypt$97d9751d6e6f45bd8775e62b5dfdf15c$e5a9aa5ec9f381d35e49d4107d0001a58d020efb218cf0373d626d0eefc749ee"
-  },
-  {
-    "id": "client-1775481964896",
-    "phone": "+380631776944",
-    "name": "Artem",
-    "email": "shonraprince@gmail.com",
-    "createdAt": "2026-04-06T13:26:04.896Z",
-    "lastLoginAt": "2026-04-06T13:56:19.172Z"
+    "passwordHash": "scrypt$de2c1443aa244997b6c17c8cf04bd607$c9923b203f83e6983a55509403500fb3f2290e1b69a0b94801a0b17ae9ab8680",
+    "createdAt": "2026-04-10T12:54:58.690Z",
+    "lastLoginAt": "2026-04-10T12:54:58.690Z"
   }
 ]

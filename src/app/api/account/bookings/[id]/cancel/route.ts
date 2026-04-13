@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { getBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
@@ -58,6 +59,11 @@ export async function POST(
 
   bookings[index] = { ...booking, status: "cancelled", notes: booking.notes || "Скасовано клієнтом" };
   await saveBookings(bookings);
+  revalidatePath("/");
+  revalidatePath("/account");
+  revalidatePath("/account/bookings");
+  revalidatePath("/account/payments");
+  revalidatePath("/admin/bookings");
 
   return NextResponse.json({ booking: bookings[index] });
 }

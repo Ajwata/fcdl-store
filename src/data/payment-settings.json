@@ -1,0 +1,9 @@
+{
+  "adminDecisionHours": 12,
+  "paymentWindowRules": [
+    { "minDaysBeforeStart": 1, "maxDaysBeforeStart": 2, "paymentHours": 12 },
+    { "minDaysBeforeStart": 3, "maxDaysBeforeStart": 5, "paymentHours": 24 },
+    { "minDaysBeforeStart": 6, "maxDaysBeforeStart": 9, "paymentHours": 48 },
+    { "minDaysBeforeStart": 10, "maxDaysBeforeStart": null, "paymentHours": 72 }
+  ]
+}

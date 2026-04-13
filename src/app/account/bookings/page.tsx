@@ -4,9 +4,12 @@ import Link from "next/link";
 import { AccountBookings } from "@/components/account/account-bookings";
 import { AccountNav } from "@/components/account/account-nav";
 import { autoCompleteExpiredPaidBookings, filterBookingsForUser } from "@/lib/bookings";
+import { getCmsContent } from "@/lib/cms-content";
 import { getClientUserById } from "@/lib/client-auth";
 import { getClientReviews } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+
+export const dynamic = "force-dynamic";
 
 export default async function AccountBookingsPage() {
   const cookieStore = await cookies();
@@ -39,6 +42,7 @@ export default async function AccountBookingsPage() {
   );
 
   const reviews = await getClientReviews(payload.uid, user.phone);
+  const cms = await getCmsContent();
 
   return (
     <main className="page-shell min-h-screen px-4 py-10 sm:px-6 lg:px-10">
@@ -47,7 +51,11 @@ export default async function AccountBookingsPage() {
           title="Бронювання"
           subtitle="Окрема сторінка для керування активними і минулими записами, повтором та відгуками."
         />
-        <AccountBookings initialBookings={bookings} initialReviews={reviews} />
+        <AccountBookings
+          initialBookings={bookings}
+          initialReviews={reviews}
+          paymentRequisites={cms.paymentRequisites}
+        />
       </section>
     </main>
   );

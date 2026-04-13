@@ -4,6 +4,7 @@ export const navigationItems = [
   { label: "Новини", href: "/news" },
   { label: "Галерея", href: "/gallery" },
   { label: "Камери", href: "/#cameras" },
+  { label: "Контакти", href: "/#contacts" },
 ];
 
 export const heroSlides = [
