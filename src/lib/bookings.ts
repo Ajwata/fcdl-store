@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { getPaymentSettings } from "@/lib/payment-settings";
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 export type PaymentStatus = "unpaid" | "verification" | "paid" | "refunded";
@@ -37,6 +38,89 @@ function phoneKey(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function toDateOrNull(value?: string): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function bookingFromDb(row: {
+  id: string;
+  clientUserId: string | null;
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string;
+  sector: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationHours: number;
+  pricePerHour: number;
+  totalPrice: number;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string | null;
+  paymentProofUrl: string | null;
+  paymentProofUploadedAt: Date | null;
+  adminDecisionDueAt: Date | null;
+  confirmedAt: Date | null;
+  paymentDueAt: Date | null;
+  createdAt: Date;
+  notes: string;
+}): Booking {
+  return {
+    id: row.id,
+    clientUserId: row.clientUserId ?? undefined,
+    clientName: row.clientName,
+    clientPhone: row.clientPhone,
+    clientEmail: row.clientEmail,
+    sector: row.sector,
+    date: row.date,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    durationHours: row.durationHours,
+    pricePerHour: row.pricePerHour,
+    totalPrice: row.totalPrice,
+    status: row.status as BookingStatus,
+    paymentStatus: row.paymentStatus as PaymentStatus,
+    paymentMethod: (row.paymentMethod as Booking["paymentMethod"]) ?? undefined,
+    paymentProofUrl: row.paymentProofUrl ?? undefined,
+    paymentProofUploadedAt: row.paymentProofUploadedAt?.toISOString(),
+    adminDecisionDueAt: row.adminDecisionDueAt?.toISOString(),
+    confirmedAt: row.confirmedAt?.toISOString(),
+    paymentDueAt: row.paymentDueAt?.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    notes: row.notes,
+  };
+}
+
+function bookingToDbInput(booking: Booking) {
+  return {
+    clientUserId: booking.clientUserId ?? null,
+    clientName: booking.clientName,
+    clientPhone: booking.clientPhone,
+    clientPhoneKey: phoneKey(booking.clientPhone),
+    clientEmail: booking.clientEmail,
+    sector: booking.sector,
+    date: booking.date,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    durationHours: booking.durationHours,
+    pricePerHour: booking.pricePerHour,
+    totalPrice: booking.totalPrice,
+    status: booking.status,
+    paymentStatus: booking.paymentStatus,
+    paymentMethod: booking.paymentMethod ?? null,
+    paymentProofUrl: booking.paymentProofUrl ?? null,
+    paymentProofUploadedAt: toDateOrNull(booking.paymentProofUploadedAt),
+    adminDecisionDueAt: toDateOrNull(booking.adminDecisionDueAt),
+    confirmedAt: toDateOrNull(booking.confirmedAt),
+    paymentDueAt: toDateOrNull(booking.paymentDueAt),
+    createdAt: new Date(booking.createdAt),
+    notes: booking.notes,
+  };
+}
+
 export function isBookingOwnedByUser(booking: Booking, userId: string, phone: string): boolean {
   if (booking.clientUserId && booking.clientUserId === userId) {
     return true;
@@ -49,6 +133,24 @@ export function filterBookingsForUser(bookings: Booking[], userId: string, phone
 }
 
 export async function rebindBookingsToUser(userId: string, oldPhone: string, newPhone: string): Promise<void> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.booking.updateMany({
+      where: {
+        OR: [
+          { clientUserId: userId },
+          { clientPhoneKey: phoneKey(oldPhone) },
+        ],
+      },
+      data: {
+        clientUserId: userId,
+        clientPhone: newPhone,
+        clientPhoneKey: phoneKey(newPhone),
+      },
+    });
+    return;
+  }
+
   const bookings = await getBookings();
   let changed = false;
 
@@ -70,6 +172,12 @@ export async function rebindBookingsToUser(userId: string, oldPhone: string, new
 }
 
 export async function getBookings(): Promise<Booking[]> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.booking.findMany({ orderBy: [{ createdAt: "asc" }] });
+    return rows.map(bookingFromDb);
+  }
+
   try {
     const raw = await fs.readFile(dataPath, "utf-8");
     return JSON.parse(raw) as Booking[];
@@ -210,6 +318,20 @@ export async function autoCompleteExpiredPaidBookings(): Promise<Booking[]> {
 }
 
 export async function saveBookings(bookings: Booking[]): Promise<void> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.$transaction(
+      bookings.map((booking) =>
+        prisma.booking.upsert({
+          where: { id: booking.id },
+          create: { id: booking.id, ...bookingToDbInput(booking) },
+          update: bookingToDbInput(booking),
+        }),
+      ),
+    );
+    return;
+  }
+
   await fs.writeFile(dataPath, JSON.stringify(bookings, null, 2) + "\n", "utf-8");
 }
 
@@ -217,6 +339,25 @@ export async function updateBooking(
   id: string,
   updates: Partial<Omit<Booking, "id" | "createdAt">>,
 ): Promise<Booking | null> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const existing = await prisma.booking.findUnique({ where: { id } });
+    if (!existing) return null;
+
+    const nextBooking: Booking = {
+      ...bookingFromDb(existing),
+      ...updates,
+      id,
+      createdAt: bookingFromDb(existing).createdAt,
+    };
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: bookingToDbInput(nextBooking),
+    });
+    return bookingFromDb(updated);
+  }
+
   const bookings = await getBookings();
   const index = bookings.findIndex((b) => b.id === id);
   if (index === -1) return null;

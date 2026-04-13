@@ -30,3 +30,107 @@ model ClientSmsCode {
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
+
+model Booking {
+  id                     String   @id
+  clientUserId           String?
+  clientName             String
+  clientPhone            String
+  clientPhoneKey         String
+  clientEmail            String
+  sector                 String
+  date                   String
+  startTime              String
+  endTime                String
+  durationHours          Int
+  pricePerHour           Int
+  totalPrice             Int
+  status                 String
+  paymentStatus          String
+  paymentMethod          String?
+  paymentProofUrl        String?
+  paymentProofUploadedAt DateTime?
+  adminDecisionDueAt     DateTime?
+  confirmedAt            DateTime?
+  paymentDueAt           DateTime?
+  createdAt              DateTime
+  notes                  String   @db.Text
+
+  @@index([clientUserId])
+  @@index([clientPhoneKey])
+  @@index([date, sector])
+}
+
+model ClientDiscount {
+  clientPhoneKey  String   @id
+  clientPhone     String
+  discountPercent Int
+  updatedAt       DateTime
+  updatedById     String?
+}
+
+model ClientNotification {
+  id           String   @id
+  clientUserId String?
+  phone        String
+  phoneKey     String
+  title        String
+  message      String   @db.Text
+  kind         String
+  isRead       Boolean  @default(false)
+  readAt       DateTime?
+  createdAt    DateTime
+
+  @@index([clientUserId])
+  @@index([phoneKey])
+  @@index([createdAt])
+}
+
+model ClientReview {
+  id           String   @id
+  bookingId    String
+  clientUserId String?
+  phone        String
+  phoneKey     String
+  rating       Int
+  text         String   @db.Text
+  createdAt    DateTime
+
+  @@index([bookingId])
+  @@index([clientUserId])
+  @@index([phoneKey])
+}
+
+model PaymentSettings {
+  id                 String   @id
+  adminDecisionHours Int
+  paymentWindowRules Json
+  updatedAt          DateTime
+}
+
+model ReferralAssignment {
+  clientPhoneKey String   @id
+  clientPhone    String
+  managerId      String
+  managerLogin   String
+  managerName    String
+  assignedAt     DateTime
+  assignedById   String?
+
+  @@index([managerId])
+}
+
+model AdminUser {
+  id           String   @id
+  login        String   @unique
+  name         String
+  role         String
+  passwordHash String
+  createdAt    DateTime
+}
+
+model AppConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime
+}

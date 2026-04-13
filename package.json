@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "db:import-json": "node scripts/import-json-to-db.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",

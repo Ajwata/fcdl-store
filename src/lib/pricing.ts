@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+
 export type SectorPricingEntry = {
   dayPrice: number;
   eveningPrice: number;
@@ -26,6 +28,19 @@ export const pricingDefaults: PricingConfig = {
 const pricingFilePath = path.join(process.cwd(), "src", "data", "pricing.json");
 
 export async function getPricing(): Promise<PricingConfig> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const row = await prisma.appConfig.findUnique({ where: { key: "pricing" } });
+    const parsed = (row?.value ?? {}) as Partial<PricingConfig>;
+    return {
+      eveningStartHour: parsed.eveningStartHour ?? pricingDefaults.eveningStartHour,
+      sectors: {
+        ...pricingDefaults.sectors,
+        ...(parsed.sectors ?? {}),
+      },
+    };
+  }
+
   try {
     const raw = await fs.readFile(pricingFilePath, "utf-8");
     const parsed = JSON.parse(raw) as Partial<PricingConfig>;
@@ -42,6 +57,23 @@ export async function getPricing(): Promise<PricingConfig> {
 }
 
 export async function savePricing(config: PricingConfig): Promise<void> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.appConfig.upsert({
+      where: { key: "pricing" },
+      create: {
+        key: "pricing",
+        value: config,
+        updatedAt: new Date(),
+      },
+      update: {
+        value: config,
+        updatedAt: new Date(),
+      },
+    });
+    return;
+  }
+
   await fs.writeFile(pricingFilePath, JSON.stringify(config, null, 2), "utf-8");
 }
 

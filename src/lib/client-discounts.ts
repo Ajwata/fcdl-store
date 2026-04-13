@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+
 const discountsPath = path.join(process.cwd(), "src", "data", "client-discounts.json");
 
 export type ClientDiscount = {
@@ -13,6 +15,22 @@ export type ClientDiscount = {
 
 function phoneKey(phone: string): string {
   return phone.replace(/\D/g, "");
+}
+
+function discountFromDb(row: {
+  clientPhone: string;
+  clientPhoneKey: string;
+  discountPercent: number;
+  updatedAt: Date;
+  updatedById: string | null;
+}): ClientDiscount {
+  return {
+    clientPhone: row.clientPhone,
+    clientPhoneKey: row.clientPhoneKey,
+    discountPercent: row.discountPercent,
+    updatedAt: row.updatedAt.toISOString(),
+    updatedById: row.updatedById ?? undefined,
+  };
 }
 
 async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
@@ -29,6 +47,12 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
 }
 
 export async function getClientDiscounts(): Promise<ClientDiscount[]> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.clientDiscount.findMany({ orderBy: [{ updatedAt: "desc" }] });
+    return rows.map(discountFromDb);
+  }
+
   const rows = await readJsonFile<Array<Omit<ClientDiscount, "clientPhoneKey">>>(discountsPath, []);
   return rows.map((row) => ({ ...row, clientPhoneKey: phoneKey(row.clientPhone) }));
 }
@@ -71,6 +95,31 @@ export async function upsertClientDiscount(input: {
   // discount=0 means discount removed for this client
   if (discountPercent > 0) {
     next.push(payload);
+  }
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    if (discountPercent > 0) {
+      await prisma.clientDiscount.upsert({
+        where: { clientPhoneKey: key },
+        create: {
+          clientPhoneKey: key,
+          clientPhone: normalizedPhone,
+          discountPercent,
+          updatedAt: new Date(now),
+          updatedById: input.updatedById ?? null,
+        },
+        update: {
+          clientPhone: normalizedPhone,
+          discountPercent,
+          updatedAt: new Date(now),
+          updatedById: input.updatedById ?? null,
+        },
+      });
+    } else {
+      await prisma.clientDiscount.deleteMany({ where: { clientPhoneKey: key } });
+    }
+    return payload;
   }
 
   await writeJsonFile(

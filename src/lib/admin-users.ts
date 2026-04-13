@@ -2,6 +2,8 @@ import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+
 export type AdminRole = "superadmin" | "manager";
 
 export type AdminUserRecord = {
@@ -92,11 +94,84 @@ function ensureSuperadmin(users: AdminUserRecord[]): AdminUserRecord[] {
 }
 
 async function readAdminUsers(): Promise<AdminUserRecord[]> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const existing = await prisma.adminUser.findMany({ orderBy: [{ createdAt: "asc" }] });
+
+    if (!existing.some((user: { role: string }) => user.role === "superadmin")) {
+      const superadmin = buildDefaultSuperadmin();
+      await prisma.adminUser.upsert({
+        where: { id: superadmin.id },
+        create: {
+          id: superadmin.id,
+          login: superadmin.login,
+          name: superadmin.name,
+          role: superadmin.role,
+          passwordHash: superadmin.passwordHash,
+          createdAt: new Date(superadmin.createdAt),
+        },
+        update: {
+          login: superadmin.login,
+          name: superadmin.name,
+          role: superadmin.role,
+          passwordHash: superadmin.passwordHash,
+        },
+      });
+    }
+
+    const rows = await prisma.adminUser.findMany({ orderBy: [{ createdAt: "asc" }] });
+    return rows.map((user: {
+      id: string;
+      login: string;
+      name: string;
+      role: string;
+      passwordHash: string;
+      createdAt: Date;
+    }) => ({
+      id: user.id,
+      login: normalizeLogin(user.login),
+      name: user.name,
+      role: user.role as AdminRole,
+      passwordHash: user.passwordHash,
+      createdAt: user.createdAt.toISOString(),
+    }));
+  }
+
   const users = await readJsonFile<AdminUserRecord[]>(adminUsersFilePath, []);
   return ensureSuperadmin(users);
 }
 
 async function saveAdminUsers(users: AdminUserRecord[]): Promise<void> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.$transaction([
+      prisma.adminUser.deleteMany({
+        where: { id: { notIn: users.map((user) => user.id) } },
+      }),
+      ...users.map((user) =>
+        prisma.adminUser.upsert({
+          where: { id: user.id },
+          create: {
+            id: user.id,
+            login: user.login,
+            name: user.name,
+            role: user.role,
+            passwordHash: user.passwordHash,
+            createdAt: new Date(user.createdAt),
+          },
+          update: {
+            login: user.login,
+            name: user.name,
+            role: user.role,
+            passwordHash: user.passwordHash,
+            createdAt: new Date(user.createdAt),
+          },
+        }),
+      ),
+    ]);
+    return;
+  }
+
   await writeJsonFile(adminUsersFilePath, users);
 }
 

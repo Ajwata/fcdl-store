@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+
 export type PaymentWindowRule = {
   minDaysBeforeStart: number;
   maxDaysBeforeStart: number | null;
@@ -51,6 +53,31 @@ function sanitizeRules(rules: PaymentWindowRule[]): PaymentWindowRule[] {
 }
 
 export async function getPaymentSettings(): Promise<PaymentSettings> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const row = await prisma.paymentSettings.findUnique({ where: { id: "default" } });
+    if (!row) {
+      const created = await prisma.paymentSettings.create({
+        data: {
+          id: "default",
+          adminDecisionHours: paymentSettingsDefaults.adminDecisionHours,
+          paymentWindowRules: paymentSettingsDefaults.paymentWindowRules,
+          updatedAt: new Date(),
+        },
+      });
+
+      return {
+        adminDecisionHours: created.adminDecisionHours,
+        paymentWindowRules: sanitizeRules(created.paymentWindowRules as PaymentWindowRule[]),
+      };
+    }
+
+    return {
+      adminDecisionHours: Math.max(1, Math.floor(row.adminDecisionHours)),
+      paymentWindowRules: sanitizeRules(row.paymentWindowRules as PaymentWindowRule[]),
+    };
+  }
+
   const raw = await readJsonFile<Partial<PaymentSettings>>(paymentSettingsPath, paymentSettingsDefaults);
   const rules = Array.isArray(raw.paymentWindowRules)
     ? sanitizeRules(raw.paymentWindowRules)
@@ -67,6 +94,26 @@ export async function savePaymentSettings(input: PaymentSettings): Promise<Payme
     adminDecisionHours: Math.max(1, Math.floor(input.adminDecisionHours)),
     paymentWindowRules: sanitizeRules(input.paymentWindowRules),
   };
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.paymentSettings.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        adminDecisionHours: next.adminDecisionHours,
+        paymentWindowRules: next.paymentWindowRules,
+        updatedAt: new Date(),
+      },
+      update: {
+        adminDecisionHours: next.adminDecisionHours,
+        paymentWindowRules: next.paymentWindowRules,
+        updatedAt: new Date(),
+      },
+    });
+    return next;
+  }
+
   await writeJsonFile(paymentSettingsPath, next);
   return next;
 }

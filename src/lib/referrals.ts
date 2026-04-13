@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import type { Booking } from "@/lib/bookings";
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 
 export const REFERRAL_COMMISSION_RATE = 0.05;
 
@@ -71,6 +72,28 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
 }
 
 export async function getReferralAssignments(): Promise<ReferralAssignment[]> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.referralAssignment.findMany({ orderBy: [{ assignedAt: "desc" }] });
+    return rows.map((row: {
+      clientPhone: string;
+      clientPhoneKey: string;
+      managerId: string;
+      managerLogin: string;
+      managerName: string;
+      assignedAt: Date;
+      assignedById: string | null;
+    }) => ({
+      clientPhone: row.clientPhone,
+      clientPhoneKey: row.clientPhoneKey,
+      managerId: row.managerId,
+      managerLogin: row.managerLogin,
+      managerName: row.managerName,
+      assignedAt: row.assignedAt.toISOString(),
+      assignedById: row.assignedById ?? undefined,
+    }));
+  }
+
   const rows = await readJsonFile<ReferralFileRecord[]>(referralsPath, []);
   return rows.map((row) => ({
     ...row,
@@ -105,6 +128,31 @@ export async function upsertReferralAssignment(input: {
 
   const next = current.filter((item) => item.clientPhoneKey !== key);
   next.push(payload);
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.referralAssignment.upsert({
+      where: { clientPhoneKey: key },
+      create: {
+        clientPhoneKey: key,
+        clientPhone: normalizedPhone,
+        managerId: input.managerId,
+        managerLogin: input.managerLogin,
+        managerName: input.managerName,
+        assignedAt: new Date(now),
+        assignedById: input.assignedById ?? null,
+      },
+      update: {
+        clientPhone: normalizedPhone,
+        managerId: input.managerId,
+        managerLogin: input.managerLogin,
+        managerName: input.managerName,
+        assignedAt: new Date(now),
+        assignedById: input.assignedById ?? null,
+      },
+    });
+    return payload;
+  }
 
   await writeJsonFile(
     referralsPath,

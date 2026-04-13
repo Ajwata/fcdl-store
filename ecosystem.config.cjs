@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "football-app",
-      cwd: "/var/www/football",
+      cwd: process.cwd(),
       script: ".next/standalone/server.js",
       instances: 1,
       exec_mode: "fork",

@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { CmsContent, cmsDefaults } from "@/data/cms-defaults";
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 
 const cmsFilePath = path.join(process.cwd(), "src", "data", "cms-content.json");
 
@@ -45,6 +46,12 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
 }
 
 export async function getCmsContent(): Promise<CmsContent> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const row = await prisma.appConfig.findUnique({ where: { key: "cms-content" } });
+    return mergeCmsContent((row?.value ?? {}) as Partial<CmsContent>);
+  }
+
   try {
     const raw = await fs.readFile(cmsFilePath, "utf-8");
     const parsed = JSON.parse(raw) as Partial<CmsContent>;
@@ -56,5 +63,23 @@ export async function getCmsContent(): Promise<CmsContent> {
 
 export async function saveCmsContent(content: CmsContent): Promise<void> {
   const merged = mergeCmsContent(content);
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.appConfig.upsert({
+      where: { key: "cms-content" },
+      create: {
+        key: "cms-content",
+        value: merged,
+        updatedAt: new Date(),
+      },
+      update: {
+        value: merged,
+        updatedAt: new Date(),
+      },
+    });
+    return;
+  }
+
   await fs.writeFile(cmsFilePath, `${JSON.stringify(merged, null, 2)}\n`, "utf-8");
 }
