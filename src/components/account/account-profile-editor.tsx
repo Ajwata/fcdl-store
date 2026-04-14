@@ -13,6 +13,12 @@ type AccountProfileEditorProps = {
 function normalizeAvatarUrl(value: string | null | undefined): string {
   const avatar = (value ?? "").trim();
   if (!avatar) return "";
+  const uploadsMatch = avatar.match(/(?:^|\/)uploads\/avatars\/([^/?#]+)$/i);
+  if (uploadsMatch) return `/api/account/avatar?file=${encodeURIComponent(uploadsMatch[1])}`;
+  const apiFileMatch = avatar.match(/[?&]file=([^&#]+)/i);
+  if (apiFileMatch) return `/api/account/avatar?file=${apiFileMatch[1]}`;
+  const rawFileMatch = avatar.match(/^(avatar-.+\.(png|jpe?g|webp|gif))$/i);
+  if (rawFileMatch) return `/api/account/avatar?file=${encodeURIComponent(rawFileMatch[1])}`;
   if (/^https?:\/\//i.test(avatar) || avatar.startsWith("/")) return avatar;
   if (avatar.startsWith("uploads/")) return `/${avatar}`;
   if (/^avatar-.+\.(png|jpe?g|webp|gif)$/i.test(avatar)) return `/uploads/avatars/${avatar}`;

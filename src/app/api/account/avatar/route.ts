@@ -27,6 +27,49 @@ function resolveProjectRoot(): string {
   return cwd;
 }
 
+function getAvatarDirs(projectRoot: string): string[] {
+  return [
+    path.join(projectRoot, "public", "uploads", "avatars"),
+    path.join(projectRoot, ".next", "standalone", "public", "uploads", "avatars"),
+  ];
+}
+
+function getMimeType(filename: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".gif") return "image/gif";
+  return "image/jpeg";
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const filename = path.basename(url.searchParams.get("file")?.trim() ?? "");
+
+  if (!filename) {
+    return NextResponse.json({ error: "Файл не вказано" }, { status: 400 });
+  }
+
+  const projectRoot = resolveProjectRoot();
+  const avatarDirs = getAvatarDirs(projectRoot);
+
+  for (const dir of avatarDirs) {
+    const filePath = path.join(dir, filename);
+    if (await pathExists(filePath)) {
+      const buffer = await fs.readFile(filePath);
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          "Content-Type": getMimeType(filename),
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    }
+  }
+
+  return NextResponse.json({ error: "Файл не знайдено" }, { status: 404 });
+}
+
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get(CLIENT_COOKIE_NAME)?.value;
@@ -55,8 +98,7 @@ export async function POST(request: Request) {
   const safeUserId = payload.uid.replace(/[^a-zA-Z0-9_-]/g, "");
   const filename = `avatar-${safeUserId}-${Date.now()}.${ext}`;
   const projectRoot = resolveProjectRoot();
-  const rootUploadsDir = path.join(projectRoot, "public", "uploads", "avatars");
-  const standaloneUploadsDir = path.join(projectRoot, ".next", "standalone", "public", "uploads", "avatars");
+  const [rootUploadsDir, standaloneUploadsDir] = getAvatarDirs(projectRoot);
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -72,5 +114,5 @@ export async function POST(request: Request) {
     }),
   );
 
-  return NextResponse.json({ url: `/uploads/avatars/${filename}` });
+  return NextResponse.json({ url: `/api/account/avatar?file=${encodeURIComponent(filename)}` });
 }
