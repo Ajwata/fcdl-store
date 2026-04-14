@@ -123,8 +123,14 @@ export async function checkVerifyCode(phone: string, code: string, verifyId: str
     httpStatus: response.status,
   });
 
-  if (!json.success) {
-    throw new Error(`AlphaSMS verify: ${json.error || "UNKNOWN_ERROR"}`);
+  // AlphaSMS verify/check response has no `success` field — only `status`
+  // possible statuses: approved, pending, expired, blocked
+  if (json.error) {
+    throw new Error(`AlphaSMS verify: ${json.error}`);
+  }
+
+  if (!json.status) {
+    throw new Error(`AlphaSMS verify: unexpected response (no status field)`);
   }
 
   const isApproved = json.status === "approved";
