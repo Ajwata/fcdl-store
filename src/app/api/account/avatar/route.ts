@@ -18,6 +18,15 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
+function resolveProjectRoot(): string {
+  const cwd = process.cwd();
+  const standaloneSuffix = `${path.sep}.next${path.sep}standalone`;
+  if (cwd.endsWith(standaloneSuffix)) {
+    return path.resolve(cwd, "..", "..");
+  }
+  return cwd;
+}
+
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get(CLIENT_COOKIE_NAME)?.value;
@@ -45,13 +54,14 @@ export async function POST(request: Request) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const safeUserId = payload.uid.replace(/[^a-zA-Z0-9_-]/g, "");
   const filename = `avatar-${safeUserId}-${Date.now()}.${ext}`;
-  const rootUploadsDir = path.join(process.cwd(), "public", "uploads", "avatars");
-  const standaloneUploadsDir = path.join(process.cwd(), ".next", "standalone", "public", "uploads", "avatars");
+  const projectRoot = resolveProjectRoot();
+  const rootUploadsDir = path.join(projectRoot, "public", "uploads", "avatars");
+  const standaloneUploadsDir = path.join(projectRoot, ".next", "standalone", "public", "uploads", "avatars");
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const targetDirs = [rootUploadsDir];
-  if (await pathExists(path.join(process.cwd(), ".next", "standalone", "public"))) {
+  if (await pathExists(path.join(projectRoot, ".next", "standalone", "public"))) {
     targetDirs.push(standaloneUploadsDir);
   }
 

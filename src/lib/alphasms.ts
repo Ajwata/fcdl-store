@@ -50,37 +50,51 @@ export async function createVerifyCode(phone: string): Promise<string> {
   console.log(`[AlphaSMS] verify/create request: phone=${normalizedPhone}`);
   console.log(`[AlphaSMS] Full payload:`, JSON.stringify(payload, null, 2));
 
-  const response = await fetch(ALPHASMS_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const response = await fetch(ALPHASMS_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
 
-  const json = (await response.json().catch(() => ({}))) as VerifyCreateResponse;
-  
-  const verifyId = json.verify_id ?? json.request_id;
+    const json = (await response.json().catch(() => ({}))) as VerifyCreateResponse;
+    const verifyId = json.verify_id ?? json.request_id;
 
-  console.log(`[AlphaSMS] verify/create full response:`, JSON.stringify(json, null, 2));
-  console.log(`[AlphaSMS] verify/create response:`, {
-    success: json.success,
-    error: json.error,
-    verifyId,
-    httpStatus: response.status,
-  });
+    console.log(`[AlphaSMS] verify/create full response:`, JSON.stringify(json, null, 2));
+    console.log(`[AlphaSMS] verify/create response:`, {
+      success: json.success,
+      error: json.error,
+      verifyId,
+      httpStatus: response.status,
+      attempt,
+    });
 
-  if (!json.success) {
-    throw new Error(`AlphaSMS verify/create: ${json.error || "UNKNOWN_ERROR"}`);
-  }
+    if (response.ok && json.success && verifyId) {
+      console.log(`[AlphaSMS] SMS code sent successfully, verify_id=${verifyId}`);
+      return verifyId;
+    }
 
-  if (!verifyId) {
+    const transientError = response.status >= 500 || response.status === 429;
+    if (attempt < 2 && transientError) {
+      console.warn(`[AlphaSMS] verify/create transient failure, retrying once... status=${response.status}`);
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error(`AlphaSMS verify/create: HTTP_${response.status}`);
+    }
+
+    if (!json.success) {
+      throw new Error(`AlphaSMS verify/create: ${json.error || "UNEXPECTED_RESPONSE"}`);
+    }
+
     throw new Error("AlphaSMS verify/create: no verify_id in response");
   }
 
-  console.log(`[AlphaSMS] SMS code sent successfully, verify_id=${verifyId}`);
-  return verifyId;
+  throw new Error("AlphaSMS verify/create: failed after retry");
 }
 
 /**
@@ -122,6 +136,10 @@ export async function checkVerifyCode(phone: string, code: string, verifyId: str
     error: json.error,
     httpStatus: response.status,
   });
+
+  if (!response.ok) {
+    throw new Error(`AlphaSMS verify: HTTP_${response.status}`);
+  }
 
   // AlphaSMS verify/check response has no `success` field — only `status`
   // possible statuses: approved, pending, expired, blocked
