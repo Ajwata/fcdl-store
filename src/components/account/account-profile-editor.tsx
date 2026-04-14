@@ -10,10 +10,19 @@ type AccountProfileEditorProps = {
   initialAvatarUrl?: string;
 };
 
+function normalizeAvatarUrl(value: string | null | undefined): string {
+  const avatar = (value ?? "").trim();
+  if (!avatar) return "";
+  if (/^https?:\/\//i.test(avatar) || avatar.startsWith("/")) return avatar;
+  if (avatar.startsWith("uploads/")) return `/${avatar}`;
+  if (/^avatar-.+\.(png|jpe?g|webp|gif)$/i.test(avatar)) return `/uploads/avatars/${avatar}`;
+  return `/${avatar}`;
+}
+
 export function AccountProfileEditor({ initialName, initialPhone, initialAvatarUrl }: AccountProfileEditorProps) {
   const [profileName, setProfileName] = useState(initialName);
   const [profilePhone, setProfilePhone] = useState(initialPhone);
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(initialAvatarUrl ?? "");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(normalizeAvatarUrl(initialAvatarUrl));
   const [profileSaving, setProfileSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -115,7 +124,7 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
         return;
       }
 
-      setProfileAvatarUrl(result.url);
+      setProfileAvatarUrl(normalizeAvatarUrl(result.url));
       setStatusMessage("Аватар завантажено. Натисніть 'Зберегти', щоб підтвердити зміни.");
     } catch {
       setStatusMessage("Помилка мережі. Спробуйте ще раз.");
@@ -134,6 +143,10 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
               src={profileAvatarUrl || "/window.svg"}
               alt="Аватар"
               className="mx-auto h-28 w-28 rounded-full border-4 border-white object-cover shadow-md"
+              onError={(event) => {
+                if (event.currentTarget.src.endsWith("/window.svg")) return;
+                event.currentTarget.src = "/window.svg";
+              }}
             />
             <label className="inline-flex w-full cursor-pointer items-center justify-center rounded-full border border-[var(--blue-200)] bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">
               {avatarUploading ? "Завантаження..." : "Змінити аватар"}

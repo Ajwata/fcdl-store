@@ -18,6 +18,15 @@ type SiteHeaderProps = {
   siteName?: string;
 };
 
+function normalizeAvatarUrl(value: string | null | undefined): string {
+  const avatar = (value ?? "").trim();
+  if (!avatar) return "";
+  if (/^https?:\/\//i.test(avatar) || avatar.startsWith("/")) return avatar;
+  if (avatar.startsWith("uploads/")) return `/${avatar}`;
+  if (/^avatar-.+\.(png|jpe?g|webp|gif)$/i.test(avatar)) return `/uploads/avatars/${avatar}`;
+  return `/${avatar}`;
+}
+
 export function SiteHeader({ navigationItems, logoUrl, siteName = "FCDL.STORE" }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -44,7 +53,7 @@ export function SiteHeader({ navigationItems, logoUrl, siteName = "FCDL.STORE" }
         setIsAuthorized(Boolean(result.authenticated));
         setNotificationsCount(result.notificationsCount ?? 0);
         setAccountName(result.user?.name?.trim() || "Кабінет");
-        setAccountAvatar(result.user?.avatarUrl ?? "");
+        setAccountAvatar(normalizeAvatarUrl(result.user?.avatarUrl));
       } catch {
         if (cancelled) return;
         setIsAuthorized(false);
@@ -151,6 +160,10 @@ export function SiteHeader({ navigationItems, logoUrl, siteName = "FCDL.STORE" }
                     src={accountAvatar || "/window.svg"}
                     alt="Аватар"
                     className="h-8 w-8 rounded-full object-cover"
+                    onError={(event) => {
+                      if (event.currentTarget.src.endsWith("/window.svg")) return;
+                      event.currentTarget.src = "/window.svg";
+                    }}
                   />
                   <span className="hidden max-w-[120px] truncate text-xs font-extrabold uppercase tracking-[0.08em] sm:block">
                     {accountName}
