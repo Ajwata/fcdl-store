@@ -4,15 +4,16 @@ import { useMemo, useState } from "react";
 
 import { ImageUploadButton } from "@/components/admin/image-upload-button";
 import { VideoUploadButton } from "@/components/admin/video-upload-button";
-import { CmsContent } from "@/data/cms-defaults";
+import { CmsContent, cmsDefaults } from "@/data/cms-defaults";
 
 type AdminPanelProps = {
   initialContent: CmsContent;
 };
 
-type TabKey = "home" | "news" | "gallery" | "streams" | "reviews" | "navigation";
+type TabKey = "general" | "home" | "news" | "gallery" | "streams" | "reviews" | "navigation";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
+  { key: "general", label: "Загальне" },
   { key: "home", label: "Головна" },
   { key: "news", label: "Новини" },
   { key: "gallery", label: "Галерея" },
@@ -50,7 +51,36 @@ function SectionTitle({ title, hint }: { title: string; hint?: string }) {
 
 export function AdminPanel({ initialContent }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
-  const [content, setContent] = useState<CmsContent>(initialContent);
+  const [content, setContent] = useState<CmsContent>({
+    ...initialContent,
+    siteName: initialContent.siteName ?? cmsDefaults.siteName,
+    logoUrl: initialContent.logoUrl ?? cmsDefaults.logoUrl,
+    heroMode: initialContent.heroMode ?? cmsDefaults.heroMode,
+    heroBadge: initialContent.heroBadge ?? cmsDefaults.heroBadge,
+    statsSection: {
+      badge: initialContent.statsSection?.badge ?? cmsDefaults.statsSection.badge,
+      title: initialContent.statsSection?.title ?? cmsDefaults.statsSection.title,
+      description: initialContent.statsSection?.description ?? cmsDefaults.statsSection.description,
+      items: initialContent.statsSection?.items?.length ? initialContent.statsSection.items : cmsDefaults.statsSection.items,
+    },
+    homeUiText: {
+      galleryMainLabel: initialContent.homeUiText?.galleryMainLabel ?? cmsDefaults.homeUiText.galleryMainLabel,
+      reviewsAverageLabel: initialContent.homeUiText?.reviewsAverageLabel ?? cmsDefaults.homeUiText.reviewsAverageLabel,
+      reviewsCardLabel: initialContent.homeUiText?.reviewsCardLabel ?? cmsDefaults.homeUiText.reviewsCardLabel,
+      reviewsEmptyTitle: initialContent.homeUiText?.reviewsEmptyTitle ?? cmsDefaults.homeUiText.reviewsEmptyTitle,
+      reviewsEmptyDescription: initialContent.homeUiText?.reviewsEmptyDescription ?? cmsDefaults.homeUiText.reviewsEmptyDescription,
+      newsFeaturedLabel: initialContent.homeUiText?.newsFeaturedLabel ?? cmsDefaults.homeUiText.newsFeaturedLabel,
+      newsReadMoreLabel: initialContent.homeUiText?.newsReadMoreLabel ?? cmsDefaults.homeUiText.newsReadMoreLabel,
+    },
+    reviewsSection: {
+      badge: initialContent.reviewsSection?.badge ?? cmsDefaults.reviewsSection.badge,
+      title: initialContent.reviewsSection?.title ?? cmsDefaults.reviewsSection.title,
+      ratingTitle: initialContent.reviewsSection?.ratingTitle ?? cmsDefaults.reviewsSection.ratingTitle,
+      ratingSubtitle: initialContent.reviewsSection?.ratingSubtitle ?? cmsDefaults.reviewsSection.ratingSubtitle,
+      ctaText: initialContent.reviewsSection?.ctaText ?? cmsDefaults.reviewsSection.ctaText,
+      allReviewsCta: initialContent.reviewsSection?.allReviewsCta ?? cmsDefaults.reviewsSection.allReviewsCta,
+    },
+  });
   const [status, setStatus] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
@@ -131,10 +161,84 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
         ))}
       </div>
 
+      {activeTab === "general" && (
+        <div className="space-y-5">
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Загальні налаштування сайту" hint="Редагуйте основні публічні дані, включно з логотипом" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Назва сайту</FieldLabel>
+                <input
+                  value={content.siteName}
+                  onChange={(event) => updateContent({ ...content, siteName: event.target.value })}
+                  className={inputClass}
+                  placeholder="FCDL.STORE"
+                />
+              </div>
+              <div>
+                <FieldLabel>URL логотипа</FieldLabel>
+                <div className="flex gap-2">
+                  <input
+                    value={content.logoUrl}
+                    onChange={(event) => updateContent({ ...content, logoUrl: event.target.value })}
+                    className={inputClass}
+                    placeholder="/img/logo.jpg або https://..."
+                  />
+                  <ImageUploadButton
+                    onUploaded={(url) => {
+                      updateContent({ ...content, logoUrl: url });
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Якщо поле порожнє, використовується стандартний логотип із проєкту.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
       {activeTab === "home" && (
         <div className="space-y-5">
           <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
             <SectionTitle title="Відео-фон першого екрана" hint="Це відео показується на desktop у hero-блоці" />
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Режим першого екрана</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateContent({ ...content, heroMode: "video" })}
+                    className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition ${
+                      content.heroMode === "video"
+                        ? "bg-[var(--blue-900)] text-white"
+                        : "border border-[var(--blue-200)] bg-white text-[var(--blue-900)]"
+                    }`}
+                  >
+                    Відео-фон
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateContent({ ...content, heroMode: "slides" })}
+                    className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition ${
+                      content.heroMode === "slides"
+                        ? "bg-[var(--blue-900)] text-white"
+                        : "border border-[var(--blue-200)] bg-white text-[var(--blue-900)]"
+                    }`}
+                  >
+                    Hero-слайди
+                  </button>
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Плашка над заголовком</FieldLabel>
+                <input
+                  value={content.heroBadge}
+                  onChange={(event) => updateContent({ ...content, heroBadge: event.target.value })}
+                  className={inputClass}
+                  placeholder="Онлайн-бронювання поля"
+                />
+              </div>
+            </div>
             <div>
               <FieldLabel>URL відео (MP4)</FieldLabel>
               <div className="flex gap-2">
@@ -528,6 +632,284 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                   className={textareaClass}
                 />
               </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <p className="mb-2 text-sm font-semibold text-[var(--blue-900)]">Статистика</p>
+                <FieldLabel>Badge</FieldLabel>
+                <input
+                  value={content.statsSection.badge}
+                  onChange={(event) => updateContent({ ...content, statsSection: { ...content.statsSection, badge: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Заголовок</FieldLabel>
+                <input
+                  value={content.statsSection.title}
+                  onChange={(event) => updateContent({ ...content, statsSection: { ...content.statsSection, title: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Опис</FieldLabel>
+                <textarea
+                  rows={3}
+                  value={content.statsSection.description}
+                  onChange={(event) => updateContent({ ...content, statsSection: { ...content.statsSection, description: event.target.value } })}
+                  className={textareaClass}
+                />
+              </div>
+
+              <div className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                <p className="mb-2 text-sm font-semibold text-[var(--blue-900)]">Відгуки</p>
+                <FieldLabel>Badge</FieldLabel>
+                <input
+                  value={content.reviewsSection.badge}
+                  onChange={(event) => updateContent({ ...content, reviewsSection: { ...content.reviewsSection, badge: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Заголовок блоку</FieldLabel>
+                <input
+                  value={content.reviewsSection.title}
+                  onChange={(event) => updateContent({ ...content, reviewsSection: { ...content.reviewsSection, title: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Підзаголовок рейтингу</FieldLabel>
+                <input
+                  value={content.reviewsSection.ratingSubtitle}
+                  onChange={(event) => updateContent({ ...content, reviewsSection: { ...content.reviewsSection, ratingSubtitle: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Заголовок списку відгуків</FieldLabel>
+                <input
+                  value={content.reviewsSection.ratingTitle}
+                  onChange={(event) => updateContent({ ...content, reviewsSection: { ...content.reviewsSection, ratingTitle: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Текст кнопки "Залишити відгук"</FieldLabel>
+                <input
+                  value={content.reviewsSection.ctaText}
+                  onChange={(event) => updateContent({ ...content, reviewsSection: { ...content.reviewsSection, ctaText: event.target.value } })}
+                  className={inputClass}
+                />
+                <FieldLabel>Текст посилання "Усі відгуки"</FieldLabel>
+                <input
+                  value={content.reviewsSection.allReviewsCta}
+                  onChange={(event) => updateContent({ ...content, reviewsSection: { ...content.reviewsSection, allReviewsCta: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+              <p className="mb-3 text-sm font-semibold text-[var(--blue-900)]">Службові тексти головної</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <FieldLabel>Галерея: підпис головного фото</FieldLabel>
+                  <input
+                    value={content.homeUiText.galleryMainLabel}
+                    onChange={(event) => updateContent({ ...content, homeUiText: { ...content.homeUiText, galleryMainLabel: event.target.value } })}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Відгуки: підпис середньої оцінки</FieldLabel>
+                  <input
+                    value={content.homeUiText.reviewsAverageLabel}
+                    onChange={(event) => updateContent({ ...content, homeUiText: { ...content.homeUiText, reviewsAverageLabel: event.target.value } })}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Відгуки: заголовок картки</FieldLabel>
+                  <input
+                    value={content.homeUiText.reviewsCardLabel}
+                    onChange={(event) => updateContent({ ...content, homeUiText: { ...content.homeUiText, reviewsCardLabel: event.target.value } })}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Відгуки: заголовок порожнього стану</FieldLabel>
+                  <input
+                    value={content.homeUiText.reviewsEmptyTitle}
+                    onChange={(event) => updateContent({ ...content, homeUiText: { ...content.homeUiText, reviewsEmptyTitle: event.target.value } })}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Відгуки: текст порожнього стану</FieldLabel>
+                  <textarea
+                    rows={3}
+                    value={content.homeUiText.reviewsEmptyDescription}
+                    onChange={(event) => updateContent({ ...content, homeUiText: { ...content.homeUiText, reviewsEmptyDescription: event.target.value } })}
+                    className={textareaClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Новини: плашка головної новини</FieldLabel>
+                  <input
+                    value={content.homeUiText.newsFeaturedLabel}
+                    onChange={(event) => updateContent({ ...content, homeUiText: { ...content.homeUiText, newsFeaturedLabel: event.target.value } })}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Новини: текст "детальніше"</FieldLabel>
+                  <input
+                    value={content.homeUiText.newsReadMoreLabel}
+                    onChange={(event) => updateContent({ ...content, homeUiText: { ...content.homeUiText, newsReadMoreLabel: event.target.value } })}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+              <p className="mb-3 text-sm font-semibold text-[var(--blue-900)]">Плитки статистики</p>
+              <div className="space-y-3">
+                {content.statsSection.items.map((item, index) => (
+                  <div key={`${item.label}-${index}`} className="rounded-[12px] border border-[var(--blue-100)] bg-white p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--blue-800)]">Плитка #{index + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateContent({
+                            ...content,
+                            statsSection: {
+                              ...content.statsSection,
+                              items: removeByIndex(content.statsSection.items, index),
+                            },
+                          })
+                        }
+                        className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+                      >
+                        Видалити
+                      </button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div>
+                        <FieldLabel>Значення</FieldLabel>
+                        <input
+                          type="number"
+                          value={item.targetValue}
+                          onChange={(event) => {
+                            const items = [...content.statsSection.items];
+                            items[index] = { ...item, targetValue: Number(event.target.value) || 0 };
+                            updateContent({ ...content, statsSection: { ...content.statsSection, items } });
+                          }}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Десяткові знаки</FieldLabel>
+                        <input
+                          type="number"
+                          value={item.decimals}
+                          onChange={(event) => {
+                            const items = [...content.statsSection.items];
+                            items[index] = { ...item, decimals: Number(event.target.value) || 0 };
+                            updateContent({ ...content, statsSection: { ...content.statsSection, items } });
+                          }}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Заголовок</FieldLabel>
+                        <input
+                          value={item.label}
+                          onChange={(event) => {
+                            const items = [...content.statsSection.items];
+                            items[index] = { ...item, label: event.target.value };
+                            updateContent({ ...content, statsSection: { ...content.statsSection, items } });
+                          }}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      <div>
+                        <FieldLabel>Суфікс</FieldLabel>
+                        <input
+                          value={item.suffix}
+                          onChange={(event) => {
+                            const items = [...content.statsSection.items];
+                            items[index] = { ...item, suffix: event.target.value };
+                            updateContent({ ...content, statsSection: { ...content.statsSection, items } });
+                          }}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Додатковий текст (наприклад / 5)</FieldLabel>
+                        <input
+                          value={item.outOf}
+                          onChange={(event) => {
+                            const items = [...content.statsSection.items];
+                            items[index] = { ...item, outOf: event.target.value };
+                            updateContent({ ...content, statsSection: { ...content.statsSection, items } });
+                          }}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="flex items-end pb-2">
+                        <label className="inline-flex items-center gap-2 text-sm text-[var(--blue-900)]">
+                          <input
+                            type="checkbox"
+                            checked={item.isThousands}
+                            onChange={(event) => {
+                              const items = [...content.statsSection.items];
+                              items[index] = { ...item, isThousands: event.target.checked };
+                              updateContent({ ...content, statsSection: { ...content.statsSection, items } });
+                            }}
+                          />
+                          Форматувати як тисячі
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <FieldLabel>Опис</FieldLabel>
+                      <textarea
+                        rows={2}
+                        value={item.description}
+                        onChange={(event) => {
+                          const items = [...content.statsSection.items];
+                          items[index] = { ...item, description: event.target.value };
+                          updateContent({ ...content, statsSection: { ...content.statsSection, items } });
+                        }}
+                        className={textareaClass}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  updateContent({
+                    ...content,
+                    statsSection: {
+                      ...content.statsSection,
+                      items: [
+                        ...content.statsSection.items,
+                        {
+                          targetValue: 100,
+                          decimals: 0,
+                          suffix: "+",
+                          outOf: "",
+                          label: "новий показник",
+                          description: "Опис нового показника",
+                          isThousands: false,
+                        },
+                      ],
+                    },
+                  })
+                }
+                className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
+              >
+                Додати показник
+              </button>
             </div>
           </section>
 

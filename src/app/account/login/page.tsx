@@ -18,7 +18,7 @@ export default function AccountLoginPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [devCodeHint, setDevCodeHint] = useState("");
+
   const [resendIn, setResendIn] = useState(0);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,7 +72,6 @@ export default function AccountLoginPage() {
 
     setError("");
     setStatus("");
-    setDevCodeHint("");
     setLoading(true);
 
     try {
@@ -81,7 +80,7 @@ export default function AccountLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, mode: "register", password }),
       });
-      const result = (await response.json()) as { error?: string; phone?: string; devCode?: string };
+      const result = (await response.json()) as { error?: string; phone?: string };
 
       if (!response.ok) {
         setError(result.error ?? "Не вдалося відправити код");
@@ -90,9 +89,6 @@ export default function AccountLoginPage() {
 
       setStatus(`Код відправлено на ${result.phone}`);
       setResendIn(60);
-      if (result.devCode) {
-        setDevCodeHint(`Dev-код: ${result.devCode}`);
-      }
       setStep("code");
     } catch {
       setError("Помилка мережі. Спробуйте ще раз.");
@@ -187,7 +183,6 @@ export default function AccountLoginPage() {
               setCode("");
               setError("");
               setStatus("");
-              setDevCodeHint("");
               setPassword("");
               setConfirmPassword("");
               setAcceptedTerms(false);
@@ -204,7 +199,6 @@ export default function AccountLoginPage() {
               setCode("");
               setError("");
               setStatus("");
-              setDevCodeHint("");
               setPassword("");
               setConfirmPassword("");
               setAcceptedTerms(false);
@@ -341,7 +335,6 @@ export default function AccountLoginPage() {
 
         {status && <p className="mt-4 text-sm font-semibold text-emerald-700">{status}</p>}
         {error && <p className="mt-2 text-sm font-semibold text-red-600">{error}</p>}
-        {devCodeHint && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">{devCodeHint}</p>}
       </div>
     </main>
   );

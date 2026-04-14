@@ -122,6 +122,10 @@ export function HomeBookingInteractive() {
   const autoCheckoutTriggeredRef = useRef(false);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [availabilityByDate, setAvailabilityByDate] = useState<Record<string, AvailabilitySlot[]>>({});
+  const [paymentInfo, setPaymentInfo] = useState<{
+    adminDecisionHours: number;
+    paymentWindowRules: Array<{ minDaysBeforeStart: number; maxDaysBeforeStart: number | null; paymentHours: number }>;
+  } | null>(null);
 
   const totalPrice = useMemo(() => {
     if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
@@ -170,6 +174,21 @@ export function HomeBookingInteractive() {
       }
     };
     void loadPricing();
+  }, []);
+
+  useEffect(() => {
+    const loadPaymentSettings = async () => {
+      try {
+        const res = await fetch("/api/payment-settings", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as typeof paymentInfo;
+          setPaymentInfo(data);
+        }
+      } catch {
+        // keep default
+      }
+    };
+    void loadPaymentSettings();
   }, []);
 
   useEffect(() => {
@@ -458,10 +477,15 @@ export function HomeBookingInteractive() {
         }),
       });
 
-      const result = (await response.json()) as { error?: string };
+      const result = (await response.json()) as { error?: string; paymentInfo?: unknown };
       if (!response.ok) {
         setSubmitError(result.error ?? "Не вдалося створити бронювання");
         return;
+      }
+
+      // Store payment info from response
+      if (result.paymentInfo) {
+        setPaymentInfo(result.paymentInfo as typeof paymentInfo);
       }
 
       setCartItems([]);
@@ -1001,6 +1025,23 @@ export function HomeBookingInteractive() {
             <div className="mt-7 border-t border-[var(--blue-100)] pt-5">
               <p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">До оплати</p>
               <p className="mt-2 text-4xl font-black text-[var(--blue-950)]">{totalCartPrice} грн</p>
+            </div>
+
+            {/* Payment info */}
+            <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.15em] text-blue-700">Умови оплати</p>
+              <div className="mt-3 space-y-2 text-xs text-slate-700">
+                <p>
+                  <span className="font-bold">Час на оплату залежить від дати гри:</span>
+                </p>
+                <ul className="ml-3 list-inside space-y-1">
+                  <li>• За 1–2 дні: 12 годин</li>
+                  <li>• За 3–5 днів: 24 години</li>
+                  <li>• За 6–9 днів: 48 годин</li>
+                  <li>• За 10+ днів: 72 години</li>
+                </ul>
+                <p className="mt-2">Готівка і переводи IBAN приймаються однаково.</p>
+              </div>
             </div>
 
             {submitError && (

@@ -134,3 +134,15 @@ model AppConfig {
   value     Json
   updatedAt DateTime
 }
+
+model BlockedSlot {
+  id        String   @id
+  sector    String
+  date      String
+  startTime String
+  endTime   String
+  reason    String?
+  createdAt DateTime
+
+  @@index([date, sector])
+}

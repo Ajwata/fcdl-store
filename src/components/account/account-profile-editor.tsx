@@ -22,7 +22,6 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
   const [phoneStep, setPhoneStep] = useState<PhoneChangeStep>("idle");
   const [newPhone, setNewPhone] = useState("");
   const [smsCode, setSmsCode] = useState("");
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState("");
 
@@ -35,12 +34,11 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: newPhone }),
       });
-      const result = (await response.json()) as { error?: string; devCode?: string };
+      const result = (await response.json()) as { error?: string };
       if (!response.ok) {
         setPhoneError(result.error ?? "Помилка відправки SMS");
         return;
       }
-      if (result.devCode) setDevCode(result.devCode);
       setPhoneStep("verify");
     } catch {
       setPhoneError("Помилка мережі. Спробуйте ще раз.");
@@ -65,7 +63,6 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
       }
       setProfilePhone(result.user?.phone ?? newPhone);
       setPhoneStep("done");
-      setDevCode(null);
       setSmsCode("");
     } catch {
       setPhoneError("Помилка мережі. Спробуйте ще раз.");
@@ -203,11 +200,6 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
                         placeholder="+380..."
                         className="w-full rounded-xl border border-[var(--blue-200)] bg-white px-3 py-2.5 text-sm text-[var(--blue-950)] outline-none ring-[var(--green-700)] focus:ring-2"
                       />
-                      {devCode && (
-                        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-mono text-amber-900">
-                          DEV: код — <strong>{devCode}</strong>
-                        </p>
-                      )}
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -219,7 +211,7 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setPhoneStep("idle"); setPhoneError(""); setDevCode(null); }}
+                          onClick={() => { setPhoneStep("idle"); setPhoneError(""); }}
                           className="rounded-full border border-[var(--blue-200)] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.1em] text-[var(--blue-900)] transition hover:bg-[var(--blue-50)]"
                         >
                           Скасувати
@@ -233,11 +225,6 @@ export function AccountProfileEditor({ initialName, initialPhone, initialAvatarU
                       <p className="text-xs text-slate-500">
                         Код відправлено на <strong>{newPhone}</strong>. Введіть його нижче.
                       </p>
-                      {devCode && (
-                        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-mono text-amber-900">
-                          DEV: код — <strong>{devCode}</strong>
-                        </p>
-                      )}
                       <input
                         value={smsCode}
                         onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, "").slice(0, 6))}

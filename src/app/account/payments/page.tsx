@@ -85,6 +85,17 @@ export default async function AccountPaymentsPage() {
             <p className="mt-1">2) Переказом на IBAN за реквізитами нижче.</p>
             <p className="mt-2 text-xs text-slate-500">Для кожного бронювання натисніть "Отримати реквізити". У попапі можна скопіювати дані та одразу відправити квитанцію.</p>
           </div>
+
+          <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+            <p className="font-semibold text-orange-900">⏰ Строки оплати</p>
+            <ul className="mt-2 space-y-1 text-sm text-orange-800">
+              <li>• За 1–2 дні до гри: <span className="font-bold">12 годин</span> на оплату</li>
+              <li>• За 3–5 днів до гри: <span className="font-bold">24 години</span> на оплату</li>
+              <li>• За 6–9 днів до гри: <span className="font-bold">48 годин</span> на оплату</li>
+              <li>• За 10+ днів до гри: <span className="font-bold">72 години</span> на оплату</li>
+            </ul>
+            <p className="mt-2 text-xs text-orange-700">Адміністратор переглядає рішення 12 годин. Готівка і IBAN приймаються однаково.</p>
+          </div>
         </div>
 
         <div className="space-y-3">

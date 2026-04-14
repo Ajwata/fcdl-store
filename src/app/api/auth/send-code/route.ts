@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     const result = await sendSmsCode(body.phone);
-    return NextResponse.json({ ok: true, phone: result.phone, devCode: result.devCode });
+    return NextResponse.json({ ok: true, phone: result.phone });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Не вдалося відправити код";
     return NextResponse.json({ error: message }, { status: 400 });

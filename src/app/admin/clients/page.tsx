@@ -1,7 +1,8 @@
 import { getBookings } from "@/lib/bookings";
+import { getAllClientUsers } from "@/lib/client-auth";
 import { getClientDiscounts } from "@/lib/client-discounts";
 
-import { ClientDiscountsManager } from "@/components/admin/client-discounts-manager";
+import { ClientsTable } from "@/components/admin/clients-table";
 
 type ClientSummary = {
   name: string;
@@ -11,17 +12,36 @@ type ClientSummary = {
   totalSpent: number;
   lastBookingDate: string;
   sectors: string[];
+  registeredAt: string | null;
 };
 
-function deriveClients(bookings: Awaited<ReturnType<typeof getBookings>>): ClientSummary[] {
+function buildClients(
+  bookings: Awaited<ReturnType<typeof getBookings>>,
+  registeredUsers: Awaited<ReturnType<typeof getAllClientUsers>>,
+): ClientSummary[] {
   const map = new Map<string, ClientSummary>();
 
+  // Seed map with all registered users first (0 bookings by default)
+  for (const u of registeredUsers) {
+    map.set(u.phone, {
+      name: u.name,
+      phone: u.phone,
+      email: u.email ?? "",
+      totalBookings: 0,
+      totalSpent: 0,
+      lastBookingDate: "",
+      sectors: [],
+      registeredAt: u.createdAt,
+    });
+  }
+
+  // Enrich with bookings (also adds unregistered clients who booked)
   for (const b of bookings) {
     const existing = map.get(b.clientPhone);
     if (existing) {
       existing.totalBookings += 1;
       if (b.paymentStatus === "paid") existing.totalSpent += b.totalPrice;
-      if (b.date > existing.lastBookingDate) existing.lastBookingDate = b.date;
+      if (!existing.lastBookingDate || b.date > existing.lastBookingDate) existing.lastBookingDate = b.date;
       if (!existing.sectors.includes(b.sector)) existing.sectors.push(b.sector);
     } else {
       map.set(b.clientPhone, {
@@ -32,6 +52,7 @@ function deriveClients(bookings: Awaited<ReturnType<typeof getBookings>>): Clien
         totalSpent: b.paymentStatus === "paid" ? b.totalPrice : 0,
         lastBookingDate: b.date,
         sectors: [b.sector],
+        registeredAt: null,
       });
     }
   }
@@ -40,8 +61,12 @@ function deriveClients(bookings: Awaited<ReturnType<typeof getBookings>>): Clien
 }
 
 export default async function ClientsPage() {
-  const [bookings, discounts] = await Promise.all([getBookings(), getClientDiscounts()]);
-  const clients = deriveClients(bookings);
+  const [bookings, registeredUsers, discounts] = await Promise.all([
+    getBookings(),
+    getAllClientUsers(),
+    getClientDiscounts(),
+  ]);
+  const clients = buildClients(bookings, registeredUsers);
 
   const totalRevenue = bookings
     .filter((b) => b.paymentStatus === "paid")
@@ -74,80 +99,7 @@ export default async function ClientsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-        {clients.length === 0 ? (
-          <p className="py-16 text-center text-sm text-slate-400">Немає клієнтів</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  <th className="px-6 py-3">Клієнт</th>
-                  <th className="px-4 py-3">Телефон</th>
-                  <th className="px-4 py-3">Бронювань</th>
-                  <th className="px-4 py-3">Витрачено</th>
-                  <th className="px-4 py-3">Поля</th>
-                  <th className="px-4 py-3">Останнє</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clients.map((client) => (
-                  <tr
-                    key={client.phone}
-                    className="border-b border-slate-50 transition last:border-0 hover:bg-slate-50"
-                  >
-                    <td className="px-6 py-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                          style={{ background: `hsl(${(client.name.charCodeAt(0) * 27) % 360}, 55%, 45%)` }}
-                        >
-                          {client.name
-                            .split(" ")
-                            .slice(0, 2)
-                            .map((w) => w[0])
-                            .join("")}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-800">{client.name}</p>
-                          {client.email && (
-                            <p className="text-xs text-slate-400">{client.email}</p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{client.phone}</td>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-slate-800">{client.totalBookings}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-emerald-600">
-                        ₴ {client.totalSpent.toLocaleString("uk-UA")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {client.sectors.sort().map((s) => (
-                          <span
-                            key={s}
-                            className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{client.lastBookingDate}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <ClientDiscountsManager clients={clients} initialDiscounts={discounts} />
+      <ClientsTable clients={clients} initialDiscounts={discounts} />
     </div>
   );
 }

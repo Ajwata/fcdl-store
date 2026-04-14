@@ -2,39 +2,35 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type StatDef = {
-  target: number;
-  decimals: number;
-  suffix: string;
-  outOf?: string;
-  label: string;
-  description: string;
-  isThousands?: boolean;
-};
+import type { StatItem } from "@/data/cms-defaults";
 
-const STATS: StatDef[] = [
+const DEFAULT_STATS: StatItem[] = [
   {
-    target: 1280,
+    targetValue: 1280,
     decimals: 0,
     suffix: "+",
+    outOf: "",
     label: "бронювань",
     description: "Успішних бронювань з моменту запуску сервісу",
     isThousands: true,
   },
   {
-    target: 740,
+    targetValue: 740,
     decimals: 0,
     suffix: "+",
+    outOf: "",
     label: "клієнтів",
     description: "Команд і гравців що обрали наш майданчик",
+    isThousands: false,
   },
   {
-    target: 4.9,
+    targetValue: 4.9,
     decimals: 1,
     suffix: "",
     outOf: "/ 5",
     label: "рейтинг",
     description: "Середня оцінка за якість поля та сервіс",
+    isThousands: false,
   },
 ];
 
@@ -56,7 +52,12 @@ function CountUp({
   outOf,
   isThousands,
   active,
-}: Pick<StatDef, "target" | "decimals" | "suffix" | "outOf" | "isThousands"> & {
+}: {
+  target: number;
+  decimals: number;
+  suffix: string;
+  outOf: string;
+  isThousands: boolean;
   active: boolean;
 }) {
   const [count, setCount] = useState(0);
@@ -96,7 +97,11 @@ function CountUp({
   );
 }
 
-export function StatsSection() {
+export function StatsSection({ items, badge, title, description }: { items?: StatItem[]; badge?: string; title?: string; description?: string }) {
+  const stats = items && items.length > 0 ? items : DEFAULT_STATS;
+  const eyebrow = badge || "Цифри говорять";
+  const heading = title || "Успіх у деталях";
+  const sectionDescription = description || "";
   const sectionRef = useRef<HTMLElement>(null);
   const [triggered, setTriggered] = useState(false);
 
@@ -122,12 +127,13 @@ export function StatsSection() {
     <section ref={sectionRef} id="stats" className="stats-section">
       <div className="stats-inner">
         <div className="stats-header">
-          <span className="stats-eyebrow">Цифри говорять</span>
-          <h2 className="stats-title font-display">Успіх у деталях</h2>
+          <span className="stats-eyebrow">{eyebrow}</span>
+          <h2 className="stats-title font-display">{heading}</h2>
+          {sectionDescription && <p className="mt-3 max-w-2xl text-sm text-white/80">{sectionDescription}</p>}
         </div>
 
         <div className="stats-grid">
-          {STATS.map((stat, i) => (
+          {stats.map((stat, i) => (
             <div
               key={stat.label}
               className="stats-item"
@@ -136,7 +142,7 @@ export function StatsSection() {
               <div className="stats-item-inner">
                 <div className="stats-value-row">
                   <CountUp
-                    target={stat.target}
+                    target={stat.targetValue}
                     decimals={stat.decimals}
                     suffix={stat.suffix}
                     outOf={stat.outOf}
@@ -148,7 +154,7 @@ export function StatsSection() {
                 <p className="stats-desc">{stat.description}</p>
               </div>
 
-              {i < STATS.length - 1 && <div className="stats-divider" aria-hidden />}
+              {i < stats.length - 1 && <div className="stats-divider" aria-hidden />}
             </div>
           ))}
         </div>

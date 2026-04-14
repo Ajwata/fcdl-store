@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { getBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { notifyPaymentVerification } from "@/lib/telegram";
 
 const IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const PDF_MIME = new Set(["application/pdf"]);
@@ -147,6 +148,16 @@ export async function POST(
   revalidatePath("/account/bookings");
   revalidatePath("/account/payments");
   revalidatePath("/admin/bookings");
+
+  void notifyPaymentVerification({
+    bookingId: winner.id,
+    clientName: winner.clientName,
+    clientPhone: winner.clientPhone,
+    date: winner.date,
+    sector: winner.sector,
+    totalPrice: winner.totalPrice,
+    proofUrl: winner.paymentProofUrl ?? receiptUrl,
+  });
 
   return NextResponse.json({ booking: bookings[index] });
 }

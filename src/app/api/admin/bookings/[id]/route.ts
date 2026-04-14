@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { autoCompleteExpiredPaidBookings, type Booking, saveBookings } from "@/lib/bookings";
 import { daysBeforeStart, getPaymentSettings, resolvePaymentWindowHours } from "@/lib/payment-settings";
+import { notifyBookingCancelled, notifyPaymentReceived } from "@/lib/telegram";
 
 function overlaps(startA: string, endA: string, startB: string, endB: string): boolean {
   return startA < endB && startB < endA;
@@ -154,6 +155,29 @@ export async function PATCH(
   revalidatePath("/account/bookings");
   revalidatePath("/account/payments");
   revalidatePath("/admin/bookings");
+
+  if (paymentChangedToPaid) {
+    void notifyPaymentReceived({
+      bookingId: next.id,
+      clientName: next.clientName,
+      clientPhone: next.clientPhone,
+      date: next.date,
+      startTime: next.startTime,
+      sector: next.sector,
+      totalPrice: next.totalPrice,
+    });
+  }
+
+  const cancelledByAdmin = current.status !== "cancelled" && bookings[index].status === "cancelled";
+  if (cancelledByAdmin) {
+    void notifyBookingCancelled({
+      bookingId: bookings[index].id,
+      clientName: bookings[index].clientName,
+      date: bookings[index].date,
+      startTime: bookings[index].startTime,
+      sector: bookings[index].sector,
+    });
+  }
 
   return NextResponse.json({ booking: bookings[index] });
 }

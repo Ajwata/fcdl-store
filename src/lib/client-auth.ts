@@ -1,4 +1,4 @@
-﻿import { randomInt, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
+﻿import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -119,7 +119,7 @@ function toClientUserModel(user: {
   };
 }
 
-export async function sendSmsCode(phoneRaw: string): Promise<{ phone: string; devCode?: string }> {
+export async function sendSmsCode(phoneRaw: string): Promise<{ phone: string }> {
   const phone = normalizePhone(phoneRaw);
   if (!isValidPhone(phone)) {
     throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅСѓ");
@@ -129,38 +129,18 @@ export async function sendSmsCode(phoneRaw: string): Promise<{ phone: string; de
 
   const expiresAt = Date.now() + SMS_CODE_TTL_MS;
   const useAlphaSms = isAlphaSmsConfigured();
-  
+
   console.log(`[sendSmsCode] AlphaSMS configured: ${useAlphaSms}`);
 
-  if (process.env.NODE_ENV === "production" && !useAlphaSms) {
+  if (!useAlphaSms) {
     throw new Error("SMS-РїСЂРѕРІР°Р№РґРµСЂ РЅРµ РЅР°Р»Р°С€С‚РѕРІР°РЅРёР№");
   }
 
   let verifyId = "";
-  let devCode = "";
 
-  if (useAlphaSms) {
-    try {
-      console.log(`[sendSmsCode] Calling AlphaSMS verify/create...`);
-      verifyId = await createVerifyCode(phone);
-      console.log(`[sendSmsCode] AlphaSMS verify/create succeeded: ${verifyId}`);
-    } catch (error) {
-      console.error(`[sendSmsCode] AlphaSMS verify/create error:`, error);
-      if (process.env.NODE_ENV !== "production") {
-        // In dev mode, generate fake code for testing
-        devCode = String(randomInt(0, 1_000_000)).padStart(6, "0");
-        verifyId = `dev-${Date.now()}`;
-        console.log(`[sendSmsCode] Dev fallback activated, devCode: ${devCode}`);
-      } else {
-        throw error;
-      }
-    }
-  } else if (process.env.NODE_ENV !== "production") {
-    // Dev mode without AlphaSMS
-    devCode = String(randomInt(0, 1_000_000)).padStart(6, "0");
-    verifyId = `dev-${Date.now()}`;
-    console.log(`[sendSmsCode] Dev mode (no AlphaSMS), devCode: ${devCode}`);
-  }
+  console.log(`[sendSmsCode] Calling AlphaSMS verify/create...`);
+  verifyId = await createVerifyCode(phone);
+  console.log(`[sendSmsCode] AlphaSMS verify/create succeeded: ${verifyId}`);
 
   // Persist the verify request
   if (isDatabaseEnabled()) {
@@ -183,8 +163,8 @@ export async function sendSmsCode(phoneRaw: string): Promise<{ phone: string; de
     await saveCodes(filtered);
   }
 
-  console.log(`[sendSmsCode] Completed. verify_id: ${verifyId}, has_devCode: ${Boolean(devCode)}`);
-  return { phone, ...(devCode ? { devCode } : {}) };
+  console.log(`[sendSmsCode] Completed. verify_id: ${verifyId}`);
+  return { phone };
 }
 
 export async function verifySmsCode(phoneRaw: string, codeRaw: string): Promise<boolean> {
@@ -451,6 +431,16 @@ export async function getClientUserById(userId: string): Promise<ClientUser | nu
 
   const users = await readUsers();
   return users.find((item) => item.id === userId) ?? null;
+}
+
+export async function getAllClientUsers(): Promise<ClientUser[]> {
+  if (isDatabaseEnabled()) {
+    const users = await getPrismaClient().clientUser.findMany({ orderBy: { createdAt: "desc" } });
+    return users.map(toClientUserModel);
+  }
+
+  const users = await readUsers();
+  return [...users].sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
 }
 
 export async function updateClientUser(

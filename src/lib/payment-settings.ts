@@ -118,6 +118,38 @@ export async function savePaymentSettings(input: PaymentSettings): Promise<Payme
   return next;
 }
 
+/**
+ * Determine how many hours a client has to pay based on days until booking start.
+ * @param date Game date (YYYY-MM-DD)
+ * @param settings Payment settings
+ * @returns Payment window in hours (e.g., 12, 24, 48, 72)
+ */
+export function getPaymentWindowHours(date: string, settings: PaymentSettings): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const gameDate = new Date(`${date}T00:00:00Z`);
+  gameDate.setUTCHours(0, 0, 0, 0);
+
+  const daysUntilStart = Math.floor((gameDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+
+  // Find matching rule
+  for (const rule of settings.paymentWindowRules) {
+    const minOk = daysUntilStart >= rule.minDaysBeforeStart;
+    const maxOk = rule.maxDaysBeforeStart === null || daysUntilStart <= rule.maxDaysBeforeStart;
+    if (minOk && maxOk) {
+      return rule.paymentHours;
+    }
+  }
+
+  // Fallback: last rule or default
+  if (settings.paymentWindowRules.length > 0) {
+    return settings.paymentWindowRules[settings.paymentWindowRules.length - 1].paymentHours;
+  }
+
+  return 12; // 12 hours default
+}
+
 export function toBookingStartTimestamp(date: string, startTime: string): number {
   return new Date(`${date}T${startTime}:00`).getTime();
 }

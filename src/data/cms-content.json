@@ -1,4 +1,6 @@
 {
+  "siteName": "FCDL.STORE",
+  "logoUrl": "",
   "navigationItems": [
     {
       "label": "Головна",
@@ -25,6 +27,9 @@
       "href": "/#contacts"
     }
   ],
+  "heroMode": "video",
+  "heroBadge": "Онлайн-бронювання поля",
+  "heroVideoUrl": "/img/background.mp4",
   "heroSlides": [
     {
       "id": 1,
@@ -267,5 +272,71 @@
     "title": "Останні оновлення",
     "description": "Актуальні анонси, зміни розкладу та важливі апдейти по матчах і сервісу.",
     "allNewsCta": "Усі новини"
-  }
+  },
+  "homeUiText": {
+    "galleryMainLabel": "Головний кадр",
+    "reviewsAverageLabel": "Середня оцінка",
+    "reviewsCardLabel": "Відгук клієнта",
+    "reviewsEmptyTitle": "Відгуки клієнтів",
+    "reviewsEmptyDescription": "Поки що немає опублікованих відгуків. Після завершення матчу клієнти можуть залишити відгук у своєму кабінеті.",
+    "newsFeaturedLabel": "Головна новина",
+    "newsReadMoreLabel": "Детальніше"
+  },
+  "statsSection": {
+    "badge": "Статистика",
+    "title": "Сервіс у цифрах",
+    "description": "Реальні показники, що відображають масштаб та якість роботи майданчика.",
+    "items": [
+      {
+        "targetValue": 1280,
+        "decimals": 0,
+        "suffix": "+",
+        "outOf": "",
+        "label": "бронювань",
+        "description": "Успішних бронювань з моменту запуску сервісу",
+        "isThousands": true
+      },
+      {
+        "targetValue": 740,
+        "decimals": 0,
+        "suffix": "+",
+        "outOf": "",
+        "label": "клієнтів",
+        "description": "Команд і гравців що обрали наш майданчик",
+        "isThousands": false
+      },
+      {
+        "targetValue": 4.9,
+        "decimals": 1,
+        "suffix": "",
+        "outOf": "/ 5",
+        "label": "рейтинг",
+        "description": "Середня оцінка за якість поля та сервіс",
+        "isThousands": false
+      }
+    ]
+  },
+  "reviewsSection": {
+    "badge": "Відгуки",
+    "title": "Рейтинг сервісу",
+    "ratingSubtitle": "На основі оцінок гравців і команд",
+    "ratingTitle": "Відгуки клієнтів",
+    "ctaText": "Залишити відгук",
+    "allReviewsCta": "Усі відгуки"
+  },
+  "paymentRequisites": {
+    "recipient": "ФОП Іваненко Іван Іванович",
+    "iban": "UA123456789012345678901234567",
+    "bank": "АТ КБ ПриватБанк",
+    "purpose": "Оплата за бронювання поля FCDL.STORE"
+  },
+  "adminContacts": [
+    {
+      "id": "admin-1",
+      "name": "Адміністрація поля",
+      "description": "Єдиний контакт для бронювання, оплати та уточнення деталей матчу.",
+      "phone": "+380670000000",
+      "photo": ""
+    }
+  ]
 }

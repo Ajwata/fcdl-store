@@ -10,7 +10,11 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
   return {
     ...cmsDefaults,
     ...partial,
+    siteName: partial.siteName ?? cmsDefaults.siteName,
+    logoUrl: partial.logoUrl ?? cmsDefaults.logoUrl,
     navigationItems: partial.navigationItems ?? cmsDefaults.navigationItems,
+    heroMode: partial.heroMode ?? cmsDefaults.heroMode,
+    heroBadge: partial.heroBadge ?? cmsDefaults.heroBadge,
     heroVideoUrl: partial.heroVideoUrl ?? cmsDefaults.heroVideoUrl,
     heroSlides: partial.heroSlides ?? cmsDefaults.heroSlides,
     galleryItems: partial.galleryItems ?? cmsDefaults.galleryItems,
@@ -36,6 +40,19 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
     homeNewsSection: {
       ...cmsDefaults.homeNewsSection,
       ...(partial.homeNewsSection ?? {}),
+    },
+    homeUiText: {
+      ...cmsDefaults.homeUiText,
+      ...(partial.homeUiText ?? {}),
+    },
+    statsSection: {
+      ...cmsDefaults.statsSection,
+      ...(partial.statsSection ?? {}),
+      items: partial.statsSection?.items ?? cmsDefaults.statsSection.items,
+    },
+    reviewsSection: {
+      ...cmsDefaults.reviewsSection,
+      ...(partial.reviewsSection ?? {}),
     },
     paymentRequisites: {
       ...cmsDefaults.paymentRequisites,

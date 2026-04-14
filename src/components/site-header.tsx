@@ -14,9 +14,11 @@ type NavigationItem = {
 
 type SiteHeaderProps = {
   navigationItems: NavigationItem[];
+  logoUrl?: string;
+  siteName?: string;
 };
 
-export function SiteHeader({ navigationItems }: SiteHeaderProps) {
+export function SiteHeader({ navigationItems, logoUrl, siteName = "FCDL.STORE" }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [notificationsCount, setNotificationsCount] = useState(0);
@@ -87,12 +89,21 @@ export function SiteHeader({ navigationItems }: SiteHeaderProps) {
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/60 bg-white/82 shadow-[0_8px_26px_rgba(8,26,51,0.08)] backdrop-blur-xl">
       <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-10">
         <Link href="/" className="shrink-0">
-          <Image
-            src={logoImage}
-            alt="FCDL.STORE"
-            className="h-9 w-auto rounded-md object-cover sm:h-10"
-            priority
-          />
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={siteName}
+              className="h-9 w-auto rounded-md object-cover sm:h-10"
+            />
+          ) : (
+            <Image
+              src={logoImage}
+              alt={siteName}
+              className="h-9 w-auto rounded-md object-cover sm:h-10"
+              priority
+            />
+          )}
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-bold text-[var(--blue-900)] lg:flex">

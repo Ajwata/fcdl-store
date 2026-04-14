@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { notifyBookingCancelled } from "@/lib/telegram";
 
 function isFutureBooking(date: string, startTime: string): boolean {
   const bookingDate = new Date(`${date}T${startTime}:00`);
@@ -64,6 +65,14 @@ export async function POST(
   revalidatePath("/account/bookings");
   revalidatePath("/account/payments");
   revalidatePath("/admin/bookings");
+
+  void notifyBookingCancelled({
+    bookingId: bookings[index].id,
+    clientName: bookings[index].clientName,
+    date: bookings[index].date,
+    startTime: bookings[index].startTime,
+    sector: bookings[index].sector,
+  });
 
   return NextResponse.json({ booking: bookings[index] });
 }

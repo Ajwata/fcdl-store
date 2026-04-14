@@ -7,9 +7,10 @@ import { getClientUserById } from "@/lib/client-auth";
 import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts";
 import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
-import { getPaymentSettings } from "@/lib/payment-settings";
+import { getPaymentSettings, getPaymentWindowHours } from "@/lib/payment-settings";
 import { getPricing, calcSlotPrice } from "@/lib/pricing";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { notifyNewBooking } from "@/lib/telegram";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -144,26 +145,34 @@ export async function POST(request: Request) {
 
   const createdAt = new Date().toISOString();
   const adminDecisionDueAt = new Date(Date.now() + paymentSettings.adminDecisionHours * 60 * 60 * 1000).toISOString();
-  const createdBookings = preparedItems.map((item) => ({
-    id: `booking-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    clientUserId: payload.uid,
-    clientName: user.name,
-    clientPhone: user.phone,
-    clientEmail: user.email ?? "",
-    sector: item.sector,
-    date: item.date,
-    startTime: item.startTime,
-    endTime: item.endTime,
-    durationHours: item.durationHours,
-    pricePerHour: item.canonicalPricePerHour,
-    totalPrice: item.canonicalTotalPrice,
-    status: "pending" as const,
-    paymentStatus: "unpaid" as const,
-    paymentMethod: "cash" as const,
-    adminDecisionDueAt,
-    createdAt,
-    notes: "Створено з календаря клієнтом",
-  }));
+  
+  // Calculate paymentDueAt for each booking based on game date
+  const createdBookings = preparedItems.map((item) => {
+    const paymentWindowHours = getPaymentWindowHours(item.date, paymentSettings);
+    const paymentDueAt = new Date(Date.now() + paymentWindowHours * 60 * 60 * 1000).toISOString();
+    
+    return {
+      id: `booking-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      clientUserId: payload.uid,
+      clientName: user.name,
+      clientPhone: user.phone,
+      clientEmail: user.email ?? "",
+      sector: item.sector,
+      date: item.date,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      durationHours: item.durationHours,
+      pricePerHour: item.canonicalPricePerHour,
+      totalPrice: item.canonicalTotalPrice,
+      status: "pending" as const,
+      paymentStatus: "unpaid" as const,
+      paymentMethod: "cash" as const,
+      paymentDueAt,
+      adminDecisionDueAt,
+      createdAt,
+      notes: "Створено з календаря клієнтом",
+    };
+  });
 
   bookings.push(...createdBookings);
   await saveBookings(bookings);
@@ -181,5 +190,24 @@ export async function POST(request: Request) {
     "success",
   );
 
-  return NextResponse.json({ bookings: createdBookings });
+  for (const booking of createdBookings) {
+    void notifyNewBooking({
+      bookingId: booking.id,
+      clientName: booking.clientName,
+      clientPhone: booking.clientPhone,
+      date: booking.date,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      sector: booking.sector,
+      totalPrice: booking.totalPrice,
+    });
+  }
+
+  return NextResponse.json({
+    bookings: createdBookings,
+    paymentInfo: {
+      adminDecisionHours: paymentSettings.adminDecisionHours,
+      paymentWindowRules: paymentSettings.paymentWindowRules,
+    },
+  });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
+import { getBlockedSlots } from "@/lib/blocked-slots";
 
 function hasNotEnded(date: string, endTime: string): boolean {
   return new Date(`${date}T${endTime}:00`).getTime() > Date.now();
@@ -15,7 +16,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Некоректна дата" }, { status: 400 });
   }
 
-  const slots = (await autoCompleteExpiredPaidBookings())
+  const [bookings, blockedSlots] = await Promise.all([
+    autoCompleteExpiredPaidBookings(),
+    getBlockedSlots(date, sector || undefined),
+  ]);
+
+  const bookingSlots = bookings
     .filter((item) => item.status !== "cancelled")
     .filter((item) => item.status !== "completed" || hasNotEnded(item.date, item.endTime))
     .filter((item) => item.date === date)
@@ -28,11 +34,23 @@ export async function GET(request: Request) {
       endTime: item.endTime,
       status: item.status,
       paymentStatus: item.paymentStatus,
-    }))
-    .sort((a, b) => {
-      if (a.sector !== b.sector) return a.sector.localeCompare(b.sector);
-      return a.startTime.localeCompare(b.startTime);
-    });
+    }));
+
+  const manualBlocks = blockedSlots.map((b) => ({
+    id: b.id,
+    date: b.date,
+    sector: b.sector,
+    startTime: b.startTime,
+    endTime: b.endTime,
+    status: "blocked" as const,
+    paymentStatus: "paid" as const, // treated as occupied by the booking form
+  }));
+
+  const slots = [...bookingSlots, ...manualBlocks].sort((a, b) => {
+    if (a.sector !== b.sector) return a.sector.localeCompare(b.sector);
+    return a.startTime.localeCompare(b.startTime);
+  });
 
   return NextResponse.json({ slots });
 }
+

@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await sendSmsCode(newPhone);
-    return NextResponse.json({ phone: result.phone, devCode: result.devCode ?? null });
+    return NextResponse.json({ phone: result.phone });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Не вдалося відправити SMS";
     return NextResponse.json({ error: message }, { status: 400 });

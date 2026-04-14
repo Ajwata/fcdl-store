@@ -88,6 +88,16 @@ export type HomeNewsSection = {
   allNewsCta: string;
 };
 
+export type HomeUiText = {
+  galleryMainLabel: string;
+  reviewsAverageLabel: string;
+  reviewsCardLabel: string;
+  reviewsEmptyTitle: string;
+  reviewsEmptyDescription: string;
+  newsFeaturedLabel: string;
+  newsReadMoreLabel: string;
+};
+
 export type PaymentRequisites = {
   recipient: string;
   iban: string;
@@ -105,8 +115,38 @@ export type AdminContactCard = {
   photo: string;
 };
 
+export type StatItem = {
+  targetValue: number;
+  decimals: number;
+  suffix: string;
+  outOf: string;
+  label: string;
+  description: string;
+  isThousands: boolean;
+};
+
+export type StatsSection = {
+  badge: string;
+  title: string;
+  description: string;
+  items: StatItem[];
+};
+
+export type ReviewsSection = {
+  badge: string;
+  title: string;
+  ratingTitle: string;
+  ratingSubtitle: string;
+  ctaText: string;
+  allReviewsCta: string;
+};
+
 export type CmsContent = {
+  siteName: string;
+  logoUrl: string;
   navigationItems: NavLink[];
+  heroMode: "video" | "slides";
+  heroBadge: string;
   heroVideoUrl: string;
   heroSlides: HeroSlide[];
   galleryItems: GalleryItem[];
@@ -120,12 +160,19 @@ export type CmsContent = {
   homeGallerySection: HomeGallerySection;
   homePromotionsSection: HomePromotionsSection;
   homeNewsSection: HomeNewsSection;
+  homeUiText: HomeUiText;
+  statsSection: StatsSection;
+  reviewsSection: ReviewsSection;
   paymentRequisites: PaymentRequisites;
   adminContacts: AdminContactCard[];
 };
 
 export const cmsDefaults: CmsContent = {
+  siteName: "FCDL.STORE",
+  logoUrl: "",
   navigationItems,
+  heroMode: "video",
+  heroBadge: "Онлайн-бронювання поля",
   heroVideoUrl: "/img/background.mp4",
   heroSlides,
   galleryItems,
@@ -213,6 +260,57 @@ export const cmsDefaults: CmsContent = {
     title: "Останні оновлення",
     description: "Актуальні анонси, зміни розкладу та важливі апдейти по матчах і сервісу.",
     allNewsCta: "Усі новини",
+  },
+  homeUiText: {
+    galleryMainLabel: "Головний кадр",
+    reviewsAverageLabel: "Середня оцінка",
+    reviewsCardLabel: "Відгук клієнта",
+    reviewsEmptyTitle: "Відгуки клієнтів",
+    reviewsEmptyDescription: "Поки що немає опублікованих відгуків. Після завершення матчу клієнти можуть залишити відгук у своєму кабінеті.",
+    newsFeaturedLabel: "Головна новина",
+    newsReadMoreLabel: "Детальніше",
+  },
+  statsSection: {
+    badge: "Статистика",
+    title: "Сервіс у цифрах",
+    description: "Реальні показники, що відображають масштаб та якість роботи майданчика.",
+    items: [
+      {
+        targetValue: 1280,
+        decimals: 0,
+        suffix: "+",
+        outOf: "",
+        label: "бронювань",
+        description: "Успішних бронювань з моменту запуску сервісу",
+        isThousands: true,
+      },
+      {
+        targetValue: 740,
+        decimals: 0,
+        suffix: "+",
+        outOf: "",
+        label: "клієнтів",
+        description: "Команд і гравців що обрали наш майданчик",
+        isThousands: false,
+      },
+      {
+        targetValue: 4.9,
+        decimals: 1,
+        suffix: "",
+        outOf: "/ 5",
+        label: "рейтинг",
+        description: "Середня оцінка за якість поля та сервіс",
+        isThousands: false,
+      },
+    ],
+  },
+  reviewsSection: {
+    badge: "Відгуки",
+    title: "Рейтинг сервісу",
+    ratingSubtitle: "На основі оцінок гравців і команд",
+    ratingTitle: "Відгуки клієнтів",
+    ctaText: "Залишити відгук",
+    allReviewsCta: "Усі відгуки",
   },
   paymentRequisites: {
     recipient: "ФОП Іваненко Іван Іванович",

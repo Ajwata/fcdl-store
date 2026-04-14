@@ -35,9 +35,9 @@ export default async function Home() {
 
   return (
     <>
-      <SiteHeader navigationItems={cms.navigationItems} />
+      <SiteHeader navigationItems={cms.navigationItems} logoUrl={cms.logoUrl} siteName={cms.siteName} />
       <main className="page-shell flex-1">
-        <HeroCarousel slides={heroSlides} videoUrl={cms.heroVideoUrl} />
+        <HeroCarousel slides={heroSlides} videoUrl={cms.heroVideoUrl} heroMode={cms.heroMode} heroBadge={cms.heroBadge} />
 
         <HomeBookingInteractive />
 
@@ -62,7 +62,7 @@ export default async function Home() {
                   style={{ backgroundImage: `linear-gradient(180deg, rgba(8,26,51,0.12), rgba(8,26,51,0.58)), url(${galleryItems[0].image})` }}
                 />
                 <div className="gallery-copy">
-                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/65">Головний кадр</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/65">{cms.homeUiText.galleryMainLabel}</p>
                   <h3 className="mt-3 text-3xl font-bold text-white sm:text-4xl">{galleryItems[0].title}</h3>
                   <p className="mt-3 max-w-lg text-base leading-7 text-white/78">{galleryItems[0].caption}</p>
                 </div>
@@ -186,16 +186,16 @@ export default async function Home() {
           </div>
         </section>
 
-        <StatsSection />
+        <StatsSection items={cms.statsSection.items} badge={cms.statsSection.badge} title={cms.statsSection.title} description={cms.statsSection.description} />
 
         <section id="reviews" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
           <div className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
             <aside className="panel-card animate-rise bg-[var(--blue-950)] text-white">
-              <p className="text-sm font-bold uppercase tracking-[0.3em] text-[var(--green-200)]">Відгуки</p>
-              <h2 className="mt-4 font-display text-4xl font-semibold uppercase leading-tight sm:text-5xl">Рейтинг сервісу</h2>
+              <p className="text-sm font-bold uppercase tracking-[0.3em] text-[var(--green-200)]">{cms.reviewsSection.badge}</p>
+              <h2 className="mt-4 font-display text-4xl font-semibold uppercase leading-tight sm:text-5xl">{cms.reviewsSection.title}</h2>
 
               <div className="mt-6 rounded-[26px] border border-white/14 bg-white/8 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/58">Середня оцінка</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/58">{cms.homeUiText.reviewsAverageLabel}</p>
                 <div className="mt-3 flex items-end gap-2">
                   <p className="font-display text-7xl leading-none">{averageRating}</p>
                   <p className="mb-2 text-xl font-bold text-white/62">/ 5</p>
@@ -207,7 +207,7 @@ export default async function Home() {
                     </span>
                   ))}
                 </div>
-                <p className="mt-2 text-sm text-white/62">На основі оцінок гравців і команд</p>
+                <p className="mt-2 text-sm text-white/62">{cms.reviewsSection.ratingSubtitle}</p>
                 <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-white/42">{totalReviews} відгуки(ів)</p>
               </div>
 
@@ -230,23 +230,23 @@ export default async function Home() {
                 href="/account/bookings"
                 className="cta-primary mt-8 inline-flex items-center justify-center rounded-full bg-[var(--green-700)] px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
               >
-                Залиши відгук
+                {cms.reviewsSection.ctaText}
               </Link>
             </aside>
 
             <div className="grid gap-4">
               <div className="flex items-end justify-between gap-3 px-1">
-                <h3 className="text-2xl font-bold text-[var(--blue-950)]">Відгуки клієнтів</h3>
+                <h3 className="text-2xl font-bold text-[var(--blue-950)]">{cms.reviewsSection.ratingTitle}</h3>
                 <Link href="/reviews" className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--blue-700)] hover:text-[var(--green-700)]">
-                  Усі відгуки
+                  {cms.reviewsSection.allReviewsCta}
                 </Link>
               </div>
 
               {latestReviews.length === 0 ? (
                 <article className="panel-card animate-rise bg-white/92">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--green-700)]">Відгуки клієнтів</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--green-700)]">{cms.homeUiText.reviewsEmptyTitle}</p>
                   <p className="mt-4 text-base leading-7 text-slate-600">
-                    Поки що немає опублікованих відгуків. Після завершення матчу клієнти можуть залишити відгук у своєму кабінеті.
+                    {cms.homeUiText.reviewsEmptyDescription}
                   </p>
                 </article>
               ) : latestReviews.map((review, index) => (
@@ -256,7 +256,7 @@ export default async function Home() {
                   style={{ animationDelay: `${120 + index * 90}ms` }}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--green-700)]">Відгук клієнта</p>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--green-700)]">{cms.homeUiText.reviewsCardLabel}</p>
                     <div className="flex items-center gap-1">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <span
@@ -307,7 +307,7 @@ export default async function Home() {
                     />
                     <div className="relative z-10 flex h-full flex-col justify-end p-7 sm:p-8">
                       <p className="inline-flex w-fit rounded-full border border-white/28 bg-white/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/82">
-                        Головна новина
+                        {cms.homeUiText.newsFeaturedLabel}
                       </p>
                       <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--green-100)]">{featuredNews.date}</p>
                       <h3 className="mt-3 max-w-2xl text-3xl font-bold leading-tight text-white sm:text-4xl">{featuredNews.title}</h3>
@@ -325,7 +325,7 @@ export default async function Home() {
                         <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--green-700)]">{news.date}</p>
                         <h3 className="mt-3 text-lg font-bold leading-snug text-[var(--blue-950)]">{news.title}</h3>
                         <div className="mt-auto pt-4 inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--blue-700)]">
-                          Детальніше
+                          {cms.homeUiText.newsReadMoreLabel}
                           <span aria-hidden>→</span>
                         </div>
                       </div>

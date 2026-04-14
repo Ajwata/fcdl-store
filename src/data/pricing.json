@@ -1,9 +1,21 @@
 {
-  "eveningStartHour": 18,
+  "eveningStartHour": 17,
   "sectors": {
-    "№1": { "dayPrice": 900, "eveningPrice": 1100 },
-    "№2": { "dayPrice": 800, "eveningPrice": 1000 },
-    "№3": { "dayPrice": 900, "eveningPrice": 1100 },
-    "№4": { "dayPrice": 2500, "eveningPrice": 3000 }
+    "№1": {
+      "dayPrice": 900,
+      "eveningPrice": 1100
+    },
+    "№2": {
+      "dayPrice": 800,
+      "eveningPrice": 1000
+    },
+    "№3": {
+      "dayPrice": 900,
+      "eveningPrice": 1100
+    },
+    "№4": {
+      "dayPrice": 2500,
+      "eveningPrice": 3000
+    }
   }
 }

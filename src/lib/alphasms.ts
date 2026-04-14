@@ -31,7 +31,7 @@ export async function createVerifyCode(phone: string): Promise<string> {
   }
 
   const normalizedPhone = phone.replace(/\D/g, "");
-  const payload = {
+  const payload: Record<string, unknown> = {
     auth,
     command: "verify/create",
     phone: normalizedPhone,
@@ -40,6 +40,11 @@ export async function createVerifyCode(phone: string): Promise<string> {
     code_length: 6,
     code_type: "numeric",
   };
+
+  const sender = process.env.ALPHASMS_SENDER?.trim();
+  if (sender) {
+    payload.sender_name = sender;
+  }
 
   console.log(`[AlphaSMS] verify/create request: phone=${normalizedPhone}`);
   console.log(`[AlphaSMS] Full payload:`, JSON.stringify(payload, null, 2));
