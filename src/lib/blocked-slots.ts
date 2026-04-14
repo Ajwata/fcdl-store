@@ -107,3 +107,93 @@ export async function setBlockedSlots(
   await writeJson([...kept, ...newSlots]);
   return newSlots;
 }
+
+/**
+ * Add blocked slots across a date range for multiple sectors.
+ * Unlike setBlockedSlots, this MERGES with existing blocks (no deletes).
+ * Returns the number of newly created slots.
+ */
+export async function addBlockedSlotsRange(
+  dateFrom: string,
+  dateTo: string,
+  sectors: string[],
+  slots: Array<{ startTime: string; endTime: string; reason?: string }>,
+): Promise<number> {
+  const dates: string[] = [];
+  const cursor = new Date(`${dateFrom}T00:00:00`);
+  const end = new Date(`${dateTo}T00:00:00`);
+  while (cursor <= end) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const now = new Date();
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+
+    const existing = await prisma.blockedSlot.findMany({
+      where: { date: { in: dates }, sector: { in: sectors } },
+      select: { date: true, sector: true, startTime: true, endTime: true },
+    });
+    const existingSet = new Set(existing.map((e) => `${e.date}|${e.sector}|${e.startTime}|${e.endTime}`));
+
+    const toCreate: Array<{
+      id: string;
+      sector: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      reason: string | null;
+      createdAt: Date;
+    }> = [];
+
+    for (const date of dates) {
+      for (const sector of sectors) {
+        for (const s of slots) {
+          if (!existingSet.has(`${date}|${sector}|${s.startTime}|${s.endTime}`)) {
+            toCreate.push({
+              id: `block-${randomUUID()}`,
+              sector,
+              date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              reason: s.reason ?? null,
+              createdAt: now,
+            });
+          }
+        }
+      }
+    }
+
+    if (toCreate.length > 0) {
+      await prisma.blockedSlot.createMany({ data: toCreate });
+    }
+    return toCreate.length;
+  }
+
+  const all = await readJson();
+  const existingSet = new Set(all.map((s) => `${s.date}|${s.sector}|${s.startTime}|${s.endTime}`));
+
+  const newSlots: BlockedSlot[] = [];
+  for (const date of dates) {
+    for (const sector of sectors) {
+      for (const s of slots) {
+        if (!existingSet.has(`${date}|${sector}|${s.startTime}|${s.endTime}`)) {
+          newSlots.push({
+            id: `block-${randomUUID()}`,
+            sector,
+            date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            reason: s.reason,
+            createdAt: now.toISOString(),
+          });
+        }
+      }
+    }
+  }
+
+  await writeJson([...all, ...newSlots]);
+  return newSlots.length;
+}

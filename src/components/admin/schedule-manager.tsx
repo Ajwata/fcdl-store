@@ -17,6 +17,7 @@ function toDateInputDefault(): string {
   return d.toISOString().slice(0, 10);
 }
 
+type Mode = "single" | "range";
 type SlotStatus = "free" | "blocked" | "booked";
 
 type BookedMeta = {
@@ -39,12 +40,23 @@ type ApiSlot = {
 };
 
 export function ScheduleManager() {
+  const [mode, setMode] = useState<Mode>("single");
+
+  // ── Single-day state ─────────────────────────────────────────────────────
   const [date, setDate] = useState(toDateInputDefault);
   const [sector, setSector] = useState(SECTORS[0]);
   const [slots, setSlots] = useState<Record<number, SlotInfo>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+
+  // ── Range state ──────────────────────────────────────────────────────────
+  const [rangeFrom, setRangeFrom] = useState(toDateInputDefault);
+  const [rangeTo, setRangeTo] = useState(toDateInputDefault);
+  const [rangeSectors, setRangeSectors] = useState<string[]>([...SECTORS]);
+  const [rangeHours, setRangeHours] = useState<Set<number>>(new Set());
+  const [rangeSaving, setRangeSaving] = useState(false);
+  const [rangeMessage, setRangeMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
   const loadSlots = useCallback(async () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !sector) return;
@@ -125,8 +137,72 @@ export function ScheduleManager() {
 
   const blockedCount = HOURS.filter((h) => slots[h]?.status === "blocked").length;
 
+  // ── Range logic ──────────────────────────────────────────────────────────
+  function toggleRangeSector(s: string) {
+    setRangeSectors((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+    );
+  }
+
+  function toggleRangeHour(h: number) {
+    setRangeHours((prev) => {
+      const next = new Set(prev);
+      if (next.has(h)) next.delete(h);
+      else next.add(h);
+      return next;
+    });
+  }
+
+  async function saveRange() {
+    setRangeSaving(true);
+    setRangeMessage(null);
+    const rangeSlots = Array.from(rangeHours)
+      .sort((a, b) => a - b)
+      .map((h) => ({ startTime: toTime(h), endTime: toTime(h + 1) }));
+    try {
+      const res = await fetch("/api/admin/blocked-slots/range", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dateFrom: rangeFrom, dateTo: rangeTo, sectors: rangeSectors, slots: rangeSlots }),
+      });
+      const data = (await res.json()) as { added?: number; error?: string };
+      if (!res.ok) {
+        setRangeMessage({ text: data.error ?? "Помилка", ok: false });
+      } else {
+        setRangeMessage({ text: `Заблоковано нових слотів: ${data.added ?? 0}`, ok: true });
+      }
+    } catch {
+      setRangeMessage({ text: "Помилка мережі", ok: false });
+    } finally {
+      setRangeSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Mode toggle */}
+      <div className="flex w-fit gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setMode("single")}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+            mode === "single" ? "bg-[#10243a] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          Один день
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("range")}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+            mode === "range" ? "bg-[#10243a] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          Діапазон дат
+        </button>
+      </div>
+
+      {mode === "single" && (<>
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4">
         <div>
@@ -261,6 +337,139 @@ export function ScheduleManager() {
           </div>
         </div>
       </div>
+      </>)}
+
+      {/* ── DATE RANGE ──────────────────────────────────────────────────── */}
+      {mode === "range" && (
+        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-6 py-4">
+            <p className="text-sm font-semibold text-slate-700">Масове блокування за діапазоном дат</p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              Оберіть діапазон, сектори та години — зазначені слоти будуть заблоковані на кожен день у діапазоні.
+            </p>
+          </div>
+
+          <div className="space-y-6 p-6">
+            {/* Date range */}
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">З дати</label>
+                <input
+                  type="date"
+                  value={rangeFrom}
+                  onChange={(e) => setRangeFrom(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">По дату</label>
+                <input
+                  type="date"
+                  value={rangeTo}
+                  onChange={(e) => setRangeTo(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+            </div>
+
+            {/* Sectors */}
+            <div>
+              <label className="mb-2 block text-xs font-semibold text-slate-500">Сектори</label>
+              <div className="flex flex-wrap gap-2">
+                {SECTORS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleRangeSector(s)}
+                    className={`rounded-lg px-4 py-1.5 text-sm font-semibold ring-1 transition ${
+                      rangeSectors.includes(s)
+                        ? "bg-[#10243a] text-white ring-[#10243a]"
+                        : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hours */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-500">Години для блокування</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRangeHours(new Set(HOURS))}
+                    className="text-xs font-medium text-blue-600 hover:underline"
+                  >
+                    Всі
+                  </button>
+                  <span className="text-xs text-slate-300">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setRangeHours(new Set())}
+                    className="text-xs font-medium text-slate-500 hover:underline"
+                  >
+                    Очистити
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                {HOURS.map((h) => {
+                  const selected = rangeHours.has(h);
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => toggleRangeHour(h)}
+                      className={`flex flex-col items-center justify-center rounded-xl px-2 py-3 text-center text-xs font-semibold ring-1 transition ${
+                        selected
+                          ? "bg-orange-400 text-white ring-orange-400 hover:bg-orange-500"
+                          : "bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span>{toTime(h)}</span>
+                      <span className="mt-0.5 text-[10px] font-normal opacity-70">— {toTime(h + 1)}</span>
+                      {selected && (
+                        <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">блок</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4">
+            <p className="text-sm text-slate-500">
+              {rangeHours.size > 0 ? (
+                <span className="font-semibold text-orange-600">
+                  {rangeHours.size} год · {rangeSectors.length} сект.
+                </span>
+              ) : (
+                "Оберіть хоча б одну годину"
+              )}
+            </p>
+            <div className="flex items-center gap-3">
+              {rangeMessage && (
+                <p className={`text-xs font-medium ${rangeMessage.ok ? "text-emerald-600" : "text-red-500"}`}>
+                  {rangeMessage.text}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => void saveRange()}
+                disabled={rangeSaving || rangeHours.size === 0 || rangeSectors.length === 0}
+                className="rounded-xl bg-[#10243a] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#1a3a5c] disabled:opacity-50"
+              >
+                {rangeSaving ? "Блокування…" : "Заблокувати"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
