@@ -9,6 +9,15 @@ import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-sessi
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_BYTES = 5 * 1024 * 1024;
 
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get(CLIENT_COOKIE_NAME)?.value;
@@ -36,11 +45,22 @@ export async function POST(request: Request) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const safeUserId = payload.uid.replace(/[^a-zA-Z0-9_-]/g, "");
   const filename = `avatar-${safeUserId}-${Date.now()}.${ext}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "avatars");
+  const rootUploadsDir = path.join(process.cwd(), "public", "uploads", "avatars");
+  const standaloneUploadsDir = path.join(process.cwd(), ".next", "standalone", "public", "uploads", "avatars");
 
-  await fs.mkdir(uploadsDir, { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadsDir, filename), buffer);
+
+  const targetDirs = [rootUploadsDir];
+  if (await pathExists(path.join(process.cwd(), ".next", "standalone", "public"))) {
+    targetDirs.push(standaloneUploadsDir);
+  }
+
+  await Promise.all(
+    targetDirs.map(async (dir) => {
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, filename), buffer);
+    }),
+  );
 
   return NextResponse.json({ url: `/uploads/avatars/${filename}` });
 }
