@@ -53,6 +53,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ phone: result.phone });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Не вдалося відправити SMS";
+    if (/AlphaSMS verify\/create: HTTP_\d+/i.test(message)) {
+      return NextResponse.json(
+        { error: "SMS-сервіс тимчасово недоступний. Спробуйте ще раз через 1-2 хвилини." },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
