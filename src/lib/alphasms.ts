@@ -2,6 +2,7 @@ type VerifyCreateResponse = {
   success: boolean;
   error?: string;
   request_id?: string;
+  verify_id?: string | null;
 };
 
 type VerifyCheckResponse = {
@@ -60,11 +61,13 @@ export async function createVerifyCode(phone: string): Promise<string> {
 
   const json = (await response.json().catch(() => ({}))) as VerifyCreateResponse;
   
+  const verifyId = json.verify_id ?? json.request_id;
+
   console.log(`[AlphaSMS] verify/create full response:`, JSON.stringify(json, null, 2));
   console.log(`[AlphaSMS] verify/create response:`, {
     success: json.success,
     error: json.error,
-    requestId: json.request_id,
+    verifyId,
     httpStatus: response.status,
   });
 
@@ -72,12 +75,12 @@ export async function createVerifyCode(phone: string): Promise<string> {
     throw new Error(`AlphaSMS verify/create: ${json.error || "UNKNOWN_ERROR"}`);
   }
 
-  if (!json.request_id) {
-    throw new Error("AlphaSMS verify/create: no request_id in response");
+  if (!verifyId) {
+    throw new Error("AlphaSMS verify/create: no verify_id in response");
   }
 
-  console.log(`[AlphaSMS] SMS code sent successfully, verify_id=${json.request_id}`);
-  return json.request_id;
+  console.log(`[AlphaSMS] SMS code sent successfully, verify_id=${verifyId}`);
+  return verifyId;
 }
 
 /**
