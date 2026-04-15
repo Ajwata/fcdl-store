@@ -17,7 +17,8 @@ export function PaymentProofButton({ bookingId, paymentRequisites, disabled = fa
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
-  const paymentPurpose = `${paymentRequisites.purpose} № бронювання ${bookingId}`;
+  const bookingReference = `№ бронювання ${bookingId}`;
+  const paymentPurpose = `${paymentRequisites.purpose} ${bookingReference}`;
 
   const copyToClipboard = async (value: string, label: string) => {
     try {
@@ -110,8 +111,12 @@ export function PaymentProofButton({ bookingId, paymentRequisites, disabled = fa
                 <button type="button" onClick={() => void copyToClipboard(paymentRequisites.bank, "Банк")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
               </div>
               <div className="flex items-start justify-between gap-3">
-                <p><span className="font-semibold">Призначення:</span> {paymentPurpose}</p>
+                <p><span className="font-semibold">Призначення:</span> {paymentRequisites.purpose}</p>
                 <button type="button" onClick={() => void copyToClipboard(paymentPurpose, "Призначення")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <p><span className="font-semibold">№ бронювання:</span> {bookingId}</p>
+                <button type="button" onClick={() => void copyToClipboard(bookingReference, "№ бронювання")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
               </div>
             </div>
 
