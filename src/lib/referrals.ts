@@ -162,6 +162,86 @@ export async function upsertReferralAssignment(input: {
   return payload;
 }
 
+export async function assignReferralByClientChoice(input: {
+  clientPhone: string;
+  managerId: string;
+  managerLogin: string;
+  managerName: string;
+}): Promise<{ assignment: ReferralAssignment; created: boolean }> {
+  const normalizedPhone = input.clientPhone.trim();
+  const key = phoneKey(normalizedPhone);
+  if (!key) {
+    throw new Error("Некоректний номер телефону клієнта");
+  }
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const existing = await prisma.referralAssignment.findUnique({ where: { clientPhoneKey: key } });
+    if (existing) {
+      return {
+        assignment: {
+          clientPhone: existing.clientPhone,
+          clientPhoneKey: existing.clientPhoneKey,
+          managerId: existing.managerId,
+          managerLogin: existing.managerLogin,
+          managerName: existing.managerName,
+          assignedAt: existing.assignedAt.toISOString(),
+          assignedById: existing.assignedById ?? undefined,
+        },
+        created: false,
+      };
+    }
+
+    const now = new Date();
+    const created = await prisma.referralAssignment.create({
+      data: {
+        clientPhoneKey: key,
+        clientPhone: normalizedPhone,
+        managerId: input.managerId,
+        managerLogin: input.managerLogin,
+        managerName: input.managerName,
+        assignedAt: now,
+        assignedById: null,
+      },
+    });
+
+    return {
+      assignment: {
+        clientPhone: created.clientPhone,
+        clientPhoneKey: created.clientPhoneKey,
+        managerId: created.managerId,
+        managerLogin: created.managerLogin,
+        managerName: created.managerName,
+        assignedAt: created.assignedAt.toISOString(),
+        assignedById: created.assignedById ?? undefined,
+      },
+      created: true,
+    };
+  }
+
+  const current = await getReferralAssignments();
+  const existing = current.find((item) => item.clientPhoneKey === key);
+  if (existing) {
+    return { assignment: existing, created: false };
+  }
+
+  const assignment: ReferralAssignment = {
+    clientPhone: normalizedPhone,
+    clientPhoneKey: key,
+    managerId: input.managerId,
+    managerLogin: input.managerLogin,
+    managerName: input.managerName,
+    assignedAt: new Date().toISOString(),
+  };
+
+  await writeJsonFile(
+    referralsPath,
+    [...current, assignment].map(({ clientPhoneKey, ...rest }) => rest),
+  );
+
+  return { assignment, created: true };
+}
+
 export function buildReferralReport(bookings: Booking[], assignments: ReferralAssignment[]): ReferralReport {
   const assignmentByPhone = new Map(assignments.map((item) => [item.clientPhoneKey, item]));
   const statsMap = new Map<string, ManagerReferralStats>();

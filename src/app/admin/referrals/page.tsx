@@ -59,12 +59,8 @@ type ResponseShape = {
 
 export default function AdminReferralsPage() {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [data, setData] = useState<ResponseShape | null>(null);
-  const [clientPhone, setClientPhone] = useState("");
-  const [managerId, setManagerId] = useState("");
 
   const loadData = async () => {
     setLoading(true);
@@ -77,9 +73,6 @@ export default function AdminReferralsPage() {
         return;
       }
       setData(result);
-      if (result.role === "superadmin" && result.managers.length > 0 && !managerId) {
-        setManagerId(result.managers[0].id);
-      }
     } catch {
       setError("Помилка мережі");
     } finally {
@@ -92,44 +85,9 @@ export default function AdminReferralsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const role = data?.role ?? "manager";
   const stats = useMemo(() => data?.report.managerStats ?? [], [data]);
   const deals = useMemo(() => data?.report.deals ?? [], [data]);
   const assignments = useMemo(() => data?.assignments ?? [], [data]);
-
-  const submitAssignment = async () => {
-    setNotice("");
-    setError("");
-    if (!clientPhone.trim()) {
-      setError("Вкажіть телефон клієнта");
-      return;
-    }
-    if (role === "superadmin" && !managerId) {
-      setError("Оберіть менеджера");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin/referrals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientPhone, managerId: role === "superadmin" ? managerId : undefined }),
-      });
-      const result = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setError(result.error ?? "Не вдалося прив'язати клієнта");
-        return;
-      }
-      setNotice("Клієнта успішно прив'язано до менеджера");
-      setClientPhone("");
-      await loadData();
-    } catch {
-      setError("Помилка мережі");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -175,44 +133,11 @@ export default function AdminReferralsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        <h2 className="text-lg font-semibold text-slate-800">Прив'язка клієнта до менеджера</h2>
-        <div className="grid gap-3 md:grid-cols-3">
-          <input
-            value={clientPhone}
-            onChange={(event) => setClientPhone(event.target.value)}
-            placeholder="Телефон клієнта, напр. +380..."
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[var(--green-700)]"
-          />
-
-          {role === "superadmin" ? (
-            <select
-              value={managerId}
-              onChange={(event) => setManagerId(event.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[var(--green-700)]"
-            >
-              {data.managers.map((manager) => (
-                <option key={manager.id} value={manager.id}>{manager.name} ({manager.login})</option>
-              ))}
-            </select>
-          ) : (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-              Менеджер: {data.managers[0]?.name ?? "Ви"}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={submitAssignment}
-            disabled={saving}
-            className="rounded-xl bg-[var(--green-700)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--green-800)] disabled:opacity-60"
-          >
-            {saving ? "Збереження..." : "Прив'язати клієнта"}
-          </button>
-        </div>
-
-        {notice && <p className="text-sm font-semibold text-emerald-700">{notice}</p>}
-        {error && <p className="text-sm font-semibold text-rose-600">{error}</p>}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
+        <h2 className="text-lg font-semibold text-slate-800">Прив'язка клієнтів</h2>
+        <p className="text-sm text-slate-600">
+          Ручна прив'язка менеджером вимкнена. Клієнт сам обирає, хто його привів, під час оформлення бронювання.
+        </p>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
