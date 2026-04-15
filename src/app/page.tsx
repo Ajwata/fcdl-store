@@ -10,6 +10,8 @@ import { StatsSection } from "@/components/stats-section";
 import { getCmsContent } from "@/lib/cms-content";
 import { getPublicClientReviews } from "@/lib/client-engagement";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const cms = await getCmsContent();
   const { galleryItems, heroSlides, newsItems } = cms;
