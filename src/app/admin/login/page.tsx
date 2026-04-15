@@ -8,6 +8,7 @@ import logoImage from "@/img/logo.jpg";
 export default function AdminLoginPage() {
   const [login, setLogin] = useState("admin");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -69,14 +70,23 @@ export default function AdminLoginPage() {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-white/70">Пароль</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:ring-2 focus:ring-[var(--green-700)]"
-            placeholder="Введіть пароль"
-            required
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 pr-24 text-sm text-white placeholder-white/30 outline-none transition focus:ring-2 focus:ring-[var(--green-700)]"
+              placeholder="Введіть пароль"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-white/25 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white"
+            >
+              {showPassword ? "Сховати" : "Показати"}
+            </button>
+          </div>
         </div>
 
         {error && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { Booking, BookingStatus, PaymentStatus } from "@/lib/bookings";
@@ -33,6 +33,9 @@ const paymentLabels: Record<string, string> = {
   refunded: "Повернено",
 };
 
+type SortKey = "clientName" | "dateTime" | "sector" | "totalPrice" | "status" | "paymentStatus";
+type SortDirection = "asc" | "desc";
+
 const statusFilterOptions: Array<{ value: string; label: string }> = [
   { value: "all", label: "Всі статуси" },
   { value: "pending", label: "Очікують" },
@@ -57,6 +60,8 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("dateTime");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const statusFilter = searchParams.get("status") ?? "all";
   const bookingIdFilter = searchParams.get("bookingId")?.trim() ?? "";
@@ -117,8 +122,52 @@ export default function BookingsPage() {
         b.clientName.toLowerCase().includes(search.toLowerCase()) ||
         b.clientPhone.includes(search) ||
         b.clientEmail.toLowerCase().includes(search.toLowerCase()),
-    )
-    .sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
+    );
+
+  const sorted = useMemo(() => {
+    const list = [...filtered];
+
+    list.sort((a, b) => {
+      let result = 0;
+      if (sortKey === "clientName") {
+        result = a.clientName.localeCompare(b.clientName, "uk");
+      } else if (sortKey === "dateTime") {
+        result = `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`);
+      } else if (sortKey === "sector") {
+        result = a.sector.localeCompare(b.sector, "uk");
+      } else if (sortKey === "totalPrice") {
+        result = a.totalPrice - b.totalPrice;
+      } else if (sortKey === "status") {
+        result = (statusLabels[a.status] ?? a.status).localeCompare(statusLabels[b.status] ?? b.status, "uk");
+      } else if (sortKey === "paymentStatus") {
+        result = (paymentLabels[a.paymentStatus] ?? a.paymentStatus).localeCompare(
+          paymentLabels[b.paymentStatus] ?? b.paymentStatus,
+          "uk",
+        );
+      }
+
+      if (result === 0) {
+        return `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`);
+      }
+      return sortDirection === "asc" ? result : -result;
+    });
+
+    return list;
+  }, [filtered, sortDirection, sortKey]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection(key === "dateTime" || key === "totalPrice" ? "desc" : "asc");
+  };
+
+  const sortIndicator = (key: SortKey) => {
+    if (sortKey !== key) return "";
+    return sortDirection === "asc" ? " ↑" : " ↓";
+  };
 
   const pendingCount = bookings.filter((b) => b.status === "pending").length;
   const confirmedUnreadCount = bookings.filter(
@@ -185,24 +234,48 @@ export default function BookingsPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         {loading ? (
           <div className="py-16 text-center text-sm text-slate-400">Завантаження...</div>
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="py-16 text-center text-sm text-slate-400">Бронювань не знайдено</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  <th className="px-5 py-3">Клієнт</th>
-                  <th className="px-4 py-3">Дата / Час</th>
-                  <th className="px-4 py-3">Поле</th>
-                  <th className="px-4 py-3">Сума</th>
-                  <th className="px-4 py-3">Статус</th>
-                  <th className="px-4 py-3">Оплата</th>
+                  <th className="px-5 py-3">
+                    <button type="button" onClick={() => toggleSort("clientName")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Клієнт{sortIndicator("clientName")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort("dateTime")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Дата / Час{sortIndicator("dateTime")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort("sector")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Поле{sortIndicator("sector")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort("totalPrice")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Сума{sortIndicator("totalPrice")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort("status")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Статус{sortIndicator("status")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort("paymentStatus")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Оплата{sortIndicator("paymentStatus")}
+                    </button>
+                  </th>
                   <th className="px-4 py-3">Дії</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((b) => (
+                {sorted.map((b) => (
                   <tr
                     key={b.id}
                     className="border-b border-slate-50 transition last:border-0 hover:bg-slate-50"

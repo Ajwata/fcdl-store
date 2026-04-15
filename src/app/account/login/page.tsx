@@ -12,6 +12,8 @@ export default function AccountLoginPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -254,27 +256,45 @@ export default function AccountLoginPage() {
 
             <div>
               <label className="mb-1 block text-sm font-semibold text-slate-700">Пароль</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
-                placeholder={mode === "login" ? "Ваш пароль" : "Мінімум 8 символів"}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 pr-24 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
+                  placeholder={mode === "login" ? "Ваш пароль" : "Мінімум 8 символів"}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[var(--blue-200)] bg-white px-2.5 py-1 text-xs font-semibold text-[var(--blue-900)]"
+                >
+                  {showPassword ? "Сховати" : "Показати"}
+                </button>
+              </div>
             </div>
 
             {mode === "register" && (
               <div>
                 <label className="mb-1 block text-sm font-semibold text-slate-700">Підтвердіть пароль</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
-                  placeholder="Повторіть пароль"
-                  autoComplete="new-password"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 pr-24 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
+                    placeholder="Повторіть пароль"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[var(--blue-200)] bg-white px-2.5 py-1 text-xs font-semibold text-[var(--blue-900)]"
+                  >
+                    {showConfirmPassword ? "Сховати" : "Показати"}
+                  </button>
+                </div>
               </div>
             )}
 

@@ -97,6 +97,12 @@ function toIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function formatDateUk(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split("-");
+  return `${day}.${month}.${year}`;
+}
+
 function isPastHour(date: string, hour: number): boolean {
   const slotStart = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00`);
   return slotStart.getTime() <= Date.now();
@@ -967,7 +973,7 @@ export function HomeBookingInteractive() {
                 <p className="text-sm font-semibold text-[var(--blue-900)]">Підтвердження</p>
                 <div className="rounded-[16px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
                   <p className="text-xs text-[var(--blue-700)]">Сектор: <span className="font-semibold text-[var(--blue-950)]">{selectedSector ? getSectorDisplay(selectedSector).label : ""}</span></p>
-                  <p className="mt-1 text-xs text-[var(--blue-700)]">Date: <span className="font-semibold text-[var(--blue-950)]">{selectedDate}</span></p>
+                  <p className="mt-1 text-xs text-[var(--blue-700)]">Date: <span className="font-semibold text-[var(--blue-950)]">{formatDateUk(selectedDate)}</span></p>
                   <p className="mt-1 text-xs text-[var(--blue-700)]">Hour: <span className="font-semibold text-[var(--blue-950)]">{selectedSlot}</span></p>
                   <p className="mt-1 text-xs text-[var(--blue-700)]">Duration: <span className="font-semibold text-[var(--blue-950)]">{selectedDuration} год</span></p>
                   <p className="mt-3 border-t border-[var(--blue-100)] pt-3 text-xs text-[var(--blue-700)]">
@@ -1017,7 +1023,7 @@ export function HomeBookingInteractive() {
                 <div key={item.id} className="rounded-[16px] border border-[var(--blue-100)] bg-[var(--blue-50)] px-4 py-4 text-sm text-slate-600">
                   <p className="font-bold text-[var(--blue-950)]">{getSectorDisplay(item.sector).label}</p>
                   <p className="text-xs font-semibold text-[var(--blue-700)]">{getSectorDisplay(item.sector).dimensions}</p>
-                  <p>Дата: {item.date}</p>
+                  <p>Дата: {formatDateUk(item.date)}</p>
                   <p>Час: {item.startTime} - {item.endTime}</p>
                   <p>Тривалість: {item.durationHours} год</p>
                   <p className="mt-1 font-semibold text-[var(--green-700)]">{item.totalPrice} грн</p>

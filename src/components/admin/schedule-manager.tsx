@@ -17,12 +17,19 @@ function toDateInputDefault(): string {
   return d.toISOString().slice(0, 10);
 }
 
+function formatDateUk(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split("-");
+  return `${day}.${month}.${year}`;
+}
+
 type Mode = "single" | "range";
 type SlotStatus = "free" | "blocked" | "booked";
 
 type BookedMeta = {
   status: string;
   paymentStatus: string;
+  bookedBy?: string;
 };
 
 type SlotInfo = {
@@ -37,6 +44,7 @@ type ApiSlot = {
   endTime: string;
   status: string;
   paymentStatus: string;
+  bookedBy?: string;
 };
 
 export function ScheduleManager() {
@@ -81,7 +89,7 @@ export function ScheduleManager() {
         } else {
           map[h] = {
             status: "booked",
-            booked: { status: match.status, paymentStatus: match.paymentStatus },
+            booked: { status: match.status, paymentStatus: match.paymentStatus, bookedBy: match.bookedBy },
           };
         }
       }
@@ -261,7 +269,7 @@ export function ScheduleManager() {
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-6 py-4">
           <p className="text-sm font-semibold text-slate-700">
-            {sector} · {date}
+            {sector} · {formatDateUk(date)}
             {loading && <span className="ml-2 text-xs font-normal text-slate-400">завантаження…</span>}
           </p>
           <p className="mt-0.5 text-xs text-slate-400">
@@ -284,6 +292,11 @@ export function ScheduleManager() {
             if (isBooked && isPaid) bgClass = "bg-emerald-500 text-white ring-emerald-500 cursor-default opacity-80";
             if (isBooked && !isPaid) bgClass = "bg-blue-200 text-blue-800 ring-blue-200 cursor-default opacity-80";
 
+            const bookingTitle =
+              info.booked?.bookedBy && info.booked.bookedBy.trim().length > 0
+                ? `Заброньовано: ${info.booked.bookedBy}`
+                : `Заброньовано (${info.booked?.paymentStatus})`;
+
             return (
               <button
                 key={h}
@@ -293,7 +306,7 @@ export function ScheduleManager() {
                 className={`relative flex flex-col items-center justify-center rounded-xl px-2 py-3 text-center text-xs font-semibold ring-1 transition ${bgClass}`}
                 title={
                   isBooked
-                    ? `Заброньовано (${info.booked?.paymentStatus})`
+                    ? bookingTitle
                     : isBlocked
                       ? "Заблоковано — клікніть щоб розблокувати"
                       : "Вільно — клікніть щоб заблокувати"

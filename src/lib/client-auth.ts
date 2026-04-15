@@ -16,7 +16,7 @@ export type ClientUser = {
   name: string;
   email?: string;
   avatarUrl?: string;
-  /** scrypt hash вЂ” NEVER expose in API responses */
+  /** scrypt hash - NEVER expose in API responses */
   passwordHash?: string;
   createdAt: string;
   lastLoginAt: string;
@@ -122,7 +122,7 @@ function toClientUserModel(user: {
 export async function sendSmsCode(phoneRaw: string): Promise<{ phone: string }> {
   const phone = normalizePhone(phoneRaw);
   if (!isValidPhone(phone)) {
-    throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅСѓ");
+    throw new Error("Некоректний номер телефону");
   }
 
   console.log(`[sendSmsCode] Starting SMS code generation for ${phone}`);
@@ -262,9 +262,9 @@ export async function verifySmsCode(phoneRaw: string, codeRaw: string): Promise<
 
 export async function getOrCreateClientUser(phoneRaw: string, nameRaw: string): Promise<ClientUser> {
   const phone = normalizePhone(phoneRaw);
-  const name = nameRaw.trim() || "РљР»С–С”РЅС‚";
+  const name = nameRaw.trim() || "Клієнт";
   if (!isValidPhone(phone)) {
-    throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅСѓ");
+    throw new Error("Некоректний номер телефону");
   }
 
   if (isDatabaseEnabled()) {
@@ -341,23 +341,23 @@ export async function createClientUser(
   options?: { email?: string; password?: string },
 ): Promise<ClientUser> {
   const phone = normalizePhone(phoneRaw);
-  const name = nameRaw.trim() || "РљР»С–С”РЅС‚";
+  const name = nameRaw.trim() || "Клієнт";
   const email = options?.email?.trim().toLowerCase();
   const password = options?.password?.trim();
   if (!isValidPhone(phone)) {
-    throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅСѓ");
+    throw new Error("Некоректний номер телефону");
   }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ email");
+    throw new Error("Некоректний email");
   }
   if (password && password.length < 8) {
-    throw new Error("РџР°СЂРѕР»СЊ РїРѕРІРёРЅРµРЅ РјС–СЃС‚РёС‚Рё С‰РѕРЅР°Р№РјРµРЅС€Рµ 8 СЃРёРјРІРѕР»С–РІ");
+    throw new Error("Пароль повинен містити щонайменше 8 символів");
   }
 
   if (isDatabaseEnabled()) {
     const exists = await getPrismaClient().clientUser.findUnique({ where: { phone } });
     if (exists) {
-      throw new Error("РђРєР°СѓРЅС‚ Р· С†РёРј РЅРѕРјРµСЂРѕРј РІР¶Рµ С–СЃРЅСѓС”");
+      throw new Error("Акаунт з цим номером вже існує");
     }
 
     const now = new Date();
@@ -378,7 +378,7 @@ export async function createClientUser(
   const users = await readUsers();
   const exists = users.some((item) => normalizePhone(item.phone) === phone);
   if (exists) {
-    throw new Error("РђРєР°СѓРЅС‚ Р· С†РёРј РЅРѕРјРµСЂРѕРј РІР¶Рµ С–СЃРЅСѓС”");
+    throw new Error("Акаунт з цим номером вже існує");
   }
 
   const nowIso = new Date().toISOString();
@@ -454,11 +454,11 @@ export async function updateClientUser(
     const nextPhone = typeof updates.phone === "string" ? normalizePhone(updates.phone) : undefined;
     if (typeof nextPhone === "string") {
       if (!isValidPhone(nextPhone)) {
-        throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅСѓ");
+        throw new Error("Некоректний номер телефону");
       }
       const duplicate = await getPrismaClient().clientUser.findUnique({ where: { phone: nextPhone } });
       if (duplicate && duplicate.id !== userId) {
-        throw new Error("Р¦РµР№ РЅРѕРјРµСЂ РІР¶Рµ РІРёРєРѕСЂРёСЃС‚РѕРІСѓС”С‚СЊСЃСЏ С–РЅС€РёРј Р°РєР°СѓРЅС‚РѕРј");
+        throw new Error("Цей номер вже використовується іншим акаунтом");
       }
     }
 
@@ -466,7 +466,7 @@ export async function updateClientUser(
     if (typeof nextEmail === "string" && nextEmail.length > 0) {
       const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail);
       if (!emailValid) {
-        throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ email");
+        throw new Error("Некоректний email");
       }
     }
 
@@ -490,11 +490,11 @@ export async function updateClientUser(
   const nextPhone = typeof updates.phone === "string" ? normalizePhone(updates.phone) : undefined;
   if (typeof nextPhone === "string") {
     if (!isValidPhone(nextPhone)) {
-      throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅСѓ");
+      throw new Error("Некоректний номер телефону");
     }
     const duplicate = users.find((item) => item.id !== userId && normalizePhone(item.phone) === nextPhone);
     if (duplicate) {
-      throw new Error("Р¦РµР№ РЅРѕРјРµСЂ РІР¶Рµ РІРёРєРѕСЂРёСЃС‚РѕРІСѓС”С‚СЊСЃСЏ С–РЅС€РёРј Р°РєР°СѓРЅС‚РѕРј");
+      throw new Error("Цей номер вже використовується іншим акаунтом");
     }
   }
 
@@ -502,7 +502,7 @@ export async function updateClientUser(
   if (typeof nextEmail === "string" && nextEmail.length > 0) {
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail);
     if (!emailValid) {
-      throw new Error("РќРµРєРѕСЂРµРєС‚РЅРёР№ email");
+      throw new Error("Некоректний email");
     }
   }
 
@@ -526,20 +526,20 @@ export async function setOrChangeClientPassword(
 ): Promise<{ ok: boolean; error?: string }> {
   const trimmedNew = newPassword.trim();
   if (trimmedNew.length < 8) {
-    return { ok: false, error: "РџР°СЂРѕР»СЊ РїРѕРІРёРЅРµРЅ РјС–СЃС‚РёС‚Рё С‰РѕРЅР°Р№РјРµРЅС€Рµ 8 СЃРёРјРІРѕР»С–РІ" };
+    return { ok: false, error: "Пароль повинен містити щонайменше 8 символів" };
   }
 
   if (isDatabaseEnabled()) {
     const user = await getPrismaClient().clientUser.findUnique({ where: { id: userId } });
-    if (!user) return { ok: false, error: "РљРѕСЂРёСЃС‚СѓРІР°С‡Р° РЅРµ Р·РЅР°Р№РґРµРЅРѕ" };
+    if (!user) return { ok: false, error: "Користувача не знайдено" };
 
     if (user.passwordHash) {
-      // Password already set вЂ” require current password
+      // Password already set - require current password
       if (!currentPassword?.trim()) {
-        return { ok: false, error: "Р’РІРµРґС–С‚СЊ РїРѕС‚РѕС‡РЅРёР№ РїР°СЂРѕР»СЊ" };
+        return { ok: false, error: "Введіть поточний пароль" };
       }
       if (!verifyClientPasswordHash(currentPassword.trim(), user.passwordHash)) {
-        return { ok: false, error: "РџРѕС‚РѕС‡РЅРёР№ РїР°СЂРѕР»СЊ РЅРµРІС–СЂРЅРёР№" };
+        return { ok: false, error: "Поточний пароль невірний" };
       }
     }
 
@@ -552,17 +552,17 @@ export async function setOrChangeClientPassword(
 
   const users = await readUsers();
   const index = users.findIndex((item) => item.id === userId);
-  if (index === -1) return { ok: false, error: "РљРѕСЂРёСЃС‚СѓРІР°С‡Р° РЅРµ Р·РЅР°Р№РґРµРЅРѕ" };
+  if (index === -1) return { ok: false, error: "Користувача не знайдено" };
 
   const user = users[index];
 
   if (user.passwordHash) {
-    // Password already set вЂ” require current password
+    // Password already set - require current password
     if (!currentPassword?.trim()) {
-      return { ok: false, error: "Р’РІРµРґС–С‚СЊ РїРѕС‚РѕС‡РЅРёР№ РїР°СЂРѕР»СЊ" };
+      return { ok: false, error: "Введіть поточний пароль" };
     }
     if (!verifyClientPasswordHash(currentPassword.trim(), user.passwordHash)) {
-      return { ok: false, error: "РџРѕС‚РѕС‡РЅРёР№ РїР°СЂРѕР»СЊ РЅРµРІС–СЂРЅРёР№" };
+      return { ok: false, error: "Поточний пароль невірний" };
     }
   }
 
@@ -577,7 +577,7 @@ export async function validateClientLoginPassword(
 ): Promise<{ ok: boolean; error?: string; requiresPassword: boolean }> {
   const user = await getClientUserByPhone(phoneRaw);
   if (!user) {
-    return { ok: false, error: "РђРєР°СѓРЅС‚ РЅРµ Р·РЅР°Р№РґРµРЅРѕ. РћР±РµСЂС–С‚СЊ СЂРµС”СЃС‚СЂР°С†С–СЋ.", requiresPassword: false };
+    return { ok: false, error: "Акаунт не знайдено. Оберіть реєстрацію.", requiresPassword: false };
   }
 
   if (!user.passwordHash) {
@@ -586,11 +586,11 @@ export async function validateClientLoginPassword(
 
   const password = passwordRaw?.trim() ?? "";
   if (!password) {
-    return { ok: false, error: "Р’РІРµРґС–С‚СЊ РїР°СЂРѕР»СЊ", requiresPassword: true };
+    return { ok: false, error: "Введіть пароль", requiresPassword: true };
   }
 
   if (!verifyClientPasswordHash(password, user.passwordHash)) {
-    return { ok: false, error: "РќРµРІС–СЂРЅРёР№ РїР°СЂРѕР»СЊ", requiresPassword: true };
+    return { ok: false, error: "Невірний пароль", requiresPassword: true };
   }
 
   return { ok: true, requiresPassword: true };

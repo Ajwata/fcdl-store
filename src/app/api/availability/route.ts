@@ -34,6 +34,7 @@ export async function GET(request: Request) {
       endTime: item.endTime,
       status: item.status,
       paymentStatus: item.paymentStatus,
+      bookedBy: item.clientName?.trim() || item.clientPhone,
     }));
 
   const manualBlocks = blockedSlots.map((b) => ({
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
     endTime: b.endTime,
     status: "blocked" as const,
     paymentStatus: "paid" as const, // treated as occupied by the booking form
+    bookedBy: b.reason?.trim() ? `Блок: ${b.reason.trim()}` : "Заблоковано адміністратором",
   }));
 
   const slots = [...bookingSlots, ...manualBlocks].sort((a, b) => {
