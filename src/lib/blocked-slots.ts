@@ -136,7 +136,11 @@ export async function addBlockedSlotsRange(
       where: { date: { in: dates }, sector: { in: sectors } },
       select: { date: true, sector: true, startTime: true, endTime: true },
     });
-    const existingSet = new Set(existing.map((e) => `${e.date}|${e.sector}|${e.startTime}|${e.endTime}`));
+    const existingSet = new Set(
+      existing.map((e: { date: string; sector: string; startTime: string; endTime: string }) =>
+        `${e.date}|${e.sector}|${e.startTime}|${e.endTime}`,
+      ),
+    );
 
     const toCreate: Array<{
       id: string;
