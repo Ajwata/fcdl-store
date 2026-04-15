@@ -99,6 +99,8 @@ export async function POST(
 
   const nowIso = new Date().toISOString();
   const receiptUrl = `/uploads/receipts/${filename}`;
+  const origin = new URL(request.url).origin;
+  const receiptAbsoluteUrl = new URL(receiptUrl, origin).toString();
 
   bookings[index] = {
     ...booking,
@@ -156,7 +158,7 @@ export async function POST(
     date: winner.date,
     sector: winner.sector,
     totalPrice: winner.totalPrice,
-    proofUrl: winner.paymentProofUrl ?? receiptUrl,
+    proofUrl: receiptAbsoluteUrl,
   });
 
   return NextResponse.json({ booking: bookings[index] });

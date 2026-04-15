@@ -162,7 +162,7 @@ export async function notifyPaymentVerification(input: {
   const message = `
 <b>⏳ Оплата на перевірці</b>
 
-<b>ID:</b> <code>${escapeHtml(input.bookingId)}</code>
+<b>№ бронювання:</b> <code>${escapeHtml(input.bookingId)}</code>
 <b>Клієнт:</b> ${escapeHtml(input.clientName)} (${escapeHtml(input.clientPhone)})
 <b>Дата:</b> ${escapeHtml(input.date)}
 <b>Поле:</b> ${escapeHtml(input.sector)}
