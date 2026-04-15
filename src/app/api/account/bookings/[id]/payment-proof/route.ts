@@ -32,6 +32,31 @@ function extensionFromFile(file: File): string {
   return "bin";
 }
 
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveProjectRoot(): string {
+  const cwd = process.cwd();
+  const standaloneSuffix = `${path.sep}.next${path.sep}standalone`;
+  if (cwd.endsWith(standaloneSuffix)) {
+    return path.resolve(cwd, "..", "..");
+  }
+  return cwd;
+}
+
+function getReceiptDirs(projectRoot: string): string[] {
+  return [
+    path.join(projectRoot, "public", "uploads", "receipts"),
+    path.join(projectRoot, ".next", "standalone", "public", "uploads", "receipts"),
+  ];
+}
+
 function detectPublicOrigin(request: Request): string {
   const envOrigin = process.env.PUBLIC_APP_ORIGIN?.trim() || process.env.NEXT_PUBLIC_APP_ORIGIN?.trim();
   if (envOrigin) return envOrigin.replace(/\/$/, "");
@@ -101,12 +126,23 @@ export async function POST(
   }
 
   const ext = extensionFromFile(file);
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "receipts");
-  await fs.mkdir(uploadsDir, { recursive: true });
+  const projectRoot = resolveProjectRoot();
+  const [rootUploadsDir, standaloneUploadsDir] = getReceiptDirs(projectRoot);
 
   const filename = `receipt-${booking.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
   const fileBuffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadsDir, filename), fileBuffer);
+
+  const targetDirs = [rootUploadsDir];
+  if (await pathExists(path.join(projectRoot, ".next", "standalone", "public"))) {
+    targetDirs.push(standaloneUploadsDir);
+  }
+
+  await Promise.all(
+    targetDirs.map(async (dir) => {
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, filename), fileBuffer);
+    }),
+  );
 
   const nowIso = new Date().toISOString();
   const receiptUrl = `/api/account/receipt?file=${encodeURIComponent(filename)}`;
