@@ -261,16 +261,40 @@ export default function AccountLoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 pr-24 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
+                  className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 pr-12 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
                   placeholder={mode === "login" ? "Ваш пароль" : "Мінімум 8 символів"}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[var(--blue-200)] bg-white px-2.5 py-1 text-xs font-semibold text-[var(--blue-900)]"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    setShowPassword(true);
+                  }}
+                  onMouseUp={() => setShowPassword(false)}
+                  onMouseLeave={() => setShowPassword(false)}
+                  onTouchStart={() => setShowPassword(true)}
+                  onTouchEnd={() => setShowPassword(false)}
+                  onTouchCancel={() => setShowPassword(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === " " || event.key === "Enter") {
+                      event.preventDefault();
+                      setShowPassword(true);
+                    }
+                  }}
+                  onKeyUp={(event) => {
+                    if (event.key === " " || event.key === "Enter") {
+                      setShowPassword(false);
+                    }
+                  }}
+                  onBlur={() => setShowPassword(false)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[var(--blue-200)] bg-white p-1.5 text-[var(--blue-900)]"
+                  aria-label="Показати пароль під час утримання"
                 >
-                  {showPassword ? "Сховати" : "Показати"}
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -283,16 +307,40 @@ export default function AccountLoginPage() {
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 pr-24 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
+                    className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 pr-12 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
                     placeholder="Повторіть пароль"
                     autoComplete="new-password"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[var(--blue-200)] bg-white px-2.5 py-1 text-xs font-semibold text-[var(--blue-900)]"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      setShowConfirmPassword(true);
+                    }}
+                    onMouseUp={() => setShowConfirmPassword(false)}
+                    onMouseLeave={() => setShowConfirmPassword(false)}
+                    onTouchStart={() => setShowConfirmPassword(true)}
+                    onTouchEnd={() => setShowConfirmPassword(false)}
+                    onTouchCancel={() => setShowConfirmPassword(false)}
+                    onKeyDown={(event) => {
+                      if (event.key === " " || event.key === "Enter") {
+                        event.preventDefault();
+                        setShowConfirmPassword(true);
+                      }
+                    }}
+                    onKeyUp={(event) => {
+                      if (event.key === " " || event.key === "Enter") {
+                        setShowConfirmPassword(false);
+                      }
+                    }}
+                    onBlur={() => setShowConfirmPassword(false)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[var(--blue-200)] bg-white p-1.5 text-[var(--blue-900)]"
+                    aria-label="Показати підтвердження пароля під час утримання"
                   >
-                    {showConfirmPassword ? "Сховати" : "Показати"}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
                   </button>
                 </div>
               </div>

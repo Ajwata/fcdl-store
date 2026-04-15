@@ -53,6 +53,12 @@ function normalizeReceiptUrl(url?: string): string {
   return url;
 }
 
+function formatDateUk(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split("-");
+  return `${day}.${month}.${year}`;
+}
+
 export default function BookingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -288,7 +294,7 @@ export default function BookingsPage() {
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      <p className="text-slate-700">{b.date}</p>
+                      <p className="text-slate-700">{formatDateUk(b.date)}</p>
                       <p className="text-xs text-slate-400">
                         {b.startTime}–{b.endTime} ({b.durationHours}г)
                       </p>

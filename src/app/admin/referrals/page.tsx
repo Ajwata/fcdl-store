@@ -57,6 +57,12 @@ type ResponseShape = {
   };
 };
 
+function formatDateUk(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split("-");
+  return `${day}.${month}.${year}`;
+}
+
 export default function AdminReferralsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -332,7 +338,7 @@ export default function AdminReferralsPage() {
               <tbody>
                 {deals.slice(0, 100).map((deal) => (
                   <tr key={deal.bookingId} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2 text-slate-700">{deal.date}</td>
+                    <td className="px-3 py-2 text-slate-700">{formatDateUk(deal.date)}</td>
                     <td className="px-3 py-2">
                       <p className="font-semibold text-slate-800">{deal.clientName}</p>
                       <p className="text-xs text-slate-500">{deal.clientPhone}</p>

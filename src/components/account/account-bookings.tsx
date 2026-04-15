@@ -90,6 +90,12 @@ function getRepeatEndTime(startTime: string, durationHours: number): string {
   return toTime(toMinutes(startTime) + durationHours * 60);
 }
 
+function formatDateUk(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split("-");
+  return `${day}.${month}.${year}`;
+}
+
 export function AccountBookings({ initialBookings, initialReviews, paymentRequisites }: AccountBookingsProps) {
   const [bookings, setBookings] = useState<Booking[]>(sortByDateDesc(initialBookings));
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">(
@@ -373,7 +379,7 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--blue-700)]">Поле {booking.sector}</p>
-                      <h3 className="mt-1 text-xl font-bold text-[var(--blue-950)]">{booking.date}</h3>
+                      <h3 className="mt-1 text-xl font-bold text-[var(--blue-950)]">{formatDateUk(booking.date)}</h3>
                       <p className="text-sm text-slate-600">{booking.startTime} - {booking.endTime} ({booking.durationHours} год)</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">

@@ -75,16 +75,40 @@ export default function AdminLoginPage() {
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 pr-24 text-sm text-white placeholder-white/30 outline-none transition focus:ring-2 focus:ring-[var(--green-700)]"
+              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 pr-12 text-sm text-white placeholder-white/30 outline-none transition focus:ring-2 focus:ring-[var(--green-700)]"
               placeholder="Введіть пароль"
               required
             />
             <button
               type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-white/25 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setShowPassword(true);
+              }}
+              onMouseUp={() => setShowPassword(false)}
+              onMouseLeave={() => setShowPassword(false)}
+              onTouchStart={() => setShowPassword(true)}
+              onTouchEnd={() => setShowPassword(false)}
+              onTouchCancel={() => setShowPassword(false)}
+              onKeyDown={(event) => {
+                if (event.key === " " || event.key === "Enter") {
+                  event.preventDefault();
+                  setShowPassword(true);
+                }
+              }}
+              onKeyUp={(event) => {
+                if (event.key === " " || event.key === "Enter") {
+                  setShowPassword(false);
+                }
+              }}
+              onBlur={() => setShowPassword(false)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-white/25 bg-white/10 p-1.5 text-white"
+              aria-label="Показати пароль під час утримання"
             >
-              {showPassword ? "Сховати" : "Показати"}
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             </button>
           </div>
         </div>

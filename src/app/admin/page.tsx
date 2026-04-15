@@ -46,6 +46,12 @@ function isThisWeek(dateStr: string): boolean {
   return d >= weekStart && d < weekEnd;
 }
 
+function formatDateUk(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split("-");
+  return `${day}.${month}.${year}`;
+}
+
 export default async function AdminDashboard() {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
@@ -252,7 +258,7 @@ export default async function AdminDashboard() {
                       <p className="text-xs text-slate-500">{b.clientPhone}</p>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                      {b.date}
+                      {formatDateUk(b.date)}
                       <br />
                       <span className="text-xs text-slate-500">
                         {b.startTime}–{b.endTime}
@@ -291,7 +297,7 @@ export default async function AdminDashboard() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-slate-800">{b.clientName}</p>
                       <p className="text-xs text-slate-500">
-                        {b.date} · {b.startTime}–{b.endTime}
+                        {formatDateUk(b.date)} · {b.startTime}–{b.endTime}
                       </p>
                     </div>
                     <span className="shrink-0 text-xs font-semibold text-[var(--green-700)]">
