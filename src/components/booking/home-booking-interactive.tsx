@@ -1056,7 +1056,6 @@ export function HomeBookingInteractive() {
 
             <div className="mt-4 rounded-xl border border-[var(--blue-100)] bg-white p-4">
               <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--blue-700)]">Хто вас привів?</p>
-              <p className="mt-1 text-xs text-slate-500">Це поле заповнює клієнт. Менеджери не можуть вручну прив'язувати клієнтів.</p>
               <select
                 value={selectedReferralManagerId}
                 onChange={(event) => setSelectedReferralManagerId(event.target.value)}
@@ -1101,10 +1100,10 @@ export function HomeBookingInteractive() {
                   onClick={() => {
                     void submitCart();
                   }}
-                  disabled={submitBusy}
-                  className="cta-primary w-full rounded-full bg-[var(--green-700)] px-5 py-3 text-sm font-extrabold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
+                  disabled={submitBusy || cartItems.length === 0}
+                  className="cta-primary w-full rounded-full bg-[var(--green-700)] px-5 py-3 text-sm font-extrabold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {submitBusy ? "Створюємо бронювання..." : "Підтвердити бронювання"}
+                  {submitBusy ? "Створюємо бронювання..." : cartItems.length === 0 ? "Кошик порожній" : "Підтвердити бронювання"}
                 </button>
               )}
             </div>
