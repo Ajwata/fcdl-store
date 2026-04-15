@@ -740,7 +740,7 @@ export function HomeBookingInteractive() {
                           : "bg-amber-100 text-amber-800"
                       }`}
                     >
-                      {toTime(slot.startHour)} - {toTime(slot.startHour + slot.durationHours)} {slot.paymentStatus === "paid" || slot.paymentStatus === "verification" ? "(заброньовано)" : "(є заявки)"}
+                      {toTime(slot.startHour)} - {toTime(slot.startHour + slot.durationHours)}
                     </span>
                   ))}
                 </div>
