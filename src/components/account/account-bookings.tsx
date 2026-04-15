@@ -613,7 +613,6 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
               {requisitesBooking && (
                 <div className="flex items-start justify-between gap-3">
                   <p><span className="font-semibold">№ бронювання:</span> {requisitesBooking.id}</p>
-                  <button type="button" onClick={() => void copyToClipboard(requisitesBookingReference, "№ бронювання")} className="rounded-full border border-[var(--blue-200)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--blue-900)]">Копіювати</button>
                 </div>
               )}
             </div>
