@@ -32,6 +32,17 @@ function extensionFromFile(file: File): string {
   return "bin";
 }
 
+function detectPublicOrigin(request: Request): string {
+  const envOrigin = process.env.PUBLIC_APP_ORIGIN?.trim() || process.env.NEXT_PUBLIC_APP_ORIGIN?.trim();
+  if (envOrigin) return envOrigin.replace(/\/$/, "");
+
+  const forwardedHost = request.headers.get("x-forwarded-host")?.trim();
+  const host = forwardedHost || request.headers.get("host")?.trim() || new URL(request.url).host;
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.trim();
+  const proto = forwardedProto || new URL(request.url).protocol.replace(":", "");
+  return `${proto}://${host}`;
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -99,8 +110,9 @@ export async function POST(
 
   const nowIso = new Date().toISOString();
   const receiptUrl = `/uploads/receipts/${filename}`;
-  const origin = new URL(request.url).origin;
-  const receiptAbsoluteUrl = new URL(receiptUrl, origin).toString();
+  const publicOrigin = detectPublicOrigin(request);
+  const receiptAbsoluteUrl = new URL(receiptUrl, publicOrigin).toString();
+  const adminBookingUrl = new URL(`/admin/bookings?bookingId=${encodeURIComponent(booking.id)}`, publicOrigin).toString();
 
   bookings[index] = {
     ...booking,
@@ -159,6 +171,7 @@ export async function POST(
     sector: winner.sector,
     totalPrice: winner.totalPrice,
     proofUrl: receiptAbsoluteUrl,
+    adminBookingUrl,
   });
 
   return NextResponse.json({ booking: bookings[index] });

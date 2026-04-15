@@ -50,7 +50,12 @@ export default function BookingsPage() {
   const [saving, setSaving] = useState<string | null>(null);
 
   const statusFilter = searchParams.get("status") ?? "all";
-  const [search, setSearch] = useState("");
+  const bookingIdFilter = searchParams.get("bookingId")?.trim() ?? "";
+  const [search, setSearch] = useState(bookingIdFilter);
+
+  useEffect(() => {
+    setSearch(bookingIdFilter);
+  }, [bookingIdFilter]);
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -99,6 +104,7 @@ export default function BookingsPage() {
     .filter(
       (b) =>
         !search ||
+        b.id.toLowerCase().includes(search.toLowerCase()) ||
         b.clientName.toLowerCase().includes(search.toLowerCase()) ||
         b.clientPhone.includes(search) ||
         b.clientEmail.toLowerCase().includes(search.toLowerCase()),
@@ -126,7 +132,7 @@ export default function BookingsPage() {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           type="text"
-          placeholder="Пошук за іменем або телефоном..."
+          placeholder="Пошук за ID, іменем або телефоном..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-9 w-64 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:ring-2 focus:ring-[var(--green-700)]"

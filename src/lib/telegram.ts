@@ -156,8 +156,13 @@ export async function notifyPaymentVerification(input: {
   sector: string;
   totalPrice: number;
   proofUrl: string;
+  adminBookingUrl?: string;
 }): Promise<void> {
   if (!isTelegramConfigured()) return;
+
+  const adminLinkPart = input.adminBookingUrl
+    ? `\n<a href="${escapeHtml(input.adminBookingUrl)}">Відкрити бронювання в адмінці</a>`
+    : "";
 
   const message = `
 <b>⏳ Оплата на перевірці</b>
@@ -169,6 +174,7 @@ export async function notifyPaymentVerification(input: {
 <b>Сума:</b> <b>${input.totalPrice} грн</b>
 
 <a href="${escapeHtml(input.proofUrl)}">Переглянути квитанцію</a>
+${adminLinkPart}
   `.trim();
 
   await sendTelegramMessage(message);
