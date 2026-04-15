@@ -729,25 +729,6 @@ export function HomeBookingInteractive() {
                 <div />
               </div>
 
-              {row.slots.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {row.slots.map((slot) => (
-                    <span
-                      key={slot.id}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        slot.paymentStatus === "paid" || slot.paymentStatus === "verification"
-                          ? "bg-rose-600 text-white"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {toTime(slot.startHour)} - {toTime(slot.startHour + slot.durationHours)}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-slate-500">На цю дату вільно.</p>
-              )}
-
               <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">Вільно</span>
                 <span className="rounded-full bg-amber-200 px-2 py-0.5 text-amber-900">В очікуванні</span>
