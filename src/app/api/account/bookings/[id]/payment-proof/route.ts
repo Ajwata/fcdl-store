@@ -109,7 +109,7 @@ export async function POST(
   await fs.writeFile(path.join(uploadsDir, filename), fileBuffer);
 
   const nowIso = new Date().toISOString();
-  const receiptUrl = `/uploads/receipts/${filename}`;
+  const receiptUrl = `/api/account/receipt?file=${encodeURIComponent(filename)}`;
   const publicOrigin = detectPublicOrigin(request);
   const receiptAbsoluteUrl = new URL(receiptUrl, publicOrigin).toString();
   const adminBookingUrl = new URL(`/admin/bookings?bookingId=${encodeURIComponent(booking.id)}`, publicOrigin).toString();

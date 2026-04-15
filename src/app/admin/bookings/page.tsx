@@ -41,6 +41,15 @@ const statusFilterOptions: Array<{ value: string; label: string }> = [
   { value: "cancelled", label: "Скасовані" },
 ];
 
+function normalizeReceiptUrl(url?: string): string {
+  if (!url) return "";
+  const uploadsMatch = url.match(/(?:^|\/)uploads\/receipts\/([^/?#]+)$/i);
+  if (uploadsMatch) {
+    return `/api/account/receipt?file=${encodeURIComponent(uploadsMatch[1])}`;
+  }
+  return url;
+}
+
 export default function BookingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -251,7 +260,7 @@ export default function BookingsPage() {
                       {b.paymentProofUrl && (
                         <div className="mt-1 space-y-1">
                           <a
-                            href={b.paymentProofUrl}
+                            href={normalizeReceiptUrl(b.paymentProofUrl)}
                             target="_blank"
                             rel="noreferrer"
                             className="block text-xs font-semibold text-[var(--blue-800)] underline"

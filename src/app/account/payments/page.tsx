@@ -24,6 +24,15 @@ const paymentClass = {
   refunded: "text-slate-700 bg-slate-200",
 } as const;
 
+function normalizeReceiptUrl(url?: string): string {
+  if (!url) return "";
+  const uploadsMatch = url.match(/(?:^|\/)uploads\/receipts\/([^/?#]+)$/i);
+  if (uploadsMatch) {
+    return `/api/account/receipt?file=${encodeURIComponent(uploadsMatch[1])}`;
+  }
+  return url;
+}
+
 export default async function AccountPaymentsPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(CLIENT_COOKIE_NAME)?.value;
@@ -131,7 +140,7 @@ export default async function AccountPaymentsPage() {
                     )}
                     {booking.paymentProofUrl && (
                       <a
-                        href={booking.paymentProofUrl}
+                        href={normalizeReceiptUrl(booking.paymentProofUrl)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-[11px] font-semibold text-[var(--blue-800)] underline"
