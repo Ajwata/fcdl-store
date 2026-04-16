@@ -17,6 +17,22 @@ type DetectedType = {
   kind: "image" | "video";
 };
 
+function resolveProjectRoot(): string {
+  const cwd = process.cwd();
+  const standaloneSuffix = `${path.sep}.next${path.sep}standalone`;
+  if (cwd.endsWith(standaloneSuffix)) {
+    return path.resolve(cwd, "..", "..");
+  }
+  return cwd;
+}
+
+function getUploadsDirs(projectRoot: string): [string, string] {
+  return [
+    path.join(projectRoot, "public", "uploads"),
+    path.join(projectRoot, ".next", "standalone", "public", "uploads"),
+  ];
+}
+
 function detectFileType(buffer: Buffer): DetectedType | null {
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
     return { ext: "jpg", kind: "image" };
@@ -138,10 +154,19 @@ export async function POST(request: Request) {
   }
 
   const filename = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${detected.ext}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  const projectRoot = resolveProjectRoot();
+  const [rootUploadsDir, standaloneUploadsDir] = getUploadsDirs(projectRoot);
+  const targetDirs = [rootUploadsDir];
+  if (standaloneUploadsDir !== rootUploadsDir) {
+    targetDirs.push(standaloneUploadsDir);
+  }
 
-  await fs.mkdir(uploadsDir, { recursive: true });
-  await fs.writeFile(path.join(uploadsDir, filename), buffer);
+  await Promise.all(
+    targetDirs.map(async (uploadsDir) => {
+      await fs.mkdir(uploadsDir, { recursive: true });
+      await fs.writeFile(path.join(uploadsDir, filename), buffer);
+    }),
+  );
 
   return NextResponse.json({ url: `/uploads/${filename}` });
 }
