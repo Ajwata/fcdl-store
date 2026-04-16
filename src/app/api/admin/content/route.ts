@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -38,5 +39,14 @@ export async function POST(request: Request) {
   }
 
   await saveCmsContent(body.content);
+
+  revalidatePath("/");
+  revalidatePath("/gallery");
+  revalidatePath("/news");
+  revalidatePath("/reviews");
+  revalidatePath("/payment-terms");
+  revalidatePath("/privacy-policy");
+  revalidatePath("/rules");
+
   return NextResponse.json({ ok: true });
 }
