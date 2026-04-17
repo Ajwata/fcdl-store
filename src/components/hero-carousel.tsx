@@ -18,8 +18,18 @@ type HeroCarouselProps = {
   heroBadge?: string;
 };
 
+function getVideoMimeType(url: string): string | undefined {
+  const cleanUrl = url.split("?")[0]?.toLowerCase() ?? "";
+  if (cleanUrl.endsWith(".mp4")) return "video/mp4";
+  if (cleanUrl.endsWith(".webm")) return "video/webm";
+  if (cleanUrl.endsWith(".ogg") || cleanUrl.endsWith(".ogv")) return "video/ogg";
+  if (cleanUrl.endsWith(".mov")) return "video/quicktime";
+  return undefined;
+}
+
 export function HeroCarousel({ slides, videoUrl, heroMode = "video", heroBadge = "Онлайн-бронювання поля" }: HeroCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [videoFailed, setVideoFailed] = useState(false);
 
   useEffect(() => {
     if (heroMode !== "slides" || slides.length <= 1) return;
@@ -105,21 +115,34 @@ export function HeroCarousel({ slides, videoUrl, heroMode = "video", heroBadge =
 
   // Default: video mode
   const mainSlide = slides[0];
+  const resolvedVideoUrl = videoUrl || "/img/background.mp4";
+  const videoType = getVideoMimeType(resolvedVideoUrl);
   const titleWords = mainSlide.title.trim().split(/\s+/);
   const desktopFirstLine = titleWords.slice(0, Math.max(1, titleWords.length - 2)).join(" ");
   const desktopSecondLine = titleWords.slice(Math.max(1, titleWords.length - 2)).join(" ");
   const desktopFirstLineParts = desktopFirstLine.split(/(онлайн)/iu);
 
+  useEffect(() => {
+    setVideoFailed(false);
+  }, [resolvedVideoUrl]);
+
   return (
     <section className="relative min-h-screen overflow-hidden pt-[76px]">
+      <div
+        className="absolute inset-0 hidden bg-cover bg-center md:block"
+        style={{ backgroundImage: `url(${mainSlide.image})` }}
+      />
       <video
-        className="absolute inset-0 hidden h-full w-full object-cover md:block"
-        src={videoUrl || "/img/background.mp4"}
+        key={resolvedVideoUrl}
+        className={`absolute inset-0 hidden h-full w-full object-cover md:block ${videoFailed ? "opacity-0" : "opacity-100"}`}
         autoPlay
         muted
         loop
         playsInline
-      />
+        onError={() => setVideoFailed(true)}
+      >
+        <source src={resolvedVideoUrl} type={videoType} />
+      </video>
       <div
         className="absolute inset-0 bg-cover bg-center md:hidden"
         style={{ backgroundImage: `url(${mainSlide.image})` }}
