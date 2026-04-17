@@ -45,6 +45,12 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
       ...cmsDefaults.homeUiText,
       ...(partial.homeUiText ?? {}),
     },
+    bookingSection: {
+      ...cmsDefaults.bookingSection,
+      ...(partial.bookingSection ?? {}),
+      steps: partial.bookingSection?.steps ?? cmsDefaults.bookingSection.steps,
+      sectorCards: partial.bookingSection?.sectorCards ?? cmsDefaults.bookingSection.sectorCards,
+    },
     statsSection: {
       ...cmsDefaults.statsSection,
       ...(partial.statsSection ?? {}),
@@ -53,6 +59,23 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
     reviewsSection: {
       ...cmsDefaults.reviewsSection,
       ...(partial.reviewsSection ?? {}),
+    },
+    documents: {
+      rulesPage: {
+        ...cmsDefaults.documents.rulesPage,
+        ...(partial.documents?.rulesPage ?? {}),
+        sections: partial.documents?.rulesPage?.sections ?? cmsDefaults.documents.rulesPage.sections,
+      },
+      privacyPolicyPage: {
+        ...cmsDefaults.documents.privacyPolicyPage,
+        ...(partial.documents?.privacyPolicyPage ?? {}),
+        sections: partial.documents?.privacyPolicyPage?.sections ?? cmsDefaults.documents.privacyPolicyPage.sections,
+      },
+      paymentTermsPage: {
+        ...cmsDefaults.documents.paymentTermsPage,
+        ...(partial.documents?.paymentTermsPage ?? {}),
+        sections: partial.documents?.paymentTermsPage?.sections ?? cmsDefaults.documents.paymentTermsPage.sections,
+      },
     },
     paymentRequisites: {
       ...cmsDefaults.paymentRequisites,

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import type { BookingSection } from "@/data/cms-defaults";
+
 type Sector = "№1" | "№2" | "№3" | "№4";
 
 type CartItem = {
@@ -35,6 +37,10 @@ type ReferralManager = {
   name: string;
 };
 
+type HomeBookingInteractiveProps = {
+  bookingSection: BookingSection;
+};
+
 const BOOKING_CART_STORAGE_KEY = "booking_cart_v1";
 const BOOKING_REFERRAL_STORAGE_KEY = "booking_referral_manager_v1";
 
@@ -63,20 +69,15 @@ function applyDiscount(amount: number, discountPercent: number): number {
   return Math.round((amount * (100 - discountPercent)) / 100);
 }
 
-const sectors: Array<{ name: Sector; note: string; dimensions: string }> = [
-  { name: "№1", note: "До 30 гравців • Парні матчі та тренування", dimensions: "Ширина 20м • Довжина 40м" },
-  { name: "№2", note: "Вузьке поле • Функціональне тренування", dimensions: "Ширина 17м • Довжина 40м" },
-  { name: "№3", note: "Стандартне • Офіційні матчі та турніри", dimensions: "Ширина 20м • Довжина 40м" },
-  { name: "№4", note: "Повнорозмірне • Професійні матчі та чемпіонати", dimensions: "Ширина 60м • Довжина 40м" },
+const fallbackSectorCards: BookingSection["sectorCards"] = [
+  { key: "№1", title: "Поле №1", note: "До 30 гравців • Парні матчі та тренування", widthMeters: 20, heightMeters: 40 },
+  { key: "№2", title: "Поле №2", note: "Вузьке поле • Функціональне тренування", widthMeters: 17, heightMeters: 40 },
+  { key: "№3", title: "Поле №3", note: "Стандартне • Офіційні матчі та турніри", widthMeters: 20, heightMeters: 40 },
+  { key: "№4", title: "Поле №4", note: "Повнорозмірне • Професійні матчі та чемпіонати", widthMeters: 40, heightMeters: 60 },
 ];
 
-function getSectorDisplay(sector: Sector): { label: string; dimensions: string } {
-  const match = sectors.find((item) => item.name === sector);
-
-  return {
-    label: `Поле ${sector}`,
-    dimensions: match?.dimensions ?? "",
-  };
+function formatSectorDimensions(widthMeters: number, heightMeters: number): string {
+  return `Ширина ${widthMeters}м • Довжина ${heightMeters}м`;
 }
 
 const durationOptions = Array.from({ length: 13 }, (_, index) => index + 1);
@@ -112,7 +113,7 @@ function rangesOverlap(startA: number, endA: number, startB: number, endB: numbe
   return startA < endB && startB < endA;
 }
 
-export function HomeBookingInteractive() {
+export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiveProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
@@ -140,6 +141,22 @@ export function HomeBookingInteractive() {
     adminDecisionHours: number;
     paymentWindowRules: Array<{ minDaysBeforeStart: number; maxDaysBeforeStart: number | null; paymentHours: number }>;
   } | null>(null);
+
+  const sectorCards = bookingSection.sectorCards.length > 0 ? bookingSection.sectorCards : fallbackSectorCards;
+  const bookingSteps = bookingSection.steps.length > 0 ? bookingSection.steps : [
+    { label: "Крок 1", title: "Сектор" },
+    { label: "Крок 2", title: "Дата і час" },
+    { label: "Крок 3", title: "Оплата" },
+  ];
+
+  const getSectorDisplay = (sector: Sector): { label: string; dimensions: string; note: string } => {
+    const match = sectorCards.find((item) => item.key === sector);
+    return {
+      label: match?.title ?? `Поле ${sector}`,
+      dimensions: formatSectorDimensions(match?.widthMeters ?? 0, match?.heightMeters ?? 0),
+      note: match?.note ?? "",
+    };
+  };
 
   const totalPrice = useMemo(() => {
     if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
@@ -562,7 +579,7 @@ export function HomeBookingInteractive() {
 
   const calendarRows = useMemo(() => {
     const visibleSectors = calendarSectorFilter === "all"
-      ? sectors.map((sector) => sector.name)
+      ? sectorCards.map((sector) => sector.key)
       : [calendarSectorFilter];
 
     return visibleSectors.map((sectorName) => {
@@ -583,29 +600,23 @@ export function HomeBookingInteractive() {
     <section id="booking" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">Ключовий блок</p>
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">{bookingSection.badge}</p>
           <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
-            Обери сектор і час гри
+            {bookingSection.title}
           </h2>
         </div>
         <p className="max-w-2xl text-base leading-7 text-slate-600">
-          Натисни на сектор поля і пройди через зручний попап: сектор, дата, час — і бронювання у кошику.
+          {bookingSection.description}
         </p>
       </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[var(--blue-100)] bg-white/82 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--blue-700)]">Крок 1</p>
-          <p className="mt-1 text-sm font-bold text-[var(--blue-950)]">Сектор</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--blue-100)] bg-white/82 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--blue-700)]">Крок 2</p>
-          <p className="mt-1 text-sm font-bold text-[var(--blue-950)]">Дата і час</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--blue-100)] bg-white/82 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--blue-700)]">Крок 3</p>
-          <p className="mt-1 text-sm font-bold text-[var(--blue-950)]">Оплата</p>
-        </div>
+        {bookingSteps.slice(0, 3).map((step, index) => (
+          <div key={`${step.label}-${index}`} className="rounded-2xl border border-[var(--blue-100)] bg-white/82 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--blue-700)]">{step.label}</p>
+            <p className="mt-1 text-sm font-bold text-[var(--blue-950)]">{step.title}</p>
+          </div>
+        ))}
       </div>
 
       <div className="relative overflow-hidden rounded-[34px] border border-[var(--border-soft)] bg-[linear-gradient(140deg,rgba(255,255,255,0.98)_0%,rgba(242,248,255,0.95)_58%,rgba(234,245,255,0.96)_100%)] p-5 shadow-[0_24px_90px_rgba(8,26,51,0.1)] backdrop-blur-sm sm:p-8">
@@ -613,15 +624,17 @@ export function HomeBookingInteractive() {
         <div className="pointer-events-none absolute -right-14 bottom-8 h-40 w-40 rounded-full bg-[var(--green-200)]/55 blur-3xl" />
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          {sectors.map(({ name, note, dimensions }) => {
-            const isSelected = selectedSector === name;
+          {sectorCards.map((sectorCard) => {
+            const { key, note, widthMeters, heightMeters } = sectorCard;
+            const isSelected = selectedSector === key;
+            const dimensions = formatSectorDimensions(widthMeters, heightMeters);
 
             return (
               <button
-                key={name}
+                key={key}
                 type="button"
                 onClick={() => {
-                  setSelectedSector(name);
+                  setSelectedSector(key);
                   setSelectedDate("");
                   setSelectedSlot(null);
                   setSelectedDuration(null);
@@ -638,7 +651,7 @@ export function HomeBookingInteractive() {
                   className="relative aspect-[3/4] overflow-hidden"
                   style={{
                     background:
-                      name === "№2"
+                      key === "№2"
                         ? "repeating-linear-gradient(to right,#1c7340 0%,#1c7340 12.5%,#186838 12.5%,#186838 25%)"
                         : "repeating-linear-gradient(to bottom,#1c7340 0%,#1c7340 12.5%,#186838 12.5%,#186838 25%)",
                   }}
@@ -646,7 +659,7 @@ export function HomeBookingInteractive() {
                   {/* Field outline */}
                   <div className="absolute inset-[10%] border border-white/55" />
 
-                  {name === "№2" ? (
+                  {key === "№2" ? (
                     /* 40×17m, split vertically — no goals */
                     <>
                       <div className="absolute bottom-[10%] left-1/2 top-[10%] w-px -translate-x-1/2 bg-white/55" />
@@ -654,7 +667,7 @@ export function HomeBookingInteractive() {
                       <div className="absolute top-1 left-1/2 -translate-x-1/2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white/80">17м</div>
                       <div className="absolute left-0.5 top-1/2 -translate-y-1/2 rounded bg-white/10 px-1 py-0.5 text-[9px] font-bold text-white/80">40м</div>
                     </>
-                  ) : name === "№4" ? (
+                  ) : key === "№4" ? (
                     /* 60×40m, full field. card 3:4 → width=40m, height=60m */
                     /* 1m wide = 2% card, 1m tall = 1.33% card */
                     <>
@@ -705,10 +718,10 @@ export function HomeBookingInteractive() {
                 </div>
                 {/* Info below visual */}
                 <div className={`flex flex-1 flex-col p-4 ${isSelected ? "bg-[#f0faf4]" : "bg-white"}`}>
-                  <p className="text-base font-bold text-[var(--blue-950)]">Поле {name}</p>
+                  <p className="text-base font-bold text-[var(--blue-950)]">{sectorCard.title}</p>
                   <p className="mt-1 text-[11px] font-semibold leading-snug text-[var(--blue-700)]">{dimensions}</p>
                   <p className="mt-1.5 text-sm font-normal leading-snug text-[var(--blue-800)]">{note}</p>
-                  <p className="mt-auto pt-3 text-lg font-bold text-[var(--green-700)]">Від {pricing.sectors[name]?.dayPrice ?? "—"} грн/год</p>
+                  <p className="mt-auto pt-3 text-lg font-bold text-[var(--green-700)]">Від {pricing.sectors[key]?.dayPrice ?? "—"} грн/год</p>
                 </div>
               </button>
             );
@@ -719,16 +732,16 @@ export function HomeBookingInteractive() {
       <div className="mt-8 rounded-[30px] border border-[var(--blue-100)] bg-white/92 p-5 shadow-[0_18px_46px_rgba(8,26,51,0.08)] sm:p-7">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--green-700)]">Календар зайнятості</p>
-            <h3 className="mt-2 text-2xl font-semibold text-[var(--blue-950)] sm:text-3xl">Вільні та заброньовані години</h3>
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--green-700)]">{bookingSection.calendarBadge}</p>
+            <h3 className="mt-2 text-2xl font-semibold text-[var(--blue-950)] sm:text-3xl">{bookingSection.calendarTitle}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Обери дату і перевір, які години вже зайняті по кожному полю.
+              {bookingSection.calendarDescription}
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 md:min-w-[420px]">
             <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-              Дата
+              {bookingSection.calendarDateLabel}
               <input
                 type="date"
                 value={calendarDate}
@@ -738,15 +751,15 @@ export function HomeBookingInteractive() {
             </label>
 
             <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-              Поле
+              {bookingSection.calendarSectorLabel}
               <select
                 value={calendarSectorFilter}
                 onChange={(event) => setCalendarSectorFilter(event.target.value as Sector | "all")}
                 className="mt-2 w-full rounded-[12px] border border-[var(--blue-100)] bg-white px-3 py-2.5 text-sm text-[var(--blue-950)]"
               >
-                <option value="all">Усі поля</option>
-                {sectors.map((sector) => (
-                  <option key={sector.name} value={sector.name}>{sector.name}</option>
+                <option value="all">{bookingSection.calendarAllSectorsLabel}</option>
+                {sectorCards.map((sector) => (
+                  <option key={sector.key} value={sector.key}>{sector.title}</option>
                 ))}
               </select>
             </label>
@@ -765,9 +778,9 @@ export function HomeBookingInteractive() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">Вільно</span>
-                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-amber-900">В очікуванні</span>
-                <span className="rounded-full bg-rose-600 px-2 py-0.5 text-white">Заброньовано</span>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">{bookingSection.legendFreeLabel}</span>
+                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-amber-900">{bookingSection.legendPendingLabel}</span>
+                <span className="rounded-full bg-rose-600 px-2 py-0.5 text-white">{bookingSection.legendBookedLabel}</span>
               </div>
 
               <div className="mt-4 grid grid-cols-4 gap-1.5 sm:grid-cols-8">
@@ -816,7 +829,7 @@ export function HomeBookingInteractive() {
                 })}
               </div>
               <p className="mt-2 text-xs text-slate-500">
-                <span className="font-semibold text-emerald-700">Зелений</span>: вільно. <span className="font-semibold text-amber-800">Жовтий</span>: вже є заявки, але ще можна подати бронювання. <span className="font-semibold text-rose-700">Червоний</span>: квитанцію вже надіслано або оплату підтверджено - слот недоступний.
+                {bookingSection.legendHint}
               </p>
             </article>
           ))}
@@ -879,26 +892,26 @@ export function HomeBookingInteractive() {
               <div className="mt-7">
                 <p className="text-sm font-semibold text-[var(--blue-900)]">Обери сектор</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {sectors.map(({ name, note, dimensions }) => (
+                  {sectorCards.map(({ key, title, note, widthMeters, heightMeters }) => (
                     <button
-                      key={name}
+                      key={key}
                       type="button"
                       onClick={() => {
-                        setSelectedSector(name);
+                        setSelectedSector(key);
                         setSelectedDate("");
                         setSelectedSlot(null);
                         setSelectedDuration(null);
                       }}
                       className={`ui-chip-button rounded-[14px] border px-3 py-3 text-left transition ${
-                        selectedSector === name
+                        selectedSector === key
                           ? "border-[var(--green-700)] bg-[var(--green-100)]/65"
                           : "border-[var(--blue-100)] bg-[var(--blue-50)] hover:border-[var(--green-700)]"
                       }`}
                     >
-                      <p className="text-sm font-semibold text-[var(--blue-950)]">Поле {name}</p>
-                      <p className="mt-0.5 text-[11px] font-semibold text-[var(--blue-700)]">{dimensions}</p>
+                      <p className="text-sm font-semibold text-[var(--blue-950)]">{title}</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-[var(--blue-700)]">{formatSectorDimensions(widthMeters, heightMeters)}</p>
                       <p className="mt-0.5 text-xs text-[var(--blue-800)]">{note}</p>
-                      <p className="mt-2 text-xs font-bold text-[var(--green-700)]">День: {pricing.sectors[name]?.dayPrice ?? "—"} / Вечір: {pricing.sectors[name]?.eveningPrice ?? "—"} грн/год</p>
+                      <p className="mt-2 text-xs font-bold text-[var(--green-700)]">День: {pricing.sectors[key]?.dayPrice ?? "—"} / Вечір: {pricing.sectors[key]?.eveningPrice ?? "—"} грн/год</p>
                     </button>
                   ))}
                 </div>

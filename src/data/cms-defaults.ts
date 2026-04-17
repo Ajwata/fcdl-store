@@ -98,6 +98,76 @@ export type HomeUiText = {
   newsReadMoreLabel: string;
 };
 
+export type BookingSectorKey = "№1" | "№2" | "№3" | "№4";
+
+export type BookingStep = {
+  label: string;
+  title: string;
+};
+
+export type BookingSectorCard = {
+  key: BookingSectorKey;
+  title: string;
+  note: string;
+  widthMeters: number;
+  heightMeters: number;
+};
+
+export type BookingSection = {
+  badge: string;
+  title: string;
+  description: string;
+  steps: BookingStep[];
+  sectorCards: BookingSectorCard[];
+  calendarBadge: string;
+  calendarTitle: string;
+  calendarDescription: string;
+  calendarDateLabel: string;
+  calendarSectorLabel: string;
+  calendarAllSectorsLabel: string;
+  legendFreeLabel: string;
+  legendPendingLabel: string;
+  legendBookedLabel: string;
+  legendHint: string;
+};
+
+export type DocumentSectionItem = {
+  title: string;
+  text: string;
+};
+
+export type RulesPageContent = {
+  badge: string;
+  title: string;
+  description: string;
+  updatedLabel: string;
+  updatedHint: string;
+  sections: DocumentSectionItem[];
+};
+
+export type PrivacyPolicyPageContent = {
+  badge: string;
+  title: string;
+  description: string;
+  sections: DocumentSectionItem[];
+};
+
+export type PaymentTermsPageContent = {
+  badge: string;
+  title: string;
+  description: string;
+  supportLabel: string;
+  supportEmail: string;
+  supportPhone: string;
+  sections: DocumentSectionItem[];
+};
+
+export type DocumentsContent = {
+  rulesPage: RulesPageContent;
+  privacyPolicyPage: PrivacyPolicyPageContent;
+  paymentTermsPage: PaymentTermsPageContent;
+};
+
 export type PaymentRequisites = {
   recipient: string;
   iban: string;
@@ -161,8 +231,10 @@ export type CmsContent = {
   homePromotionsSection: HomePromotionsSection;
   homeNewsSection: HomeNewsSection;
   homeUiText: HomeUiText;
+  bookingSection: BookingSection;
   statsSection: StatsSection;
   reviewsSection: ReviewsSection;
+  documents: DocumentsContent;
   paymentRequisites: PaymentRequisites;
   adminContacts: AdminContactCard[];
 };
@@ -270,6 +342,56 @@ export const cmsDefaults: CmsContent = {
     newsFeaturedLabel: "Головна новина",
     newsReadMoreLabel: "Детальніше",
   },
+  bookingSection: {
+    badge: "Ключовий блок",
+    title: "Обери сектор і час гри",
+    description: "Натисни на сектор поля і пройди через зручний попап: сектор, дата, час — і бронювання у кошику.",
+    steps: [
+      { label: "Крок 1", title: "Сектор" },
+      { label: "Крок 2", title: "Дата і час" },
+      { label: "Крок 3", title: "Оплата" },
+    ],
+    sectorCards: [
+      {
+        key: "№1",
+        title: "Поле №1",
+        note: "До 30 гравців • Парні матчі та тренування",
+        widthMeters: 20,
+        heightMeters: 40,
+      },
+      {
+        key: "№2",
+        title: "Поле №2",
+        note: "Вузьке поле • Функціональне тренування",
+        widthMeters: 17,
+        heightMeters: 40,
+      },
+      {
+        key: "№3",
+        title: "Поле №3",
+        note: "Стандартне • Офіційні матчі та турніри",
+        widthMeters: 20,
+        heightMeters: 40,
+      },
+      {
+        key: "№4",
+        title: "Поле №4",
+        note: "Повнорозмірне • Професійні матчі та чемпіонати",
+        widthMeters: 40,
+        heightMeters: 60,
+      },
+    ],
+    calendarBadge: "Календар зайнятості",
+    calendarTitle: "Вільні та заброньовані години",
+    calendarDescription: "Обери дату і перевір, які години вже зайняті по кожному полю.",
+    calendarDateLabel: "Дата",
+    calendarSectorLabel: "Поле",
+    calendarAllSectorsLabel: "Усі поля",
+    legendFreeLabel: "Вільно",
+    legendPendingLabel: "В очікуванні",
+    legendBookedLabel: "Заброньовано",
+    legendHint: "Зелений: вільно. Жовтий: вже є заявки, але ще можна подати бронювання. Червоний: квитанцію вже надіслано або оплату підтверджено - слот недоступний.",
+  },
   statsSection: {
     badge: "Статистика",
     title: "Сервіс у цифрах",
@@ -311,6 +433,82 @@ export const cmsDefaults: CmsContent = {
     ratingTitle: "Відгуки клієнтів",
     ctaText: "Залишити відгук",
     allReviewsCta: "Усі відгуки",
+  },
+  documents: {
+    rulesPage: {
+      badge: "Документи",
+      title: "Правила",
+      description: "На цій сторінці зібрані основні правила користування сервісом і майданчиком. Текст сформований у простому форматі, щоб ви могли швидко знайти ключові пункти.",
+      updatedLabel: "Оновлено",
+      updatedHint: "Якщо потрібне уточнення, зверніться до адміністратора через контакти у футері.",
+      sections: [
+        {
+          title: "Загальні умови користування",
+          text: "Використовуючи сайт та особистий кабінет, ви погоджуєтесь з правилами бронювання, оплати й скасування записів.",
+        },
+        {
+          title: "Обов'язки клієнта",
+          text: "Клієнт зобов'язується вказувати коректні контактні дані, своєчасно приходити на матч та дотримуватись правил поведінки на території комплексу.",
+        },
+        {
+          title: "Оновлення умов",
+          text: "Адміністрація може змінювати розклад, тарифи й правила користування сервісом з попереднім оновленням інформації на сайті.",
+        },
+        {
+          title: "Обмеження",
+          text: "Забороняється передавати доступ третім особам, використовувати сервіс для шахрайських дій або навмисно створювати фіктивні бронювання.",
+        },
+      ],
+    },
+    privacyPolicyPage: {
+      badge: "Документи",
+      title: "Політика конфіденційності",
+      description: "Ми дбаємо про безпечне зберігання персональних даних. Нижче наведено короткі та зрозумілі принципи обробки інформації у сервісі Football Club.",
+      sections: [
+        {
+          title: "Які дані ми обробляємо",
+          text: "Ми обробляємо лише дані, необхідні для роботи сервісу: ім'я, номер телефону, email, історію бронювань та платежів.",
+        },
+        {
+          title: "Мета обробки",
+          text: "Дані використовуються для ідентифікації клієнта, підтвердження бронювань, сервісних повідомлень та покращення якості обслуговування.",
+        },
+        {
+          title: "Передача третім особам",
+          text: "Ми не передаємо персональні дані третім особам без законних підстав. Доступ мають лише уповноважені співробітники.",
+        },
+        {
+          title: "Права користувача",
+          text: "Користувач має право подати запит на уточнення, оновлення або видалення своїх персональних даних згідно з чинним законодавством України.",
+        },
+      ],
+    },
+    paymentTermsPage: {
+      badge: "Документи",
+      title: "Умови оплати",
+      description: "У цьому розділі зібрані базові умови оплати й повернення коштів, щоб ви могли швидко зорієнтуватись перед бронюванням поля.",
+      supportLabel: "Підтримка",
+      supportEmail: "hello@fcdl.store",
+      supportPhone: "+380 67 000 00 00",
+      sections: [
+        {
+          title: "Способи оплати",
+          text: "Оплата бронювання здійснюється онлайн через особистий кабінет або за погодженням з адміністратором.",
+        },
+        {
+          title: "Підтвердження бронювання",
+          text: "Бронювання вважається підтвердженим після успішної оплати або зміни статусу бронювання адміністратором.",
+        },
+        {
+          title: "Повернення коштів",
+          text: "У разі скасування бронювання повернення коштів здійснюється згідно з чинними правилами скасування, опублікованими на сайті.",
+        },
+        {
+          title: "Технічні збої",
+          text: "У разі помилки платежу зверніться до служби підтримки, вказавши номер бронювання та контактні дані.",
+        },
+      ],
+    },
   },
   paymentRequisites: {
     recipient: "ФОП Іваненко Іван Іванович",

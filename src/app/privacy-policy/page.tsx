@@ -9,24 +9,7 @@ export const metadata = {
 
 export default async function PrivacyPolicyPage() {
   const cms = await getCmsContent();
-  const policy = [
-    {
-      title: "Які дані ми обробляємо",
-      text: "Ми обробляємо лише дані, необхідні для роботи сервісу: ім'я, номер телефону, email, історію бронювань та платежів.",
-    },
-    {
-      title: "Мета обробки",
-      text: "Дані використовуються для ідентифікації клієнта, підтвердження бронювань, сервісних повідомлень та покращення якості обслуговування.",
-    },
-    {
-      title: "Передача третім особам",
-      text: "Ми не передаємо персональні дані третім особам без законних підстав. Доступ мають лише уповноважені співробітники.",
-    },
-    {
-      title: "Права користувача",
-      text: "Користувач має право подати запит на уточнення, оновлення або видалення своїх персональних даних згідно з чинним законодавством України.",
-    },
-  ];
+  const policy = cms.documents.privacyPolicyPage;
 
   return (
     <>
@@ -34,18 +17,17 @@ export default async function PrivacyPolicyPage() {
       <main className="page-shell flex-1">
         <section className="section-block mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-20">
           <div className="rounded-[28px] border border-[var(--blue-100)] bg-[linear-gradient(135deg,#f6fbff_0%,#eef5ff_42%,#f0f8f4_100%)] p-6 shadow-[0_18px_44px_rgba(8,26,51,0.08)] sm:p-8">
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">Документи</p>
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">{policy.badge}</p>
             <h1 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
-              Політика конфіденційності
+              {policy.title}
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-              Ми дбаємо про безпечне зберігання персональних даних. Нижче наведено короткі та зрозумілі принципи
-              обробки інформації у сервісі Football Club.
+              {policy.description}
             </p>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {policy.map((item, index) => (
+            {policy.sections.map((item, index) => (
               <article
                 key={item.title}
                 className="rounded-[22px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_14px_34px_rgba(8,26,51,0.07)]"

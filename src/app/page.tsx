@@ -43,7 +43,7 @@ export default async function Home() {
       <main className="page-shell flex-1">
         <HeroCarousel slides={heroSlides} videoUrl={cms.heroVideoUrl} heroMode={cms.heroMode} heroBadge={cms.heroBadge} />
 
-        <HomeBookingInteractive />
+        <HomeBookingInteractive bookingSection={cms.bookingSection} />
 
         <section id="gallery" className="section-bg-media">
           <div className="mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">

@@ -10,15 +10,17 @@ type AdminPanelProps = {
   initialContent: CmsContent;
 };
 
-type TabKey = "general" | "home" | "news" | "gallery" | "streams" | "reviews" | "navigation";
+type TabKey = "general" | "home" | "booking" | "news" | "gallery" | "streams" | "reviews" | "documents" | "navigation";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "general", label: "Загальне" },
   { key: "home", label: "Головна" },
+  { key: "booking", label: "Бронювання" },
   { key: "news", label: "Новини" },
   { key: "gallery", label: "Галерея" },
   { key: "streams", label: "Камери" },
   { key: "reviews", label: "Відгуки" },
+  { key: "documents", label: "Документи" },
   { key: "navigation", label: "Меню та футер" },
 ];
 
@@ -72,6 +74,12 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
       newsFeaturedLabel: initialContent.homeUiText?.newsFeaturedLabel ?? cmsDefaults.homeUiText.newsFeaturedLabel,
       newsReadMoreLabel: initialContent.homeUiText?.newsReadMoreLabel ?? cmsDefaults.homeUiText.newsReadMoreLabel,
     },
+    bookingSection: {
+      ...cmsDefaults.bookingSection,
+      ...(initialContent.bookingSection ?? {}),
+      steps: initialContent.bookingSection?.steps?.length ? initialContent.bookingSection.steps : cmsDefaults.bookingSection.steps,
+      sectorCards: initialContent.bookingSection?.sectorCards?.length ? initialContent.bookingSection.sectorCards : cmsDefaults.bookingSection.sectorCards,
+    },
     reviewsSection: {
       badge: initialContent.reviewsSection?.badge ?? cmsDefaults.reviewsSection.badge,
       title: initialContent.reviewsSection?.title ?? cmsDefaults.reviewsSection.title,
@@ -79,6 +87,23 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
       ratingSubtitle: initialContent.reviewsSection?.ratingSubtitle ?? cmsDefaults.reviewsSection.ratingSubtitle,
       ctaText: initialContent.reviewsSection?.ctaText ?? cmsDefaults.reviewsSection.ctaText,
       allReviewsCta: initialContent.reviewsSection?.allReviewsCta ?? cmsDefaults.reviewsSection.allReviewsCta,
+    },
+    documents: {
+      rulesPage: {
+        ...cmsDefaults.documents.rulesPage,
+        ...(initialContent.documents?.rulesPage ?? {}),
+        sections: initialContent.documents?.rulesPage?.sections?.length ? initialContent.documents.rulesPage.sections : cmsDefaults.documents.rulesPage.sections,
+      },
+      privacyPolicyPage: {
+        ...cmsDefaults.documents.privacyPolicyPage,
+        ...(initialContent.documents?.privacyPolicyPage ?? {}),
+        sections: initialContent.documents?.privacyPolicyPage?.sections?.length ? initialContent.documents.privacyPolicyPage.sections : cmsDefaults.documents.privacyPolicyPage.sections,
+      },
+      paymentTermsPage: {
+        ...cmsDefaults.documents.paymentTermsPage,
+        ...(initialContent.documents?.paymentTermsPage ?? {}),
+        sections: initialContent.documents?.paymentTermsPage?.sections?.length ? initialContent.documents.paymentTermsPage.sections : cmsDefaults.documents.paymentTermsPage.sections,
+      },
     },
   });
   const [status, setStatus] = useState<string>("");
@@ -973,6 +998,233 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
         </div>
       )}
 
+      {activeTab === "booking" && (
+        <div className="space-y-5">
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Ключовий блок бронювання" hint="Тексти верхньої частини блоку з вибором сектору та часу" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Badge</FieldLabel>
+                <input
+                  value={content.bookingSection.badge}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, badge: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Заголовок</FieldLabel>
+                <input
+                  value={content.bookingSection.title}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, title: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Опис</FieldLabel>
+              <textarea
+                rows={3}
+                value={content.bookingSection.description}
+                onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, description: event.target.value } })}
+                className={textareaClass}
+              />
+            </div>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Кроки бронювання" hint="Три плашки над картками полів" />
+            <div className="grid gap-3 md:grid-cols-3">
+              {content.bookingSection.steps.map((step, index) => (
+                <div key={`${step.label}-${index}`} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                  <FieldLabel>Плашка</FieldLabel>
+                  <input
+                    value={step.label}
+                    onChange={(event) => {
+                      const steps = [...content.bookingSection.steps];
+                      steps[index] = { ...step, label: event.target.value };
+                      updateContent({ ...content, bookingSection: { ...content.bookingSection, steps } });
+                    }}
+                    className={inputClass}
+                  />
+                  <div className="mt-3">
+                    <FieldLabel>Назва кроку</FieldLabel>
+                    <input
+                      value={step.title}
+                      onChange={(event) => {
+                        const steps = [...content.bookingSection.steps];
+                        steps[index] = { ...step, title: event.target.value };
+                        updateContent({ ...content, bookingSection: { ...content.bookingSection, steps } });
+                      }}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Картки секторів" hint="Назва, опис і розміри кожного поля" />
+            <div className="space-y-4">
+              {content.bookingSection.sectorCards.map((card, index) => (
+                <div key={card.key} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--blue-900)]">Сектор {card.key}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Системний ключ не змінюється</p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <FieldLabel>Назва</FieldLabel>
+                      <input
+                        value={card.title}
+                        onChange={(event) => {
+                          const sectorCards = [...content.bookingSection.sectorCards];
+                          sectorCards[index] = { ...card, title: event.target.value };
+                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Опис</FieldLabel>
+                      <input
+                        value={card.note}
+                        onChange={(event) => {
+                          const sectorCards = [...content.bookingSection.sectorCards];
+                          sectorCards[index] = { ...card, note: event.target.value };
+                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <FieldLabel>Ширина, м</FieldLabel>
+                      <input
+                        type="number"
+                        value={card.widthMeters}
+                        onChange={(event) => {
+                          const sectorCards = [...content.bookingSection.sectorCards];
+                          sectorCards[index] = { ...card, widthMeters: Math.max(1, Number(event.target.value) || 0) };
+                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Довжина, м</FieldLabel>
+                      <input
+                        type="number"
+                        value={card.heightMeters}
+                        onChange={(event) => {
+                          const sectorCards = [...content.bookingSection.sectorCards];
+                          sectorCards[index] = { ...card, heightMeters: Math.max(1, Number(event.target.value) || 0) };
+                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Календар зайнятості" hint="Заголовки, фільтри та легенда блоку календаря" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Badge</FieldLabel>
+                <input
+                  value={content.bookingSection.calendarBadge}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, calendarBadge: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Заголовок</FieldLabel>
+                <input
+                  value={content.bookingSection.calendarTitle}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, calendarTitle: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Опис</FieldLabel>
+              <textarea
+                rows={3}
+                value={content.bookingSection.calendarDescription}
+                onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, calendarDescription: event.target.value } })}
+                className={textareaClass}
+              />
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div>
+                <FieldLabel>Підпис дати</FieldLabel>
+                <input
+                  value={content.bookingSection.calendarDateLabel}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, calendarDateLabel: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Підпис поля</FieldLabel>
+                <input
+                  value={content.bookingSection.calendarSectorLabel}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, calendarSectorLabel: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Опція "усі поля"</FieldLabel>
+                <input
+                  value={content.bookingSection.calendarAllSectorsLabel}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, calendarAllSectorsLabel: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div>
+                <FieldLabel>Легенда: вільно</FieldLabel>
+                <input
+                  value={content.bookingSection.legendFreeLabel}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendFreeLabel: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Легенда: в очікуванні</FieldLabel>
+                <input
+                  value={content.bookingSection.legendPendingLabel}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendPendingLabel: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Легенда: заброньовано</FieldLabel>
+                <input
+                  value={content.bookingSection.legendBookedLabel}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendBookedLabel: event.target.value } })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Пояснення під легендою</FieldLabel>
+              <textarea
+                rows={3}
+                value={content.bookingSection.legendHint}
+                onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendHint: event.target.value } })}
+                className={textareaClass}
+              />
+            </div>
+          </section>
+        </div>
+      )}
+
       {activeTab === "news" && (
         <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
           <SectionTitle title="Новини" hint="Додавайте та редагуйте новини" />
@@ -1417,6 +1669,169 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
             Додати відгук
           </button>
         </section>
+      )}
+
+      {activeTab === "documents" && (
+        <div className="space-y-5">
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Сторінка правил" hint="Редагування hero-текстів і пунктів правил" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Badge</FieldLabel>
+                <input value={content.documents.rulesPage.badge} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, badge: event.target.value } } })} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>Заголовок</FieldLabel>
+                <input value={content.documents.rulesPage.title} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, title: event.target.value } } })} className={inputClass} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Опис</FieldLabel>
+              <textarea rows={3} value={content.documents.rulesPage.description} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, description: event.target.value } } })} className={textareaClass} />
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Плашка оновлення</FieldLabel>
+                <input value={content.documents.rulesPage.updatedLabel} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, updatedLabel: event.target.value } } })} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>Пояснення у бічній картці</FieldLabel>
+                <input value={content.documents.rulesPage.updatedHint} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, updatedHint: event.target.value } } })} className={inputClass} />
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
+              {content.documents.rulesPage.sections.map((item, index) => (
+                <div key={`${item.title}-${index}`} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--blue-900)]">Пункт #{index + 1}</p>
+                    <button type="button" onClick={() => updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, sections: removeByIndex(content.documents.rulesPage.sections, index) } } })} className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600">Видалити</button>
+                  </div>
+                  <div>
+                    <FieldLabel>Заголовок</FieldLabel>
+                    <input value={item.title} onChange={(event) => {
+                      const sections = [...content.documents.rulesPage.sections];
+                      sections[index] = { ...item, title: event.target.value };
+                      updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, sections } } });
+                    }} className={inputClass} />
+                  </div>
+                  <div className="mt-3">
+                    <FieldLabel>Текст</FieldLabel>
+                    <textarea rows={3} value={item.text} onChange={(event) => {
+                      const sections = [...content.documents.rulesPage.sections];
+                      sections[index] = { ...item, text: event.target.value };
+                      updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, sections } } });
+                    }} className={textareaClass} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => updateContent({ ...content, documents: { ...content.documents, rulesPage: { ...content.documents.rulesPage, sections: [...content.documents.rulesPage.sections, { title: "Новий пункт", text: "Текст пункту" }] } } })} className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]">Додати пункт</button>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Політика конфіденційності" hint="Редагування заголовка, опису і розділів політики" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Badge</FieldLabel>
+                <input value={content.documents.privacyPolicyPage.badge} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, privacyPolicyPage: { ...content.documents.privacyPolicyPage, badge: event.target.value } } })} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>Заголовок</FieldLabel>
+                <input value={content.documents.privacyPolicyPage.title} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, privacyPolicyPage: { ...content.documents.privacyPolicyPage, title: event.target.value } } })} className={inputClass} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Опис</FieldLabel>
+              <textarea rows={3} value={content.documents.privacyPolicyPage.description} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, privacyPolicyPage: { ...content.documents.privacyPolicyPage, description: event.target.value } } })} className={textareaClass} />
+            </div>
+            <div className="mt-4 space-y-3">
+              {content.documents.privacyPolicyPage.sections.map((item, index) => (
+                <div key={`${item.title}-${index}`} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--blue-900)]">Розділ #{index + 1}</p>
+                    <button type="button" onClick={() => updateContent({ ...content, documents: { ...content.documents, privacyPolicyPage: { ...content.documents.privacyPolicyPage, sections: removeByIndex(content.documents.privacyPolicyPage.sections, index) } } })} className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600">Видалити</button>
+                  </div>
+                  <div>
+                    <FieldLabel>Заголовок</FieldLabel>
+                    <input value={item.title} onChange={(event) => {
+                      const sections = [...content.documents.privacyPolicyPage.sections];
+                      sections[index] = { ...item, title: event.target.value };
+                      updateContent({ ...content, documents: { ...content.documents, privacyPolicyPage: { ...content.documents.privacyPolicyPage, sections } } });
+                    }} className={inputClass} />
+                  </div>
+                  <div className="mt-3">
+                    <FieldLabel>Текст</FieldLabel>
+                    <textarea rows={3} value={item.text} onChange={(event) => {
+                      const sections = [...content.documents.privacyPolicyPage.sections];
+                      sections[index] = { ...item, text: event.target.value };
+                      updateContent({ ...content, documents: { ...content.documents, privacyPolicyPage: { ...content.documents.privacyPolicyPage, sections } } });
+                    }} className={textareaClass} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => updateContent({ ...content, documents: { ...content.documents, privacyPolicyPage: { ...content.documents.privacyPolicyPage, sections: [...content.documents.privacyPolicyPage.sections, { title: "Новий розділ", text: "Текст розділу" }] } } })} className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]">Додати розділ</button>
+          </section>
+
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Умови оплати" hint="Редагування hero, контактів підтримки і текстів сторінки" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Badge</FieldLabel>
+                <input value={content.documents.paymentTermsPage.badge} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, badge: event.target.value } } })} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>Заголовок</FieldLabel>
+                <input value={content.documents.paymentTermsPage.title} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, title: event.target.value } } })} className={inputClass} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Опис</FieldLabel>
+              <textarea rows={3} value={content.documents.paymentTermsPage.description} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, description: event.target.value } } })} className={textareaClass} />
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div>
+                <FieldLabel>Заголовок підтримки</FieldLabel>
+                <input value={content.documents.paymentTermsPage.supportLabel} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, supportLabel: event.target.value } } })} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>Email підтримки</FieldLabel>
+                <input value={content.documents.paymentTermsPage.supportEmail} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, supportEmail: event.target.value } } })} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>Телефон підтримки</FieldLabel>
+                <input value={content.documents.paymentTermsPage.supportPhone} onChange={(event) => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, supportPhone: event.target.value } } })} className={inputClass} />
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
+              {content.documents.paymentTermsPage.sections.map((item, index) => (
+                <div key={`${item.title}-${index}`} className="rounded-[14px] border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--blue-900)]">Розділ #{index + 1}</p>
+                    <button type="button" onClick={() => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, sections: removeByIndex(content.documents.paymentTermsPage.sections, index) } } })} className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600">Видалити</button>
+                  </div>
+                  <div>
+                    <FieldLabel>Заголовок</FieldLabel>
+                    <input value={item.title} onChange={(event) => {
+                      const sections = [...content.documents.paymentTermsPage.sections];
+                      sections[index] = { ...item, title: event.target.value };
+                      updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, sections } } });
+                    }} className={inputClass} />
+                  </div>
+                  <div className="mt-3">
+                    <FieldLabel>Текст</FieldLabel>
+                    <textarea rows={3} value={item.text} onChange={(event) => {
+                      const sections = [...content.documents.paymentTermsPage.sections];
+                      sections[index] = { ...item, text: event.target.value };
+                      updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, sections } } });
+                    }} className={textareaClass} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => updateContent({ ...content, documents: { ...content.documents, paymentTermsPage: { ...content.documents.paymentTermsPage, sections: [...content.documents.paymentTermsPage.sections, { title: "Новий розділ", text: "Текст розділу" }] } } })} className="mt-4 rounded-full border border-[var(--green-700)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]">Додати розділ</button>
+          </section>
+        </div>
       )}
 
       {activeTab === "navigation" && (

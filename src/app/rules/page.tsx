@@ -10,24 +10,7 @@ export const metadata = {
 
 export default async function RulesPage() {
   const cms = await getCmsContent();
-  const rules = [
-    {
-      title: "Загальні умови користування",
-      text: "Використовуючи сайт та особистий кабінет, ви погоджуєтесь з правилами бронювання, оплати й скасування записів.",
-    },
-    {
-      title: "Обов'язки клієнта",
-      text: "Клієнт зобов'язується вказувати коректні контактні дані, своєчасно приходити на матч та дотримуватись правил поведінки на території комплексу.",
-    },
-    {
-      title: "Оновлення умов",
-      text: "Адміністрація може змінювати розклад, тарифи й правила користування сервісом з попереднім оновленням інформації на сайті.",
-    },
-    {
-      title: "Обмеження",
-      text: "Забороняється передавати доступ третім особам, використовувати сервіс для шахрайських дій або навмисно створювати фіктивні бронювання.",
-    },
-  ];
+  const rulesPage = cms.documents.rulesPage;
 
   return (
     <>
@@ -37,26 +20,25 @@ export default async function RulesPage() {
           <div className="rounded-[28px] border border-[var(--blue-100)] bg-[linear-gradient(140deg,#f7fbff_0%,#edf5ff_48%,#e8f3f0_100%)] p-6 shadow-[0_18px_44px_rgba(8,26,51,0.08)] sm:p-8">
             <div className="grid gap-6 lg:grid-cols-[1fr_260px] lg:items-end">
               <div>
-                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">Документи</p>
+                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">{rulesPage.badge}</p>
                 <h1 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
-                  Правила
+                  {rulesPage.title}
                 </h1>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                  На цій сторінці зібрані основні правила користування сервісом і майданчиком. Текст сформований у
-                  простому форматі, щоб ви могли швидко знайти ключові пункти.
+                  {rulesPage.description}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/70 bg-white/80 p-4 backdrop-blur">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--blue-700)]">Оновлено</p>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--blue-700)]">{rulesPage.updatedLabel}</p>
                 <p className="mt-2 text-sm font-semibold text-[var(--blue-950)]">{formatDateUk(new Date())}</p>
-                <p className="mt-3 text-xs leading-6 text-slate-500">Якщо потрібне уточнення, зверніться до адміністратора через контакти у футері.</p>
+                <p className="mt-3 text-xs leading-6 text-slate-500">{rulesPage.updatedHint}</p>
               </div>
             </div>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {rules.map((item, index) => (
+            {rulesPage.sections.map((item, index) => (
               <article
                 key={item.title}
                 className="rounded-[22px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_14px_34px_rgba(8,26,51,0.07)]"
