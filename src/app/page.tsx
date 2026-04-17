@@ -7,23 +7,56 @@ import { LiveStreams } from "@/components/live-streams";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { StatsSection } from "@/components/stats-section";
+import type { StatItem } from "@/data/cms-defaults";
+import { getBookings } from "@/lib/bookings";
+import { getAllClientUsers } from "@/lib/client-auth";
 import { getCmsContent } from "@/lib/cms-content";
 import { getPublicClientReviews } from "@/lib/client-engagement";
 import { formatDateUk, getDateSortValue } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
 
+function resolveLiveStatValue(item: StatItem, stats: { bookingsCount: number; clientsCount: number; averageRating: number }): number {
+  const label = item.label.toLowerCase();
+  if (label.includes("брон")) return stats.bookingsCount;
+  if (label.includes("клієн") || label.includes("грав")) return stats.clientsCount;
+  if (label.includes("рейтинг") || label.includes("оцін")) return stats.averageRating;
+  return item.targetValue;
+}
+
 export default async function Home() {
-  const cms = await getCmsContent();
+  const [cms, bookings, users, allReviews] = await Promise.all([
+    getCmsContent(),
+    getBookings(),
+    getAllClientUsers(),
+    getPublicClientReviews(),
+  ]);
   const { galleryItems, heroSlides, newsItems } = cms;
-  const latestReviews = await getPublicClientReviews(3);
-  const allReviews = await getPublicClientReviews();
+  const latestReviews = allReviews.slice(0, 3);
 
   const totalReviews = allReviews.length;
-  const averageRating = totalReviews > 0
-    ? (allReviews.reduce((sum, review) => sum + Number(review.rating), 0) / totalReviews).toFixed(1)
-    : "0.0";
-  const averageStars = Math.floor(Number(averageRating));
+  const averageRatingNumber = totalReviews > 0
+    ? allReviews.reduce((sum, review) => sum + Number(review.rating), 0) / totalReviews
+    : 0;
+  const averageRating = averageRatingNumber.toFixed(1);
+  const averageStars = Math.floor(averageRatingNumber);
+
+  const bookingsCount = bookings.length;
+  const uniquePhones = new Set<string>();
+  bookings.forEach((booking) => uniquePhones.add(booking.clientPhone.replace(/\D/g, "")));
+  users.forEach((user) => uniquePhones.add(user.phone.replace(/\D/g, "")));
+  const clientsCount = uniquePhones.size;
+
+  const liveStats = {
+    bookingsCount,
+    clientsCount,
+    averageRating: Number(averageRating),
+  };
+
+  const statsItems = cms.statsSection.items.map((item) => ({
+    ...item,
+    targetValue: resolveLiveStatValue(item, liveStats),
+  }));
 
   const ratingScale = [5, 4, 3, 2, 1].map((rating) => {
     const count = allReviews.filter((item) => Math.round(item.rating) === rating).length;
@@ -190,7 +223,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <StatsSection items={cms.statsSection.items} badge={cms.statsSection.badge} title={cms.statsSection.title} description={cms.statsSection.description} />
+        <StatsSection items={statsItems} badge={cms.statsSection.badge} title={cms.statsSection.title} description={cms.statsSection.description} />
 
         <section id="reviews" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
           <div className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
