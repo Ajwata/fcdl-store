@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { getCmsContent } from "@/lib/cms-content";
+import { formatDateUk, getDateSortValue } from "@/lib/date-format";
 
 export const metadata = {
   title: "Новини | Football Club",
@@ -13,11 +14,7 @@ export default async function NewsPage() {
   const cms = await getCmsContent();
   const { newsItems } = cms;
 
-  const sortedNews = [...newsItems].sort((a, b) => {
-    const dateA = new Date(a.date.replace(/\s+/, ""));
-    const dateB = new Date(b.date.replace(/\s+/, ""));
-    return dateB.getTime() - dateA.getTime();
-  });
+  const sortedNews = [...newsItems].sort((a, b) => getDateSortValue(b.date) - getDateSortValue(a.date));
 
   return (
     <>
@@ -52,7 +49,7 @@ export default async function NewsPage() {
                 </Link>
 
                 <div className="p-6 sm:p-8">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{newsItem.date}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{formatDateUk(newsItem.date)}</p>
                   <Link href={`/news/${newsItem.slug}`}>
                     <h2 className="mt-3 text-2xl font-bold text-[var(--blue-950)] transition hover:text-[var(--green-700)] sm:text-3xl">
                       {newsItem.title}

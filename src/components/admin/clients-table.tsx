@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { formatDateUk } from "@/lib/date-format";
+
 type ClientSummary = {
   name: string;
   phone: string;
@@ -168,7 +170,7 @@ export function ClientsTable({ clients, initialDiscounts }: Props) {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-500">
-                        {client.lastBookingDate || <span className="text-slate-300">—</span>}
+                        {client.lastBookingDate ? formatDateUk(client.lastBookingDate) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <button

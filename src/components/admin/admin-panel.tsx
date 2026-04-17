@@ -1017,6 +1017,7 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                     <FieldLabel>Дата</FieldLabel>
                     <input
                       value={news.date}
+                      placeholder="17.04.2026"
                       onChange={(event) => {
                         const newsItems = [...content.newsItems];
                         newsItems[index] = { ...news, date: event.target.value };
@@ -1024,6 +1025,7 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                       }}
                       className={inputClass}
                     />
+                    <p className="mt-1 text-xs text-slate-500">На сайті дата буде показана як день.місяць.рік.</p>
                   </div>
                 </div>
 

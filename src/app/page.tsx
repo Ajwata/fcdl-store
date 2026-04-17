@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/site-header";
 import { StatsSection } from "@/components/stats-section";
 import { getCmsContent } from "@/lib/cms-content";
 import { getPublicClientReviews } from "@/lib/client-engagement";
+import { formatDateUk, getDateSortValue } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,9 @@ export default async function Home() {
 
   const promoOffers = cms.promoOffers;
 
-  const featuredNews = newsItems[0];
-  const secondaryNews = newsItems.slice(1, 4);
+  const sortedNews = [...newsItems].sort((a, b) => getDateSortValue(b.date) - getDateSortValue(a.date));
+  const featuredNews = sortedNews[0];
+  const secondaryNews = sortedNews.slice(1, 4);
 
   return (
     <>
@@ -311,7 +313,7 @@ export default async function Home() {
                       <p className="inline-flex w-fit rounded-full border border-white/28 bg-white/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/82">
                         {cms.homeUiText.newsFeaturedLabel}
                       </p>
-                      <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--green-100)]">{featuredNews.date}</p>
+                      <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--green-100)]">{formatDateUk(featuredNews.date)}</p>
                       <h3 className="mt-3 max-w-2xl text-3xl font-bold leading-tight text-white sm:text-4xl">{featuredNews.title}</h3>
                     </div>
                   </article>
@@ -324,7 +326,7 @@ export default async function Home() {
                     <article className="panel-card overflow-hidden bg-white p-0 transition hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(8,26,51,0.14)] flex flex-col h-full">
                       <div className="h-40 w-full flex-shrink-0 bg-center bg-cover" style={{ backgroundImage: `url(${news.image})` }} />
                       <div className="flex flex-1 flex-col p-5">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--green-700)]">{news.date}</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--green-700)]">{formatDateUk(news.date)}</p>
                         <h3 className="mt-3 text-lg font-bold leading-snug text-[var(--blue-950)]">{news.title}</h3>
                         <div className="mt-auto pt-4 inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--blue-700)]">
                           {cms.homeUiText.newsReadMoreLabel}

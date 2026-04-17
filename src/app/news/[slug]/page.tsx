@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { getCmsContent } from "@/lib/cms-content";
+import { formatDateUk, getDateSortValue } from "@/lib/date-format";
 
 export const generateStaticParams = async () => {
   const cms = await getCmsContent();
@@ -40,7 +41,12 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
     notFound();
   }
 
-  const otherNews = cms.newsItems.filter((item) => item.id !== newsItem.id).slice(0, 3);
+  const otherNews = cms.newsItems
+    .filter((item) => item.id !== newsItem.id)
+    .sort((a, b) => getDateSortValue(b.date) - getDateSortValue(a.date))
+    .slice(0, 3);
+
+  const formattedNewsDate = formatDateUk(newsItem.date);
 
   return (
     <>
@@ -65,7 +71,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
                   <div className="mt-6 flex items-center gap-4 border-b border-[var(--blue-100)] pb-6">
                     <div className="flex-1">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Опубліковано</p>
-                      <p className="mt-1 text-sm font-semibold text-[var(--blue-950)]">{newsItem.date}</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--blue-950)]">{formattedNewsDate}</p>
                     </div>
                   </div>
 
@@ -85,7 +91,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
                 <div className="mt-4 space-y-4 text-sm">
                   <div>
                     <p className="font-semibold text-[var(--blue-950)]">Дата публікації</p>
-                    <p className="mt-1 text-slate-600">{newsItem.date}</p>
+                    <p className="mt-1 text-slate-600">{formattedNewsDate}</p>
                   </div>
                   <div>
                     <p className="font-semibold text-[var(--blue-950)]">Категорія</p>
@@ -108,7 +114,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
                         <p className="line-clamp-2 text-xs font-bold text-[var(--blue-950)] transition group-hover:text-[var(--green-700)]">
                           {relatedNewsItem.title}
                         </p>
-                        <p className="mt-2 text-[10px] text-slate-500">{relatedNewsItem.date}</p>
+                        <p className="mt-2 text-[10px] text-slate-500">{formatDateUk(relatedNewsItem.date)}</p>
                       </Link>
                     ))}
                   </div>
@@ -144,7 +150,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
                     </Link>
 
                     <div className="p-4 sm:p-5">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{relatedNewsItem.date}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{formatDateUk(relatedNewsItem.date)}</p>
                       <Link href={`/news/${relatedNewsItem.slug}`}>
                         <h3 className="mt-2 text-lg font-bold text-[var(--blue-950)] transition hover:text-[var(--green-700)] sm:text-xl">
                           {relatedNewsItem.title}

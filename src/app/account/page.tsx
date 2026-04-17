@@ -6,6 +6,7 @@ import { filterBookingsForUser, getBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { getClientNotifications } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { formatDateUk } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,7 @@ export default async function AccountPage() {
             <h2 className="text-xl font-bold text-[var(--blue-950)]">Найближча гра</h2>
             {nextMatch ? (
               <>
-                <p className="mt-3 text-lg font-semibold text-[var(--blue-950)]">{nextMatch.date} о {nextMatch.startTime}</p>
+                <p className="mt-3 text-lg font-semibold text-[var(--blue-950)]">{formatDateUk(nextMatch.date)} о {nextMatch.startTime}</p>
                 <p className="mt-1 text-sm text-slate-600">Поле {nextMatch.sector} · {nextMatch.durationHours} год</p>
                 <p className="mt-3 text-2xl font-black text-[var(--blue-950)]">{nextMatch.totalPrice.toLocaleString("uk-UA")} грн</p>
               </>

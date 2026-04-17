@@ -2,6 +2,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCmsContent } from "@/lib/cms-content";
 import { getPublicClientReviews } from "@/lib/client-engagement";
+import { formatDateUk } from "@/lib/date-format";
 
 export const metadata = {
   title: "Відгуки | Football Club",
@@ -62,7 +63,7 @@ export default async function ReviewsPage() {
                   <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--blue-100)] pt-4">
                     <div>
                       <p className="text-sm font-bold uppercase tracking-[0.14em] text-[var(--blue-950)]">{review.clientName}</p>
-                      <p className="text-xs text-slate-500">{review.bookingDate || "Дата матчу"} · Поле {review.sector}</p>
+                      <p className="text-xs text-slate-500">{review.bookingDate ? formatDateUk(review.bookingDate) : "Дата матчу"} · Поле {review.sector}</p>
                     </div>
                     <p className="text-sm font-semibold text-[var(--blue-700)]">{review.rating} / 5</p>
                   </div>
