@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { Booking, BookingStatus, PaymentStatus } from "@/lib/bookings";
+import { formatDateTimeUk, formatDateUk } from "@/lib/date-format";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700 ring-amber-200",
@@ -51,12 +52,6 @@ function normalizeReceiptUrl(url?: string): string {
     return `/api/account/receipt?file=${encodeURIComponent(uploadsMatch[1])}`;
   }
   return url;
-}
-
-function formatDateUk(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const [year, month, day] = value.split("-");
-  return `${day}.${month}.${year}`;
 }
 
 export default function BookingsPage() {
@@ -347,7 +342,7 @@ export default function BookingsPage() {
                             Квитанція від клієнта
                           </a>
                           {b.paymentProofUploadedAt && (
-                            <p className="text-[10px] text-slate-400">{new Date(b.paymentProofUploadedAt).toLocaleString("uk-UA")}</p>
+                            <p className="text-[10px] text-slate-400">{formatDateTimeUk(b.paymentProofUploadedAt)}</p>
                           )}
                         </div>
                       )}

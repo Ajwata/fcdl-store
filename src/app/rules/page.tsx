@@ -1,6 +1,7 @@
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCmsContent } from "@/lib/cms-content";
+import { formatDateUk } from "@/lib/date-format";
 
 export const metadata = {
   title: "Правила | Football Club",
@@ -48,7 +49,7 @@ export default async function RulesPage() {
 
               <div className="rounded-2xl border border-white/70 bg-white/80 p-4 backdrop-blur">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--blue-700)]">Оновлено</p>
-                <p className="mt-2 text-sm font-semibold text-[var(--blue-950)]">{new Date().toLocaleDateString("uk-UA")}</p>
+                <p className="mt-2 text-sm font-semibold text-[var(--blue-950)]">{formatDateUk(new Date())}</p>
                 <p className="mt-3 text-xs leading-6 text-slate-500">Якщо потрібне уточнення, зверніться до адміністратора через контакти у футері.</p>
               </div>
             </div>

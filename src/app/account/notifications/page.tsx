@@ -5,6 +5,7 @@ import { AccountNav } from "@/components/account/account-nav";
 import { getClientUserById } from "@/lib/client-auth";
 import { getClientNotifications, markClientNotificationsRead } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { formatDateTimeUk } from "@/lib/date-format";
 
 export default async function AccountNotificationsPage() {
   const cookieStore = await cookies();
@@ -55,7 +56,7 @@ export default async function AccountNotificationsPage() {
               <article key={item.id} className="rounded-2xl border border-[var(--blue-100)] bg-white p-4 shadow-[0_10px_28px_rgba(8,26,51,0.06)]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-base font-semibold text-[var(--blue-950)]">{item.title}</p>
-                  <p className="text-xs text-slate-500">{new Date(item.createdAt).toLocaleString("uk-UA")}</p>
+                  <p className="text-xs text-slate-500">{formatDateTimeUk(item.createdAt)}</p>
                 </div>
                 <p className="mt-2 text-sm text-slate-700">{item.message}</p>
               </article>

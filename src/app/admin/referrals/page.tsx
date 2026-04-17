@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { formatDateTimeUk, formatDateUk } from "@/lib/date-format";
+
 type Manager = {
   id: string;
   login: string;
@@ -56,12 +58,6 @@ type ResponseShape = {
     };
   };
 };
-
-function formatDateUk(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const [year, month, day] = value.split("-");
-  return `${day}.${month}.${year}`;
-}
 
 export default function AdminReferralsPage() {
   const [loading, setLoading] = useState(true);
@@ -373,7 +369,7 @@ export default function AdminReferralsPage() {
                   <tr key={item.clientPhoneKey} className="border-b border-slate-100 last:border-0">
                     <td className="px-3 py-2 text-slate-700">{item.clientPhone}</td>
                     <td className="px-3 py-2 text-slate-700">{item.managerName}</td>
-                    <td className="px-3 py-2 text-slate-700">{new Date(item.assignedAt).toLocaleString("uk-UA")}</td>
+                    <td className="px-3 py-2 text-slate-700">{formatDateTimeUk(item.assignedAt)}</td>
                   </tr>
                 ))}
               </tbody>

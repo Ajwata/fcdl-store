@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { formatDateUk } from "@/lib/date-format";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -46,12 +47,6 @@ function isThisWeek(dateStr: string): boolean {
   return d >= weekStart && d < weekEnd;
 }
 
-function formatDateUk(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const [year, month, day] = value.split("-");
-  return `${day}.${month}.${year}`;
-}
-
 export default async function AdminDashboard() {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
@@ -83,7 +78,7 @@ export default async function AdminDashboard() {
     {
       label: "Бронювань сьогодні",
       value: todayBookings.length,
-      sub: today.toLocaleDateString("uk-UA", { day: "numeric", month: "long" }),
+      sub: formatDateUk(today),
       icon: (
         <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -176,12 +171,7 @@ export default async function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Дашборд</h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            {today.toLocaleDateString("uk-UA", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {formatDateUk(today)}
           </p>
         </div>
         {pendingCount > 0 && (

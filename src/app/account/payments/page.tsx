@@ -7,6 +7,7 @@ import { filterBookingsForUser, getBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { getCmsContent } from "@/lib/cms-content";
+import { formatDateTimeUk, formatDateUk } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
 
@@ -116,11 +117,11 @@ export default async function AccountPaymentsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--blue-700)]">Поле {booking.sector}</p>
-                    <p className="mt-1 text-base font-semibold text-[var(--blue-950)]">{booking.date} · {booking.startTime}-{booking.endTime}</p>
+                    <p className="mt-1 text-base font-semibold text-[var(--blue-950)]">{formatDateUk(booking.date)} · {booking.startTime}-{booking.endTime}</p>
                     <p className="mt-1 text-sm text-slate-600">Статус броні: {booking.status}</p>
                     {(booking.paymentStatus === "unpaid" || booking.paymentStatus === "verification") && (booking.paymentDueAt || booking.adminDecisionDueAt) && (
                       <p className="mt-1 text-xs font-semibold text-amber-700">
-                        Час на оплату: {new Date((booking.paymentDueAt ?? booking.adminDecisionDueAt)!).toLocaleString("uk-UA")}
+                        Час на оплату: {formatDateTimeUk(booking.paymentDueAt ?? booking.adminDecisionDueAt!)}
                       </p>
                     )}
                   </div>

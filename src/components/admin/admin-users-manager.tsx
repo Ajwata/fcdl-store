@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { formatDateTimeUk } from "@/lib/date-format";
+
 type AdminUser = {
   id: string;
   login: string;
@@ -178,7 +180,7 @@ export function AdminUsersManager() {
                         {user.role === "superadmin" ? "Головний адмін" : "Менеджер"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(user.createdAt).toLocaleString("uk-UA")}</td>
+                    <td className="px-4 py-3 text-slate-500">{formatDateTimeUk(user.createdAt)}</td>
                     <td className="px-4 py-3">
                       {user.role === "manager" ? (
                         <button
