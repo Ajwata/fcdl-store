@@ -109,6 +109,7 @@ export type BookingSectorCard = {
   key: BookingSectorKey;
   title: string;
   note: string;
+  imageUrl: string;
   widthMeters: number;
   heightMeters: number;
 };
@@ -356,6 +357,7 @@ export const cmsDefaults: CmsContent = {
         key: "№1",
         title: "Поле №1",
         note: "До 30 гравців • Парні матчі та тренування",
+        imageUrl: "",
         widthMeters: 20,
         heightMeters: 40,
       },
@@ -363,6 +365,7 @@ export const cmsDefaults: CmsContent = {
         key: "№2",
         title: "Поле №2",
         note: "Вузьке поле • Функціональне тренування",
+        imageUrl: "",
         widthMeters: 17,
         heightMeters: 40,
       },
@@ -370,6 +373,7 @@ export const cmsDefaults: CmsContent = {
         key: "№3",
         title: "Поле №3",
         note: "Стандартне • Офіційні матчі та турніри",
+        imageUrl: "",
         widthMeters: 20,
         heightMeters: 40,
       },
@@ -377,6 +381,7 @@ export const cmsDefaults: CmsContent = {
         key: "№4",
         title: "Поле №4",
         note: "Повнорозмірне • Професійні матчі та чемпіонати",
+        imageUrl: "",
         widthMeters: 40,
         heightMeters: 60,
       },

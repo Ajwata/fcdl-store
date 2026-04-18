@@ -70,10 +70,10 @@ function applyDiscount(amount: number, discountPercent: number): number {
 }
 
 const fallbackSectorCards: BookingSection["sectorCards"] = [
-  { key: "№1", title: "Поле №1", note: "До 30 гравців • Парні матчі та тренування", widthMeters: 20, heightMeters: 40 },
-  { key: "№2", title: "Поле №2", note: "Вузьке поле • Функціональне тренування", widthMeters: 17, heightMeters: 40 },
-  { key: "№3", title: "Поле №3", note: "Стандартне • Офіційні матчі та турніри", widthMeters: 20, heightMeters: 40 },
-  { key: "№4", title: "Поле №4", note: "Повнорозмірне • Професійні матчі та чемпіонати", widthMeters: 40, heightMeters: 60 },
+  { key: "№1", title: "Поле №1", note: "До 30 гравців • Парні матчі та тренування", imageUrl: "", widthMeters: 20, heightMeters: 40 },
+  { key: "№2", title: "Поле №2", note: "Вузьке поле • Функціональне тренування", imageUrl: "", widthMeters: 17, heightMeters: 40 },
+  { key: "№3", title: "Поле №3", note: "Стандартне • Офіційні матчі та турніри", imageUrl: "", widthMeters: 20, heightMeters: 40 },
+  { key: "№4", title: "Поле №4", note: "Повнорозмірне • Професійні матчі та чемпіонати", imageUrl: "", widthMeters: 40, heightMeters: 60 },
 ];
 
 function formatSectorDimensions(widthMeters: number, heightMeters: number): string {
@@ -608,6 +608,9 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
         <p className="max-w-2xl text-base leading-7 text-slate-600">
           {bookingSection.description}
         </p>
+        <p className="max-w-2xl text-sm leading-6 text-slate-600">
+          {bookingSection.legendHint}
+        </p>
       </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -647,65 +650,19 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                 }`}
               >
                 {/* Field visual */}
-                <div
-                  className="relative aspect-[3/4] overflow-hidden"
-                  style={{
-                    background:
-                      key === "№2"
-                        ? "repeating-linear-gradient(to right,#1c7340 0%,#1c7340 12.5%,#186838 12.5%,#186838 25%)"
-                        : "repeating-linear-gradient(to bottom,#1c7340 0%,#1c7340 12.5%,#186838 12.5%,#186838 25%)",
-                  }}
-                >
-                  {/* Field outline */}
-                  <div className="absolute inset-[10%] border border-white/55" />
-
-                  {key === "№2" ? (
-                    /* 40×17m, split vertically — no goals */
-                    <>
-                      <div className="absolute bottom-[10%] left-1/2 top-[10%] w-px -translate-x-1/2 bg-white/55" />
-                      {/* Dimensions */}
-                      <div className="absolute top-1 left-1/2 -translate-x-1/2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white/80">17м</div>
-                      <div className="absolute left-0.5 top-1/2 -translate-y-1/2 rounded bg-white/10 px-1 py-0.5 text-[9px] font-bold text-white/80">40м</div>
-                    </>
-                  ) : key === "№4" ? (
-                    /* 60×40m, full field. card 3:4 → width=40m, height=60m */
-                    /* 1m wide = 2% card, 1m tall = 1.33% card */
-                    <>
-                      {/* Midline */}
-                      <div className="absolute left-[10%] right-[10%] top-1/2 h-px -translate-y-1/2 bg-white/55" />
-                      {/* Center circle: dia 18m → w=36% but h=24% to appear circular on 3:4 card */}
-                      <div className="absolute left-1/2 top-1/2 h-[24%] w-[32%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/48" />
-                      {/* Center spot */}
-                      <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/60" />
-                      {/* Penalty areas: 24m wide × 8m deep → w=48%, h=10.7% */}
-                      <div className="absolute left-[26%] right-[26%] top-[10%] h-[11%] border border-white/42" />
-                      <div className="absolute bottom-[10%] left-[26%] right-[26%] h-[11%] border border-white/42" />
-                      {/* Goal areas: 14m wide × 4m deep → w=28%, h=5.3% */}
-                      <div className="absolute left-[36%] right-[36%] top-[10%] h-[5%] border border-white/55" />
-                      <div className="absolute bottom-[10%] left-[36%] right-[36%] h-[5%] border border-white/55" />
-                      {/* Penalty spots: 11m from goal line → 11/60*80%=14.7% from boundary */}
-                      <div className="absolute left-1/2 top-[24.7%] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white/55" />
-                      <div className="absolute bottom-[24.7%] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white/55" />
-                      {/* Dimensions */}
-                      <div className="absolute top-1 left-1/2 -translate-x-1/2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white/80">40м</div>
-                      <div className="absolute left-0.5 top-1/2 -translate-y-1/2 rounded bg-white/10 px-1 py-0.5 text-[9px] font-bold text-white/80">60м</div>
-                    </>
+                <div className="relative aspect-[3/4] overflow-hidden bg-[var(--blue-100)]">
+                  {sectorCard.imageUrl.trim() ? (
+                    <img src={sectorCard.imageUrl} alt={sectorCard.title} className="h-full w-full object-cover" />
                   ) : (
-                    /* Поле 1 & 3: 40×20m, goals 3×2 */
-                    /* 1m wide = 4% card, 1m tall = 2% card */
-                    <>
-                      {/* Midline */}
-                      <div className="absolute left-[10%] right-[10%] top-1/2 h-px -translate-y-1/2 bg-white/55" />
-                      {/* Penalty areas: 12m wide × 6m deep → w=48%, h=12% */}
-                      <div className="absolute left-[26%] right-[26%] top-[10%] h-[12%] border border-white/42" />
-                      <div className="absolute bottom-[10%] left-[26%] right-[26%] h-[12%] border border-white/42" />
-                      {/* Goal areas: 3m wide × 2m deep → w=12%, h=4% */}
-                      <div className="absolute left-[44%] right-[44%] top-[10%] h-[4%] border border-white/58" />
-                      <div className="absolute bottom-[10%] left-[44%] right-[44%] h-[4%] border border-white/58" />
-                      {/* Dimensions */}
-                      <div className="absolute top-1 left-1/2 -translate-x-1/2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white/80">20м</div>
-                      <div className="absolute left-0.5 top-1/2 -translate-y-1/2 rounded bg-white/10 px-1 py-0.5 text-[9px] font-bold text-white/80">40м</div>
-                    </>
+                    <div
+                      className="h-full w-full"
+                      style={{
+                        background:
+                          key === "№2"
+                            ? "repeating-linear-gradient(to right,#1c7340 0%,#1c7340 12.5%,#186838 12.5%,#186838 25%)"
+                            : "repeating-linear-gradient(to bottom,#1c7340 0%,#1c7340 12.5%,#186838 12.5%,#186838 25%)",
+                      }}
+                    />
                   )}
                   {isSelected && (
                     <div className="absolute inset-0 flex items-start justify-end p-2">
@@ -764,6 +721,28 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
               </select>
             </label>
           </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {sectorCards.map((sector) => (
+            <article key={`calendar-photo-${sector.key}`} className="overflow-hidden rounded-2xl border border-[var(--blue-100)] bg-white">
+              <div className="aspect-[4/3] bg-[var(--blue-100)]">
+                {sector.imageUrl.trim() ? (
+                  <img src={sector.imageUrl} alt={sector.title} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center px-3 text-center text-xs font-semibold text-slate-500">
+                    Фото поля не додано
+                  </div>
+                )}
+              </div>
+              <div className="p-3">
+                <p className="text-sm font-semibold text-[var(--blue-950)]">{sector.title}</p>
+                <p className="mt-1 text-[11px] font-semibold text-[var(--blue-700)]">
+                  {formatSectorDimensions(sector.widthMeters, sector.heightMeters)}
+                </p>
+              </div>
+            </article>
+          ))}
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -828,9 +807,6 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                {bookingSection.legendHint}
-              </p>
             </article>
           ))}
         </div>
