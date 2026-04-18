@@ -109,6 +109,11 @@ function isPastHour(date: string, hour: number): boolean {
   return slotStart.getTime() <= Date.now();
 }
 
+function isPastDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return value < toIsoDate(new Date());
+}
+
 function rangesOverlap(startA: number, endA: number, startB: number, endB: number): boolean {
   return startA < endB && startB < endA;
 }
@@ -407,7 +412,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
       const blocked = selectedPaidSlots.some((item) =>
         rangesOverlap(startHour, startHour + 1, item.startHour, item.startHour + item.durationHours),
       );
-      const past = isPastHour(selectedDate, startHour);
+      const past = isPastDate(selectedDate) || isPastHour(selectedDate, startHour);
 
       const claimants = selectedUnpaidSlots.filter((item) =>
         rangesOverlap(startHour, startHour + 1, item.startHour, item.startHour + item.durationHours),
@@ -889,7 +894,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                     slot.paymentStatus !== "verification" &&
                     rangesOverlap(hour, hour + 1, slot.startHour, slot.startHour + slot.durationHours),
                   ).length;
-                  const past = isPastHour(calendarDate, hour);
+                  const past = isPastDate(calendarDate) || isPastHour(calendarDate, hour);
 
                   const hourState = past ? "past" : blocked ? "booked" : claimants > 0 ? "waiting" : "free";
 
