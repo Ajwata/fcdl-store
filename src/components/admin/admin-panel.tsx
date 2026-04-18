@@ -1100,19 +1100,6 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                   </div>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <div>
-                      <FieldLabel>Ширина, м</FieldLabel>
-                      <input
-                        type="number"
-                        value={card.widthMeters}
-                        onChange={(event) => {
-                          const sectorCards = [...content.bookingSection.sectorCards];
-                          sectorCards[index] = { ...card, widthMeters: Math.max(1, Number(event.target.value) || 0) };
-                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
-                        }}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
                       <FieldLabel>Довжина, м</FieldLabel>
                       <input
                         type="number"
@@ -1120,6 +1107,19 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                         onChange={(event) => {
                           const sectorCards = [...content.bookingSection.sectorCards];
                           sectorCards[index] = { ...card, heightMeters: Math.max(1, Number(event.target.value) || 0) };
+                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Ширина, м</FieldLabel>
+                      <input
+                        type="number"
+                        value={card.widthMeters}
+                        onChange={(event) => {
+                          const sectorCards = [...content.bookingSection.sectorCards];
+                          sectorCards[index] = { ...card, widthMeters: Math.max(1, Number(event.target.value) || 0) };
                           updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
                         }}
                         className={inputClass}
