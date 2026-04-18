@@ -52,6 +52,18 @@ function SectionTitle({ title, hint }: { title: string; hint?: string }) {
 }
 
 export function AdminPanel({ initialContent }: AdminPanelProps) {
+  const normalizedSectorCards = (initialContent.bookingSection?.sectorCards?.length
+    ? initialContent.bookingSection.sectorCards
+    : cmsDefaults.bookingSection.sectorCards
+  ).map((card) => {
+    const fallback = cmsDefaults.bookingSection.sectorCards.find((item) => item.key === card.key);
+    return {
+      ...(fallback ?? card),
+      ...card,
+      imageUrl: card.imageUrl ?? fallback?.imageUrl ?? "",
+    };
+  });
+
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [content, setContent] = useState<CmsContent>({
     ...initialContent,
@@ -78,7 +90,7 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
       ...cmsDefaults.bookingSection,
       ...(initialContent.bookingSection ?? {}),
       steps: initialContent.bookingSection?.steps?.length ? initialContent.bookingSection.steps : cmsDefaults.bookingSection.steps,
-      sectorCards: initialContent.bookingSection?.sectorCards?.length ? initialContent.bookingSection.sectorCards : cmsDefaults.bookingSection.sectorCards,
+      sectorCards: normalizedSectorCards,
     },
     reviewsSection: {
       badge: initialContent.reviewsSection?.badge ?? cmsDefaults.reviewsSection.badge,
@@ -1098,6 +1110,35 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                       />
                     </div>
                   </div>
+                  <div className="mt-3">
+                    <FieldLabel>Фото поля для календаря</FieldLabel>
+                    <div className="flex gap-2">
+                      <input
+                        value={card.imageUrl}
+                        onChange={(event) => {
+                          const sectorCards = [...content.bookingSection.sectorCards];
+                          sectorCards[index] = { ...card, imageUrl: event.target.value };
+                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
+                        }}
+                        className={inputClass}
+                        placeholder="/uploads/... або https://..."
+                      />
+                      <ImageUploadButton
+                        onUploaded={(url) => {
+                          const sectorCards = [...content.bookingSection.sectorCards];
+                          sectorCards[index] = { ...card, imageUrl: url };
+                          updateContent({ ...content, bookingSection: { ...content.bookingSection, sectorCards } });
+                        }}
+                      />
+                    </div>
+                    {card.imageUrl && (
+                      <img
+                        src={card.imageUrl}
+                        alt={`Фото ${card.title}`}
+                        className="mt-2 h-28 w-full rounded-[10px] border border-[var(--blue-100)] object-cover"
+                      />
+                    )}
+                  </div>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <div>
                       <FieldLabel>Довжина, м</FieldLabel>
@@ -1220,27 +1261,6 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                 onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendHint: event.target.value } })}
                 className={textareaClass}
               />
-            </div>
-            <div className="mt-3">
-              <FieldLabel>Фото замість пояснення під легендою</FieldLabel>
-              <div className="flex gap-2">
-                <input
-                  value={content.bookingSection.legendHintImageUrl}
-                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendHintImageUrl: event.target.value } })}
-                  className={inputClass}
-                  placeholder="/uploads/... або https://..."
-                />
-                <ImageUploadButton
-                  onUploaded={(url) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendHintImageUrl: url } })}
-                />
-              </div>
-              {content.bookingSection.legendHintImageUrl && (
-                <img
-                  src={content.bookingSection.legendHintImageUrl}
-                  alt="Фото під легендою календаря"
-                  className="mt-2 h-28 w-full rounded-[10px] border border-[var(--blue-100)] object-cover"
-                />
-              )}
             </div>
           </section>
         </div>

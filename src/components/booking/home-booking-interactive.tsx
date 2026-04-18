@@ -70,10 +70,10 @@ function applyDiscount(amount: number, discountPercent: number): number {
 }
 
 const fallbackSectorCards: BookingSection["sectorCards"] = [
-  { key: "№1", title: "Поле №1", note: "До 30 гравців • Парні матчі та тренування", widthMeters: 20, heightMeters: 40 },
-  { key: "№2", title: "Поле №2", note: "Вузьке поле • Функціональне тренування", widthMeters: 17, heightMeters: 40 },
-  { key: "№3", title: "Поле №3", note: "Стандартне • Офіційні матчі та турніри", widthMeters: 20, heightMeters: 40 },
-  { key: "№4", title: "Поле №4", note: "Повнорозмірне • Професійні матчі та чемпіонати", widthMeters: 40, heightMeters: 60 },
+  { key: "№1", title: "Поле №1", note: "До 30 гравців • Парні матчі та тренування", imageUrl: "", widthMeters: 20, heightMeters: 40 },
+  { key: "№2", title: "Поле №2", note: "Вузьке поле • Функціональне тренування", imageUrl: "", widthMeters: 17, heightMeters: 40 },
+  { key: "№3", title: "Поле №3", note: "Стандартне • Офіційні матчі та турніри", imageUrl: "", widthMeters: 20, heightMeters: 40 },
+  { key: "№4", title: "Поле №4", note: "Повнорозмірне • Професійні матчі та чемпіонати", imageUrl: "", widthMeters: 40, heightMeters: 60 },
 ];
 
 function formatSectorDimensions(widthMeters: number, heightMeters: number): string {
@@ -149,12 +149,13 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
     { label: "Крок 3", title: "Оплата" },
   ];
 
-  const getSectorDisplay = (sector: Sector): { label: string; dimensions: string; note: string } => {
+  const getSectorDisplay = (sector: Sector): { label: string; dimensions: string; note: string; imageUrl: string } => {
     const match = sectorCards.find((item) => item.key === sector);
     return {
       label: match?.title ?? `Поле ${sector}`,
       dimensions: formatSectorDimensions(match?.widthMeters ?? 0, match?.heightMeters ?? 0),
       note: match?.note ?? "",
+      imageUrl: match?.imageUrl ?? "",
     };
   };
 
@@ -828,11 +829,11 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   );
                 })}
               </div>
-              {bookingSection.legendHintImageUrl.trim() ? (
+              {getSectorDisplay(row.sector).imageUrl.trim() ? (
                 <img
-                  src={bookingSection.legendHintImageUrl}
-                  alt="Пояснення статусів слотів"
-                  className="mt-2 h-24 w-full rounded-lg border border-[var(--blue-100)] object-cover"
+                  src={getSectorDisplay(row.sector).imageUrl}
+                  alt={getSectorDisplay(row.sector).label}
+                  className="mt-2 h-32 w-full rounded-lg border border-[var(--blue-100)] object-cover"
                 />
               ) : null}
             </article>
