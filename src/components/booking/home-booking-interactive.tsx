@@ -672,8 +672,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
     <section id="booking" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--green-700)]">{bookingSection.badge}</p>
-          <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
+          <h2 className="font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
             {bookingSection.title}
           </h2>
         </div>
