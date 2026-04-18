@@ -105,8 +105,16 @@ function formatDateUk(value: string): string {
 }
 
 function isPastHour(date: string, hour: number): boolean {
-  const slotStart = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00`);
-  return slotStart.getTime() <= Date.now();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const [yearRaw, monthRaw, dayRaw] = date.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return false;
+
+  const now = new Date();
+  const slotStart = new Date(year, month - 1, day, hour, 0, 0, 0);
+  return slotStart.getTime() <= now.getTime();
 }
 
 function isPastDate(value: string): boolean {
