@@ -344,9 +344,9 @@ export const cmsDefaults: CmsContent = {
     newsReadMoreLabel: "Детальніше",
   },
   bookingSection: {
-    badge: "Ключовий блок",
-    title: "Обери сектор і час гри",
-    description: "Натисни на сектор поля і пройди через зручний попап: сектор, дата, час — і бронювання у кошику.",
+    badge: "Майданчики",
+    title: "Обери потрібний майданчик",
+    description: "Обери дату та годину бронювання - і бронювання у кошику.",
     steps: [
       { label: "Крок 1", title: "Сектор" },
       { label: "Крок 2", title: "Дата і час" },
@@ -388,7 +388,7 @@ export const cmsDefaults: CmsContent = {
     ],
     calendarBadge: "Календар зайнятості",
     calendarTitle: "Вільні та заброньовані години",
-    calendarDescription: "Обери дату і перевір, які години вже зайняті по кожному полю.",
+    calendarDescription: "Два майданчики розміром 40x20, один майданчик для індивідуальних тренувань 40x16 та один великий майданчик 60x40 метрів.",
     calendarDateLabel: "Дата",
     calendarSectorLabel: "Поле",
     calendarAllSectorsLabel: "Усі поля",
