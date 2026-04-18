@@ -125,6 +125,10 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const [bookingPopupOpen, setBookingPopupOpen] = useState(false);
   const [cartPopupOpen, setCartPopupOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => toIsoDate(new Date()));
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -132,7 +136,6 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const [pricing, setPricing] = useState<PricingConfig>(pricingFallback);
   const [cartHydrated, setCartHydrated] = useState(false);
   const autoCheckoutTriggeredRef = useRef(false);
-  const calendarDateInputRef = useRef<HTMLInputElement>(null);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [referralManagers, setReferralManagers] = useState<ReferralManager[]>([]);
   const [selectedReferralManagerId, setSelectedReferralManagerId] = useState<string>("none");
@@ -573,18 +576,55 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, [authResolved, cartHydrated, isAuthorized, cartItems.length, router, searchParams]);
 
   useEffect(() => {
-    const input = calendarDateInputRef.current;
-    if (!input || typeof input.showPicker !== "function") return;
-
-    // Browsers may ignore this unless allowed by current interaction policy.
-    try {
-      input.showPicker();
-    } catch {
-      // noop
-    }
-  }, []);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(calendarDate)) return;
+    const [yearRaw, monthRaw] = calendarDate.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    if (!Number.isFinite(year) || !Number.isFinite(month)) return;
+    setCalendarMonth((prev) => {
+      if (prev.getFullYear() === year && prev.getMonth() === month - 1) {
+        return prev;
+      }
+      return new Date(year, month - 1, 1);
+    });
+  }, [calendarDate]);
 
   const totalCartPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const todayIso = toIsoDate(new Date());
+
+  const calendarMonthLabel = useMemo(() => {
+    return new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(calendarMonth);
+  }, [calendarMonth]);
+
+  const inlineCalendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const firstWeekday = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const days: Array<{ iso: string; dayNumber: number; inCurrentMonth: boolean }> = [];
+
+    for (let index = 0; index < firstWeekday; index++) {
+      const dayNumber = daysInPrevMonth - firstWeekday + index + 1;
+      const date = new Date(year, month - 1, dayNumber);
+      days.push({ iso: toIsoDate(date), dayNumber, inCurrentMonth: false });
+    }
+
+    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) {
+      const date = new Date(year, month, dayNumber);
+      days.push({ iso: toIsoDate(date), dayNumber, inCurrentMonth: true });
+    }
+
+    const trailing = days.length % 7 === 0 ? 0 : 7 - (days.length % 7);
+    for (let index = 1; index <= trailing; index++) {
+      const date = new Date(year, month + 1, index);
+      days.push({ iso: toIsoDate(date), dayNumber: index, inCurrentMonth: false });
+    }
+
+    return days;
+  }, [calendarMonth]);
 
   const calendarHours = useMemo(() => {
     return Array.from({ length: operatingHours.endHour - operatingHours.startHour }, (_, index) => operatingHours.startHour + index);
@@ -750,22 +790,74 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
             </p>
           </div>
 
-          <div className="grid gap-3 md:min-w-[240px]">
-            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-              {bookingSection.calendarDateLabel}
-              <input
-                ref={calendarDateInputRef}
-                type="date"
-                value={calendarDate}
-                onFocus={(event) => {
-                  if (typeof event.currentTarget.showPicker === "function") {
-                    event.currentTarget.showPicker();
-                  }
-                }}
-                onChange={(event) => setCalendarDate(event.target.value)}
-                className="mt-2 w-full rounded-[12px] border border-[var(--blue-100)] bg-white px-3 py-2.5 text-sm text-[var(--blue-950)]"
-              />
-            </label>
+          <div className="w-full rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)]/65 p-3 md:w-[340px]">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{bookingSection.calendarDateLabel}</p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                className="rounded-lg border border-[var(--blue-100)] bg-white px-2 py-1 text-sm font-semibold text-[var(--blue-900)]"
+                aria-label="Попередній місяць"
+              >
+                ←
+              </button>
+              <p className="text-sm font-semibold capitalize text-[var(--blue-950)]">{calendarMonthLabel}</p>
+              <button
+                type="button"
+                onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                className="rounded-lg border border-[var(--blue-100)] bg-white px-2 py-1 text-sm font-semibold text-[var(--blue-900)]"
+                aria-label="Наступний місяць"
+              >
+                →
+              </button>
+            </div>
+
+            <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+              {[
+                "Пн",
+                "Вт",
+                "Ср",
+                "Чт",
+                "Пт",
+                "Сб",
+                "Нд",
+              ].map((dayLabel) => (
+                <span key={dayLabel}>{dayLabel}</span>
+              ))}
+            </div>
+
+            <div className="mt-1 grid grid-cols-7 gap-1">
+              {inlineCalendarDays.map((day) => {
+                const isSelected = day.iso === calendarDate;
+                const isPastDate = day.iso < todayIso;
+
+                return (
+                  <button
+                    key={day.iso}
+                    type="button"
+                    disabled={isPastDate}
+                    onClick={() => {
+                      setCalendarDate(day.iso);
+                      if (!day.inCurrentMonth) {
+                        const date = new Date(`${day.iso}T00:00:00`);
+                        setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+                      }
+                    }}
+                    className={`h-9 rounded-md text-sm font-semibold transition ${
+                      isPastDate
+                        ? "cursor-not-allowed bg-slate-100 text-slate-300"
+                        : isSelected
+                          ? "bg-[var(--green-700)] text-white"
+                          : day.inCurrentMonth
+                            ? "bg-white text-[var(--blue-900)] hover:bg-[var(--green-100)]"
+                            : "bg-white/70 text-slate-400 hover:bg-[var(--green-50)]"
+                    }`}
+                  >
+                    {day.dayNumber}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
