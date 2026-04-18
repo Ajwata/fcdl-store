@@ -781,8 +781,8 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
       </div>
 
       <div className="mt-8 rounded-[30px] border border-[var(--blue-100)] bg-white/92 p-5 shadow-[0_18px_46px_rgba(8,26,51,0.08)] sm:p-7">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_620px] md:items-start md:gap-6">
+          <div className="min-w-0">
             <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--green-700)]">{bookingSection.calendarBadge}</p>
             <h3 className="mt-2 text-2xl font-semibold text-[var(--blue-950)] sm:text-3xl">{bookingSection.calendarTitle}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -790,7 +790,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
             </p>
           </div>
 
-          <div className="w-full rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)]/65 p-3 md:w-[520px]">
+          <div className="w-full shrink-0 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)]/65 p-3 md:w-[620px]">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{bookingSection.calendarDateLabel}</p>
             <div className="mt-2 flex items-center justify-between gap-2">
               <button
