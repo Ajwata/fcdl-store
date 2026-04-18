@@ -49,15 +49,7 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
       ...cmsDefaults.bookingSection,
       ...(partial.bookingSection ?? {}),
       steps: partial.bookingSection?.steps ?? cmsDefaults.bookingSection.steps,
-      sectorCards: (partial.bookingSection?.sectorCards ?? cmsDefaults.bookingSection.sectorCards)
-        .map((card) => {
-          const fallback = cmsDefaults.bookingSection.sectorCards.find((item) => item.key === card.key);
-          return {
-            ...(fallback ?? card),
-            ...card,
-            imageUrl: card.imageUrl ?? fallback?.imageUrl ?? "",
-          };
-        }),
+      sectorCards: partial.bookingSection?.sectorCards ?? cmsDefaults.bookingSection.sectorCards,
     },
     statsSection: {
       ...cmsDefaults.statsSection,
