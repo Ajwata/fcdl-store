@@ -833,7 +833,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                 <img
                   src={getSectorDisplay(row.sector).imageUrl}
                   alt={getSectorDisplay(row.sector).label}
-                  className="mt-2 h-32 w-full rounded-lg border border-[var(--blue-100)] object-cover"
+                  className="mt-2 h-44 w-full rounded-lg border border-[var(--blue-100)] object-cover"
                 />
               ) : null}
             </article>
