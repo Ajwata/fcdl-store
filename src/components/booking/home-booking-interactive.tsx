@@ -670,15 +670,15 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
 
   return (
     <section id="booking" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="mb-8">
+        <div className="max-w-3xl">
           <h2 className="font-display text-4xl font-semibold uppercase leading-tight text-[var(--blue-950)] sm:text-5xl">
             {bookingSection.title}
           </h2>
+          <p className="mt-3 text-base leading-7 text-slate-600">
+            {bookingSection.description}
+          </p>
         </div>
-        <p className="max-w-2xl text-base leading-7 text-slate-600">
-          {bookingSection.description}
-        </p>
       </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
