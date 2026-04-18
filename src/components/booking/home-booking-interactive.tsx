@@ -944,6 +944,11 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   );
                 })}
               </div>
+              {bookingSection.legendHint.trim() ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {bookingSection.legendHint}
+                </p>
+              ) : null}
               {getSectorDisplay(row.sector).imageUrl.trim() ? (
                 <img
                   src={getSectorDisplay(row.sector).imageUrl}
