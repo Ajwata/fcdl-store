@@ -44,6 +44,9 @@ export default async function GalleryPage() {
         footerNavLinks={cms.footerNavLinks}
         footerDocLinks={cms.footerDocLinks}
         footerSocialLinks={cms.footerSocialLinks}
+        footerContent={cms.footerContent}
+        logoUrl={cms.logoUrl}
+        siteName={cms.siteName}
       />
     </>
   );

@@ -54,6 +54,9 @@ export default async function PaymentTermsPage() {
         footerNavLinks={cms.footerNavLinks}
         footerDocLinks={cms.footerDocLinks}
         footerSocialLinks={cms.footerSocialLinks}
+        footerContent={cms.footerContent}
+        logoUrl={cms.logoUrl}
+        siteName={cms.siteName}
       />
     </>
   );

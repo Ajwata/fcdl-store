@@ -212,6 +212,14 @@ export type ReviewsSection = {
   allReviewsCta: string;
 };
 
+export type FooterContent = {
+  logoUrl: string;
+  description: string;
+  address: string;
+  phone: string;
+  email: string;
+};
+
 export type CmsContent = {
   siteName: string;
   logoUrl: string;
@@ -226,6 +234,7 @@ export type CmsContent = {
   footerNavLinks: NavLink[];
   footerDocLinks: NavLink[];
   footerSocialLinks: NavLink[];
+  footerContent: FooterContent;
   promoOffers: PromoOffer[];
   liveStreamsSection: LiveStreamsSection;
   homeGallerySection: HomeGallerySection;
@@ -254,6 +263,13 @@ export const cmsDefaults: CmsContent = {
   footerNavLinks,
   footerDocLinks,
   footerSocialLinks,
+  footerContent: {
+    logoUrl: "",
+    description: "Сервіс для бронювання футбольного поля, керування матчами та зручної комунікації з клієнтами.",
+    address: "м. Київ, спортивний кластер FCDL",
+    phone: "+380 67 000 00 00",
+    email: "hello@fcdl.store",
+  },
   promoOffers: [
     {
       id: "weekday-prime",

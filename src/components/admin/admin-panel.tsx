@@ -69,6 +69,10 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
     ...initialContent,
     siteName: initialContent.siteName ?? cmsDefaults.siteName,
     logoUrl: initialContent.logoUrl ?? cmsDefaults.logoUrl,
+    footerContent: {
+      ...cmsDefaults.footerContent,
+      ...(initialContent.footerContent ?? {}),
+    },
     heroMode: initialContent.heroMode ?? cmsDefaults.heroMode,
     heroBadge: initialContent.heroBadge ?? cmsDefaults.heroBadge,
     statsSection: {
@@ -1877,6 +1881,63 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
 
       {activeTab === "navigation" && (
         <div className="space-y-5">
+          <section className="rounded-[20px] border border-[var(--blue-100)] bg-white p-5 shadow-[0_8px_26px_rgba(8,26,51,0.06)]">
+            <SectionTitle title="Футер: Лого, текст і контакти" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>URL логотипа футера</FieldLabel>
+                <div className="flex gap-2">
+                  <input
+                    value={content.footerContent.logoUrl}
+                    onChange={(event) => updateContent({ ...content, footerContent: { ...content.footerContent, logoUrl: event.target.value } })}
+                    className={inputClass}
+                    placeholder="/img/logo.jpg або https://..."
+                  />
+                  <ImageUploadButton onUploaded={(url) => updateContent({ ...content, footerContent: { ...content.footerContent, logoUrl: url } })} />
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Якщо залишити порожнім, буде використано логотип із загальних налаштувань.</p>
+              </div>
+              <div>
+                <FieldLabel>Телефон</FieldLabel>
+                <input
+                  value={content.footerContent.phone}
+                  onChange={(event) => updateContent({ ...content, footerContent: { ...content.footerContent, phone: event.target.value } })}
+                  className={inputClass}
+                  placeholder="+380 67 000 00 00"
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Опис у футері</FieldLabel>
+              <textarea
+                rows={3}
+                value={content.footerContent.description}
+                onChange={(event) => updateContent({ ...content, footerContent: { ...content.footerContent, description: event.target.value } })}
+                className={textareaClass}
+              />
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel>Адреса</FieldLabel>
+                <input
+                  value={content.footerContent.address}
+                  onChange={(event) => updateContent({ ...content, footerContent: { ...content.footerContent, address: event.target.value } })}
+                  className={inputClass}
+                  placeholder="м. Київ, спортивний кластер FCDL"
+                />
+              </div>
+              <div>
+                <FieldLabel>Email</FieldLabel>
+                <input
+                  value={content.footerContent.email}
+                  onChange={(event) => updateContent({ ...content, footerContent: { ...content.footerContent, email: event.target.value } })}
+                  className={inputClass}
+                  placeholder="hello@fcdl.store"
+                />
+              </div>
+            </div>
+          </section>
+
           {[
             { key: "navigationItems", title: "Верхнє меню" },
             { key: "footerNavLinks", title: "Футер: Навігація" },

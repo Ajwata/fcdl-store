@@ -23,6 +23,10 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
     footerNavLinks: partial.footerNavLinks ?? cmsDefaults.footerNavLinks,
     footerDocLinks: partial.footerDocLinks ?? cmsDefaults.footerDocLinks,
     footerSocialLinks: partial.footerSocialLinks ?? cmsDefaults.footerSocialLinks,
+    footerContent: {
+      ...cmsDefaults.footerContent,
+      ...(partial.footerContent ?? {}),
+    },
     promoOffers: partial.promoOffers ?? cmsDefaults.promoOffers,
     liveStreamsSection: {
       ...cmsDefaults.liveStreamsSection,

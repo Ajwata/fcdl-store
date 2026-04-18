@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { FooterContent } from "@/data/cms-defaults";
 import logoImage from "@/img/logo.jpg";
 
 type FooterLink = {
@@ -12,21 +13,30 @@ type SiteFooterProps = {
   footerNavLinks: FooterLink[];
   footerDocLinks: FooterLink[];
   footerSocialLinks: FooterLink[];
+  footerContent: FooterContent;
+  logoUrl?: string;
+  siteName?: string;
 };
 
-export function SiteFooter({ footerNavLinks, footerDocLinks, footerSocialLinks }: SiteFooterProps) {
+export function SiteFooter({ footerNavLinks, footerDocLinks, footerSocialLinks, footerContent, logoUrl, siteName = "FCDL.STORE" }: SiteFooterProps) {
+  const resolvedLogo = footerContent.logoUrl || logoUrl;
+
   return (
     <footer className="mt-auto border-t border-white/40 bg-[var(--blue-950)] text-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[1.05fr_0.8fr_0.8fr_0.8fr] lg:px-10">
         <div>
-          <Image src={logoImage} alt="FCDL.STORE" className="h-12 w-auto rounded-md object-cover sm:h-14 lg:h-16" />
+          {resolvedLogo ? (
+            <Image src={resolvedLogo} alt={siteName} width={200} height={80} className="h-12 w-auto rounded-md object-cover sm:h-14 lg:h-16" />
+          ) : (
+            <Image src={logoImage} alt={siteName} className="h-12 w-auto rounded-md object-cover sm:h-14 lg:h-16" />
+          )}
           <p className="mt-4 max-w-md text-base leading-7 text-white/72">
-            Сервіс для бронювання футбольного поля, керування матчами та зручної комунікації з клієнтами.
+            {footerContent.description}
           </p>
           <div className="mt-5 space-y-2 text-sm text-white/82">
-            <p>м. Київ, спортивний кластер FCDL</p>
-            <p>+380 67 000 00 00</p>
-            <p>hello@fcdl.store</p>
+            <p>{footerContent.address}</p>
+            <p>{footerContent.phone}</p>
+            <p>{footerContent.email}</p>
           </div>
         </div>
 
