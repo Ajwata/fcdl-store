@@ -129,6 +129,7 @@ export type BookingSection = {
   legendPendingLabel: string;
   legendBookedLabel: string;
   legendHint: string;
+  legendHintImageUrl: string;
 };
 
 export type DocumentSectionItem = {
@@ -391,6 +392,7 @@ export const cmsDefaults: CmsContent = {
     legendPendingLabel: "В очікуванні",
     legendBookedLabel: "Заброньовано",
     legendHint: "Зелений: вільно. Жовтий: вже є заявки, але ще можна подати бронювання. Червоний: квитанцію вже надіслано або оплату підтверджено - слот недоступний.",
+    legendHintImageUrl: "",
   },
   statsSection: {
     badge: "Статистика",

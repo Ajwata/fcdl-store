@@ -828,9 +828,13 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                {bookingSection.legendHint}
-              </p>
+              {bookingSection.legendHintImageUrl.trim() ? (
+                <img
+                  src={bookingSection.legendHintImageUrl}
+                  alt="Пояснення статусів слотів"
+                  className="mt-2 h-24 w-full rounded-lg border border-[var(--blue-100)] object-cover"
+                />
+              ) : null}
             </article>
           ))}
         </div>

@@ -1221,6 +1221,27 @@ export function AdminPanel({ initialContent }: AdminPanelProps) {
                 className={textareaClass}
               />
             </div>
+            <div className="mt-3">
+              <FieldLabel>Фото замість пояснення під легендою</FieldLabel>
+              <div className="flex gap-2">
+                <input
+                  value={content.bookingSection.legendHintImageUrl}
+                  onChange={(event) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendHintImageUrl: event.target.value } })}
+                  className={inputClass}
+                  placeholder="/uploads/... або https://..."
+                />
+                <ImageUploadButton
+                  onUploaded={(url) => updateContent({ ...content, bookingSection: { ...content.bookingSection, legendHintImageUrl: url } })}
+                />
+              </div>
+              {content.bookingSection.legendHintImageUrl && (
+                <img
+                  src={content.bookingSection.legendHintImageUrl}
+                  alt="Фото під легендою календаря"
+                  className="mt-2 h-28 w-full rounded-[10px] border border-[var(--blue-100)] object-cover"
+                />
+              )}
+            </div>
           </section>
         </div>
       )}
