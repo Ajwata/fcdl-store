@@ -125,7 +125,6 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const [bookingPopupOpen, setBookingPopupOpen] = useState(false);
   const [cartPopupOpen, setCartPopupOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => toIsoDate(new Date()));
-  const [calendarSectorFilter, setCalendarSectorFilter] = useState<Sector | "all">("all");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -133,6 +132,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const [pricing, setPricing] = useState<PricingConfig>(pricingFallback);
   const [cartHydrated, setCartHydrated] = useState(false);
   const autoCheckoutTriggeredRef = useRef(false);
+  const calendarDateInputRef = useRef<HTMLInputElement>(null);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [referralManagers, setReferralManagers] = useState<ReferralManager[]>([]);
   const [selectedReferralManagerId, setSelectedReferralManagerId] = useState<string>("none");
@@ -572,6 +572,18 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
     void submitCart("/account/payments");
   }, [authResolved, cartHydrated, isAuthorized, cartItems.length, router, searchParams]);
 
+  useEffect(() => {
+    const input = calendarDateInputRef.current;
+    if (!input || typeof input.showPicker !== "function") return;
+
+    // Browsers may ignore this unless allowed by current interaction policy.
+    try {
+      input.showPicker();
+    } catch {
+      // noop
+    }
+  }, []);
+
   const totalCartPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
   const calendarHours = useMemo(() => {
@@ -579,9 +591,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, [operatingHours]);
 
   const calendarRows = useMemo(() => {
-    const visibleSectors = calendarSectorFilter === "all"
-      ? sectorCards.map((sector) => sector.key)
-      : [calendarSectorFilter];
+    const visibleSectors = sectorCards.map((sector) => sector.key);
 
     return visibleSectors.map((sectorName) => {
       const slots = (availabilityByDate[calendarDate] ?? [])
@@ -595,7 +605,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
         claimCount: slots.filter((slot) => slot.paymentStatus === "unpaid").length,
       };
     });
-  }, [availabilityByDate, calendarDate, calendarSectorFilter]);
+  }, [availabilityByDate, calendarDate, sectorCards]);
 
   return (
     <section id="booking" className="section-block mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-24">
@@ -740,29 +750,21 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 md:min-w-[420px]">
+          <div className="grid gap-3 md:min-w-[240px]">
             <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
               {bookingSection.calendarDateLabel}
               <input
+                ref={calendarDateInputRef}
                 type="date"
                 value={calendarDate}
+                onFocus={(event) => {
+                  if (typeof event.currentTarget.showPicker === "function") {
+                    event.currentTarget.showPicker();
+                  }
+                }}
                 onChange={(event) => setCalendarDate(event.target.value)}
                 className="mt-2 w-full rounded-[12px] border border-[var(--blue-100)] bg-white px-3 py-2.5 text-sm text-[var(--blue-950)]"
               />
-            </label>
-
-            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-              {bookingSection.calendarSectorLabel}
-              <select
-                value={calendarSectorFilter}
-                onChange={(event) => setCalendarSectorFilter(event.target.value as Sector | "all")}
-                className="mt-2 w-full rounded-[12px] border border-[var(--blue-100)] bg-white px-3 py-2.5 text-sm text-[var(--blue-950)]"
-              >
-                <option value="all">{bookingSection.calendarAllSectorsLabel}</option>
-                {sectorCards.map((sector) => (
-                  <option key={sector.key} value={sector.key}>{sector.title}</option>
-                ))}
-              </select>
             </label>
           </div>
         </div>
