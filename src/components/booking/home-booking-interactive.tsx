@@ -104,7 +104,7 @@ function formatDateUk(value: string): string {
   return `${day}.${month}.${year}`;
 }
 
-function isPastHour(date: string, hour: number): boolean {
+function isPastHour(date: string, hour: number, nowMs: number): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
   const [yearRaw, monthRaw, dayRaw] = date.split("-");
   const year = Number(yearRaw);
@@ -112,14 +112,14 @@ function isPastHour(date: string, hour: number): boolean {
   const day = Number(dayRaw);
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return false;
 
-  const now = new Date();
+  const now = new Date(nowMs);
   const slotStart = new Date(year, month - 1, day, hour, 0, 0, 0);
   return slotStart.getTime() <= now.getTime();
 }
 
-function isPastDate(value: string): boolean {
+function isPastDate(value: string, nowMs: number): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  return value < toIsoDate(new Date());
+  return value < toIsoDate(new Date(nowMs));
 }
 
 function rangesOverlap(startA: number, endA: number, startB: number, endB: number): boolean {
@@ -149,6 +149,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const [pricing, setPricing] = useState<PricingConfig>(pricingFallback);
   const [cartHydrated, setCartHydrated] = useState(false);
   const autoCheckoutTriggeredRef = useRef(false);
+  const [clientNowMs, setClientNowMs] = useState(0);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [referralManagers, setReferralManagers] = useState<ReferralManager[]>([]);
   const [selectedReferralManagerId, setSelectedReferralManagerId] = useState<string>("none");
@@ -420,7 +421,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
       const blocked = selectedPaidSlots.some((item) =>
         rangesOverlap(startHour, startHour + 1, item.startHour, item.startHour + item.durationHours),
       );
-      const past = isPastDate(selectedDate) || isPastHour(selectedDate, startHour);
+      const past = clientNowMs <= 0 || isPastDate(selectedDate, clientNowMs) || isPastHour(selectedDate, startHour, clientNowMs);
 
       const claimants = selectedUnpaidSlots.filter((item) =>
         rangesOverlap(startHour, startHour + 1, item.startHour, item.startHour + item.durationHours),
@@ -589,6 +590,13 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, [authResolved, cartHydrated, isAuthorized, cartItems.length, router, searchParams]);
 
   useEffect(() => {
+    const tick = () => setClientNowMs(Date.now());
+    tick();
+    const timerId = window.setInterval(tick, 30000);
+    return () => window.clearInterval(timerId);
+  }, []);
+
+  useEffect(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(calendarDate)) return;
     const [yearRaw, monthRaw] = calendarDate.split("-");
     const year = Number(yearRaw);
@@ -603,7 +611,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, [calendarDate]);
 
   const totalCartPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  const todayIso = toIsoDate(new Date());
+  const todayIso = clientNowMs > 0 ? toIsoDate(new Date(clientNowMs)) : "";
 
   const calendarMonthLabel = useMemo(() => {
     return new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(calendarMonth);
@@ -902,7 +910,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                     slot.paymentStatus !== "verification" &&
                     rangesOverlap(hour, hour + 1, slot.startHour, slot.startHour + slot.durationHours),
                   ).length;
-                  const past = isPastDate(calendarDate) || isPastHour(calendarDate, hour);
+                  const past = clientNowMs <= 0 || isPastDate(calendarDate, clientNowMs) || isPastHour(calendarDate, hour, clientNowMs);
 
                   const hourState = past ? "past" : blocked ? "booked" : claimants > 0 ? "waiting" : "free";
 
