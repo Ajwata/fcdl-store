@@ -811,7 +811,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
             </p>
           </div>
 
-          <div className="w-full shrink-0 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)]/65 p-3 md:w-[620px]">
+          <div className="w-full shrink-0 rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)]/65 p-3 md:w-[600px]">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{bookingSection.calendarDateLabel}</p>
             <div className="mt-2 flex items-center justify-between gap-2">
               <button
