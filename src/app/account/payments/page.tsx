@@ -56,9 +56,10 @@ export default async function AccountPaymentsPage() {
   const bookings = filterBookingsForUser(await getBookings(), payload.uid, user?.phone ?? payload.phone).sort((a, b) =>
     `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`),
   );
+  const nonCancelledBookings = bookings.filter((b) => b.status !== "cancelled");
 
-  const paidAmount = bookings.filter((b) => b.paymentStatus === "paid").reduce((sum, b) => sum + b.totalPrice, 0);
-  const unpaidAmount = bookings.filter((b) => b.paymentStatus === "unpaid" && b.status !== "cancelled").reduce((sum, b) => sum + b.totalPrice, 0);
+  const paidAmount = nonCancelledBookings.filter((b) => b.paymentStatus === "paid").reduce((sum, b) => sum + b.totalPrice, 0);
+  const unpaidAmount = nonCancelledBookings.filter((b) => b.paymentStatus === "unpaid").reduce((sum, b) => sum + b.totalPrice, 0);
 
   return (
     <main className="page-shell min-h-screen px-4 py-10 sm:px-6 lg:px-10">
@@ -80,7 +81,7 @@ export default async function AccountPaymentsPage() {
             </div>
             <div className="rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--blue-700)]">Записів</p>
-              <p className="mt-1 text-3xl font-black text-[var(--blue-950)]">{bookings.length}</p>
+              <p className="mt-1 text-3xl font-black text-[var(--blue-950)]">{nonCancelledBookings.length}</p>
             </div>
           </div>
 

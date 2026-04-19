@@ -49,6 +49,7 @@ export default async function AccountPage() {
     `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`),
   );
 
+  const nonCancelledBookings = userBookings.filter((item) => item.status !== "cancelled");
   const upcoming = userBookings.filter((item) => isActiveBookingStatus(item.status));
   const unpaid = userBookings.filter((item) => item.paymentStatus === "unpaid" && item.status !== "cancelled");
   const nextMatch = [...upcoming].sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`))[0] ?? null;
@@ -64,7 +65,7 @@ export default async function AccountPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <article className="rounded-2xl border border-[var(--blue-100)] bg-white p-4 shadow-[0_10px_28px_rgba(8,26,51,0.06)]">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--blue-700)]">Усього бронювань</p>
-            <p className="mt-1 text-3xl font-black text-[var(--blue-950)]">{userBookings.length}</p>
+            <p className="mt-1 text-3xl font-black text-[var(--blue-950)]">{nonCancelledBookings.length}</p>
           </article>
           <article className="rounded-2xl border border-[var(--blue-100)] bg-white p-4 shadow-[0_10px_28px_rgba(8,26,51,0.06)]">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--blue-700)]">Активні ігри</p>

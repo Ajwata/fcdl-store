@@ -54,13 +54,14 @@ export default async function AdminDashboard() {
 
   const bookings = await getBookings();
   const today = new Date();
+  const nonCancelledBookings = bookings.filter((b) => b.status !== "cancelled");
 
-  const todayBookings = bookings.filter((b) => isSameDay(b.date, today));
-  const weekRevenue = bookings
+  const todayBookings = nonCancelledBookings.filter((b) => isSameDay(b.date, today));
+  const weekRevenue = nonCancelledBookings
     .filter((b) => isThisWeek(b.date) && b.paymentStatus === "paid")
     .reduce((sum, b) => sum + b.totalPrice, 0);
   const pendingCount = bookings.filter((b) => b.status === "pending").length;
-  const uniqueClients = new Set(bookings.map((b) => b.clientPhone)).size;
+  const uniqueClients = new Set(nonCancelledBookings.map((b) => b.clientPhone)).size;
 
   const recentBookings = [...bookings]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -111,7 +112,7 @@ export default async function AdminDashboard() {
     {
       label: "Клієнтів всього",
       value: uniqueClients,
-      sub: `${bookings.length} бронювань`,
+      sub: `${nonCancelledBookings.length} бронювань`,
       icon: (
         <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -126,7 +127,7 @@ export default async function AdminDashboard() {
       title: "Бронювання",
       description: "Підтверджуйте заявки, змінюйте статуси і оплату.",
       href: "/admin/bookings",
-      value: `${bookings.length} записів`,
+      value: `${nonCancelledBookings.length} записів`,
       accent: "from-blue-500 to-blue-600",
     },
     {

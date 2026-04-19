@@ -37,6 +37,10 @@ function buildClients(
 
   // Enrich with bookings (also adds unregistered clients who booked)
   for (const b of bookings) {
+    if (b.status === "cancelled") {
+      continue;
+    }
+
     const existing = map.get(b.clientPhone);
     if (existing) {
       existing.totalBookings += 1;
@@ -67,8 +71,9 @@ export default async function ClientsPage() {
     getClientDiscounts(),
   ]);
   const clients = buildClients(bookings, registeredUsers);
+  const nonCancelledBookings = bookings.filter((b) => b.status !== "cancelled");
 
-  const totalRevenue = bookings
+  const totalRevenue = nonCancelledBookings
     .filter((b) => b.paymentStatus === "paid")
     .reduce((s, b) => s + b.totalPrice, 0);
 
@@ -88,7 +93,7 @@ export default async function ClientsPage() {
           <p className="mt-0.5 text-sm text-slate-500">Унікальних клієнтів</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-bold text-slate-800">{bookings.length}</p>
+          <p className="text-2xl font-bold text-slate-800">{nonCancelledBookings.length}</p>
           <p className="mt-0.5 text-sm text-slate-500">Всього бронювань</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">

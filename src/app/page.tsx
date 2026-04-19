@@ -41,9 +41,10 @@ export default async function Home() {
   const averageRating = averageRatingNumber.toFixed(1);
   const averageStars = Math.floor(averageRatingNumber);
 
-  const bookingsCount = bookings.length;
+  const nonCancelledBookings = bookings.filter((booking) => booking.status !== "cancelled");
+  const bookingsCount = nonCancelledBookings.length;
   const uniquePhones = new Set<string>();
-  bookings.forEach((booking) => uniquePhones.add(booking.clientPhone.replace(/\D/g, "")));
+  nonCancelledBookings.forEach((booking) => uniquePhones.add(booking.clientPhone.replace(/\D/g, "")));
   users.forEach((user) => uniquePhones.add(user.phone.replace(/\D/g, "")));
   const clientsCount = uniquePhones.size;
 

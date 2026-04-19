@@ -174,8 +174,9 @@ export default function BookingsPage() {
   const confirmedUnreadCount = bookings.filter(
     (b) => b.status === "confirmed" && b.paymentStatus === "verification",
   ).length;
+  const nonCancelledCount = bookings.filter((b) => b.status !== "cancelled").length;
   const totalRevenue = bookings
-    .filter((b) => b.paymentStatus === "paid")
+    .filter((b) => b.status !== "cancelled" && b.paymentStatus === "paid")
     .reduce((s, b) => s + b.totalPrice, 0);
 
   return (
@@ -183,7 +184,7 @@ export default function BookingsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Бронювання</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          {bookings.length} записів · ₴ {totalRevenue.toLocaleString("uk-UA")} оплачено
+          {nonCancelledCount} активних записів · ₴ {totalRevenue.toLocaleString("uk-UA")} оплачено
         </p>
       </div>
 
