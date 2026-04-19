@@ -72,7 +72,7 @@ export function ScheduleManager() {
     setMessage(null);
     try {
       const res = await fetch(
-        `/api/availability?date=${encodeURIComponent(date)}&sector=${encodeURIComponent(sector)}`,
+        `/api/admin/availability?date=${encodeURIComponent(date)}&sector=${encodeURIComponent(sector)}`,
         { cache: "no-store" },
       );
       const data = (await res.json()) as { slots?: ApiSlot[] };
@@ -295,7 +295,7 @@ export function ScheduleManager() {
             const bookingTitle =
               info.booked?.bookedBy && info.booked.bookedBy.trim().length > 0
                 ? `Заброньовано: ${info.booked.bookedBy}`
-                : `Заброньовано (${info.booked?.paymentStatus})`;
+                : "Слот зайнятий бронюванням";
 
             return (
               <button
