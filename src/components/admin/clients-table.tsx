@@ -58,8 +58,8 @@ export function ClientsTable({ clients, initialDiscounts }: Props) {
   async function saveDiscount() {
     if (!modalClient) return;
     const numeric = Number(draft);
-    if (!Number.isFinite(numeric) || numeric < 0 || numeric > 90) {
-      setModalStatus("Допустимо від 0 до 90%");
+    if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100) {
+      setModalStatus("Допустимо від 0 до 100%");
       return;
     }
     setSaving(true);
@@ -230,7 +230,7 @@ export function ClientsTable({ clients, initialDiscounts }: Props) {
               <input
                 type="number"
                 min={0}
-                max={90}
+                max={100}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {

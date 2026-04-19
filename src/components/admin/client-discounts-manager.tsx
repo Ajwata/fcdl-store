@@ -45,8 +45,8 @@ export function ClientDiscountsManager({ clients, initialDiscounts }: Props) {
     const draft = drafts[key] ?? String(discountsByPhone.get(key)?.discountPercent ?? 0);
     const numeric = Number(draft);
 
-    if (!Number.isFinite(numeric) || numeric < 0 || numeric > 90) {
-      setStatus(`Некоректна знижка для ${client.name}. Допустимо 0-90%.`);
+    if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100) {
+      setStatus(`Некоректна знижка для ${client.name}. Допустимо 0-100%.`);
       return;
     }
 
@@ -128,7 +128,7 @@ export function ClientDiscountsManager({ clients, initialDiscounts }: Props) {
                         <input
                           value={draft}
                           onChange={(event) => {
-                            if (/^\d{0,2}$/.test(event.target.value)) {
+                            if (/^(100|\d{0,2})$/.test(event.target.value)) {
                               setDrafts((prev) => ({ ...prev, [key]: event.target.value }));
                             }
                           }}

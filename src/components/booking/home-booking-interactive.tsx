@@ -193,7 +193,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
         const result = (await response.json()) as { authenticated?: boolean; discountPercent?: number };
         if (cancelled) return;
         setIsAuthorized(Boolean(result.authenticated));
-        setDiscountPercent(Math.max(0, Math.min(90, Math.round(result.discountPercent ?? 0))));
+        setDiscountPercent(Math.max(0, Math.min(100, Math.round(result.discountPercent ?? 0))));
       } catch {
         if (cancelled) return;
         setIsAuthorized(false);

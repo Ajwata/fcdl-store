@@ -64,7 +64,7 @@ export async function getClientDiscountPercent(phone: string): Promise<number> {
   const discounts = await getClientDiscounts();
   const match = discounts.find((item) => item.clientPhoneKey === key);
   if (!match) return 0;
-  return Math.max(0, Math.min(90, Math.round(match.discountPercent)));
+  return Math.max(0, Math.min(100, Math.round(match.discountPercent)));
 }
 
 export async function upsertClientDiscount(input: {
@@ -78,7 +78,7 @@ export async function upsertClientDiscount(input: {
     throw new Error("Некоректний номер телефону клієнта");
   }
 
-  const discountPercent = Math.max(0, Math.min(90, Math.round(input.discountPercent)));
+  const discountPercent = Math.max(0, Math.min(100, Math.round(input.discountPercent)));
   const current = await getClientDiscounts();
   const now = new Date().toISOString();
 
@@ -132,6 +132,6 @@ export async function upsertClientDiscount(input: {
 
 export function applyDiscount(amount: number, discountPercent: number): number {
   const safeAmount = Math.max(0, Math.round(amount));
-  const safePercent = Math.max(0, Math.min(90, Math.round(discountPercent)));
+  const safePercent = Math.max(0, Math.min(100, Math.round(discountPercent)));
   return Math.round((safeAmount * (100 - safePercent)) / 100);
 }
