@@ -301,7 +301,7 @@ export function ScheduleManager() {
               <button
                 key={h}
                 type="button"
-                disabled={isBooked}
+                aria-disabled={isBooked}
                 onClick={() => toggleHour(h)}
                 className={`relative flex flex-col items-center justify-center rounded-xl px-2 py-3 text-center text-xs font-semibold ring-1 transition ${bgClass}`}
                 title={
