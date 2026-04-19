@@ -71,7 +71,7 @@ export async function GET(request: Request) {
     endTime: b.endTime,
     status: "blocked" as const,
     paymentStatus: "paid" as const,
-    bookedBy: b.reason?.trim() ? `Блок: ${b.reason.trim()}` : "Заблоковано адміністратором",
+    bookedBy: b.reason?.trim() ? `Блок: ${b.reason.trim()}` : "Заблоковано: автор не збережений",
   }));
 
   const slots = [...bookingSlots, ...manualBlocks].sort((a, b) => {
