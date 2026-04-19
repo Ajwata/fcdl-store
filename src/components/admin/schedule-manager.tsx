@@ -34,6 +34,7 @@ type BookedMeta = {
 
 type SlotInfo = {
   status: SlotStatus;
+  blockedReason?: string;
   booked?: BookedMeta;
 };
 
@@ -85,7 +86,7 @@ export function ScheduleManager() {
         if (!match) {
           map[h] = { status: "free" };
         } else if (match.status === "blocked") {
-          map[h] = { status: "blocked" };
+          map[h] = { status: "blocked", blockedReason: match.bookedBy };
         } else {
           map[h] = {
             status: "booked",
@@ -308,7 +309,7 @@ export function ScheduleManager() {
                   isBooked
                     ? bookingTitle
                     : isBlocked
-                      ? "Заблоковано — клікніть щоб розблокувати"
+                      ? info.blockedReason?.trim() || "Заблоковано — клікніть щоб розблокувати"
                       : "Вільно — клікніть щоб заблокувати"
                 }
               >

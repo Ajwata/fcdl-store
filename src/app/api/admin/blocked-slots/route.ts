@@ -62,6 +62,12 @@ export async function POST(request: Request) {
         /^\d{2}:\d{2}$/.test(s.endTime),
     );
 
-  const saved = await setBlockedSlots(date, sector, validSlots);
+  const actorReason = session.role === "manager" ? `Менеджер: ${session.name}` : undefined;
+  const normalizedSlots = validSlots.map((slot) => ({
+    ...slot,
+    reason: slot.reason?.trim() || actorReason,
+  }));
+
+  const saved = await setBlockedSlots(date, sector, normalizedSlots);
   return NextResponse.json({ slots: saved });
 }

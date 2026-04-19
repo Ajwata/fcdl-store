@@ -66,6 +66,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Оберіть хоча б одну годину" }, { status: 400 });
   }
 
-  const added = await addBlockedSlotsRange(dateFrom, dateTo, sectors, validSlots);
+  const actorReason = session.role === "manager" ? `Менеджер: ${session.name}` : undefined;
+  const normalizedSlots = validSlots.map((slot) => ({
+    ...slot,
+    reason: slot.reason?.trim() || actorReason,
+  }));
+
+  const added = await addBlockedSlotsRange(dateFrom, dateTo, sectors, normalizedSlots);
   return NextResponse.json({ added });
 }
