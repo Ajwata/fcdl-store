@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const SECTORS = ["№1", "№2", "№3", "№4"];
 const START_HOUR = 6;
@@ -15,6 +15,13 @@ function toTime(h: number): string {
 function toDateInputDefault(): string {
   const d = new Date();
   return d.toISOString().slice(0, 10);
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatDateUk(value: string): string {
@@ -53,6 +60,10 @@ export function ScheduleManager() {
 
   // ── Single-day state ─────────────────────────────────────────────────────
   const [date, setDate] = useState(toDateInputDefault);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [sector, setSector] = useState(SECTORS[0]);
   const [slots, setSlots] = useState<Record<number, SlotInfo>>({});
   const [loading, setLoading] = useState(false);
@@ -105,6 +116,54 @@ export function ScheduleManager() {
   useEffect(() => {
     void loadSlots();
   }, [loadSlots]);
+
+  useEffect(() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    const [yearRaw, monthRaw] = date.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    if (!Number.isFinite(year) || !Number.isFinite(month)) return;
+    setCalendarMonth((prev) => {
+      if (prev.getFullYear() === year && prev.getMonth() === month - 1) {
+        return prev;
+      }
+      return new Date(year, month - 1, 1);
+    });
+  }, [date]);
+
+  const calendarMonthLabel = useMemo(() => {
+    return new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(calendarMonth);
+  }, [calendarMonth]);
+
+  const inlineCalendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const firstWeekday = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const days: Array<{ iso: string; dayNumber: number; inCurrentMonth: boolean }> = [];
+
+    for (let index = 0; index < firstWeekday; index++) {
+      const dayNumber = daysInPrevMonth - firstWeekday + index + 1;
+      const d = new Date(year, month - 1, dayNumber);
+      days.push({ iso: toIsoDate(d), dayNumber, inCurrentMonth: false });
+    }
+
+    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) {
+      const d = new Date(year, month, dayNumber);
+      days.push({ iso: toIsoDate(d), dayNumber, inCurrentMonth: true });
+    }
+
+    const trailing = days.length % 7 === 0 ? 0 : 7 - (days.length % 7);
+    for (let index = 1; index <= trailing; index++) {
+      const d = new Date(year, month + 1, index);
+      days.push({ iso: toIsoDate(d), dayNumber: index, inCurrentMonth: false });
+    }
+
+    return days;
+  }, [calendarMonth]);
 
   function toggleHour(hour: number) {
     const current = slots[hour];
@@ -213,19 +272,68 @@ export function ScheduleManager() {
 
       {mode === "single" && (<>
       {/* Controls */}
-      <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Дата</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-          />
+      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Дата</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700"
+              aria-label="Попередній місяць"
+            >
+              ←
+            </button>
+            <p className="text-sm font-semibold capitalize text-slate-800">{calendarMonthLabel}</p>
+            <button
+              type="button"
+              onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700"
+              aria-label="Наступний місяць"
+            >
+              →
+            </button>
+          </div>
+
+          <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"].map((dayLabel) => (
+              <span key={dayLabel}>{dayLabel}</span>
+            ))}
+          </div>
+
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {inlineCalendarDays.map((day) => {
+              const isSelected = day.iso === date;
+
+              return (
+                <button
+                  key={day.iso}
+                  type="button"
+                  onClick={() => {
+                    setDate(day.iso);
+                    if (!day.inCurrentMonth) {
+                      const d = new Date(`${day.iso}T00:00:00`);
+                      setCalendarMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                    }
+                  }}
+                  className={`h-9 rounded-md text-sm font-semibold transition ${
+                    isSelected
+                      ? "bg-[#10243a] text-white"
+                      : day.inCurrentMonth
+                        ? "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                        : "bg-slate-50/70 text-slate-400 hover:bg-slate-100"
+                  }`}
+                >
+                  {day.dayNumber}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs font-medium text-slate-500">Обрано: {formatDateUk(date)}</p>
         </div>
 
         {/* Sector tabs */}
-        <div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <label className="mb-1.5 block text-xs font-semibold text-slate-500">Сектор</label>
           <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
             {SECTORS.map((s) => (
