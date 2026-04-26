@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import { HashScrollLink } from "@/components/ui/hash-scroll-link";
 
 type HeroSlide = {
   id: number;
@@ -66,12 +67,12 @@ export function HeroCarousel({ slides, videoUrl, heroMode = "video", heroBadge =
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/85 sm:text-lg">{activeSlide.subtitle}</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href="#booking"
+              <HashScrollLink
+                href="/#booking"
                 className="inline-flex items-center justify-center rounded-full bg-[var(--green-700)] px-7 py-4 text-sm font-extrabold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
               >
                 {activeSlide.cta}
-              </Link>
+              </HashScrollLink>
               {slides.length > 1 && (
                 <div className="flex items-center gap-2">
                   {slides.map((_, i) => (
@@ -168,12 +169,12 @@ export function HeroCarousel({ slides, videoUrl, heroMode = "video", heroBadge =
             </span>
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-white/85 sm:text-lg">{mainSlide.subtitle}</p>
-          <Link
-            href="#booking"
+          <HashScrollLink
+            href="/#booking"
             className="mt-8 inline-flex items-center justify-center rounded-full bg-[var(--green-700)] px-7 py-4 text-sm font-extrabold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
           >
             {mainSlide.cta}
-          </Link>
+          </HashScrollLink>
         </div>
       </div>
     </section>
