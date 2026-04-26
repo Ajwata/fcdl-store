@@ -81,6 +81,7 @@ type ResponseShape = {
 
 type DealsSortKey = "date" | "bookingId" | "clientName" | "managerName" | "totalPrice" | "commission";
 type AssignmentsSortKey = "assignedAt" | "clientPhone" | "managerName";
+type StatsSortKey = "managerName" | "referredClients" | "clientsWithDeals" | "dealsCount" | "commissionTotal";
 type SortDir = "asc" | "desc";
 
 const pageSize = 25;
@@ -104,6 +105,11 @@ export default function AdminReferralsPage() {
   const [assignmentsSortKey, setAssignmentsSortKey] = useState<AssignmentsSortKey>("assignedAt");
   const [assignmentsSortDir, setAssignmentsSortDir] = useState<SortDir>("desc");
 
+  const [statsQuery, setStatsQuery] = useState("");
+  const [statsPage, setStatsPage] = useState(1);
+  const [statsSortKey, setStatsSortKey] = useState<StatsSortKey>("commissionTotal");
+  const [statsSortDir, setStatsSortDir] = useState<SortDir>("desc");
+
   useEffect(() => {
     setDealsPage(1);
   }, [dealsQuery, selectedDealsManager]);
@@ -111,6 +117,10 @@ export default function AdminReferralsPage() {
   useEffect(() => {
     setAssignmentsPage(1);
   }, [assignmentsQuery, selectedAssignmentsManager]);
+
+  useEffect(() => {
+    setStatsPage(1);
+  }, [statsQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,6 +207,42 @@ export default function AdminReferralsPage() {
 
   const dealsTable = data?.tables.deals;
   const assignmentsTable = data?.tables.assignments;
+
+  const filteredStats = useMemo(() => {
+    const query = statsQuery.trim().toLowerCase();
+    const next = stats.filter((item) => {
+      if (!query) return true;
+      return item.managerName.toLowerCase().includes(query) || item.managerLogin.toLowerCase().includes(query);
+    });
+
+    next.sort((a, b) => {
+      let result = 0;
+      if (statsSortKey === "managerName") result = a.managerName.localeCompare(b.managerName, "uk");
+      else if (statsSortKey === "referredClients") result = a.referredClients - b.referredClients;
+      else if (statsSortKey === "clientsWithDeals") result = a.clientsWithDeals - b.clientsWithDeals;
+      else if (statsSortKey === "dealsCount") result = a.dealsCount - b.dealsCount;
+      else result = a.commissionTotal - b.commissionTotal;
+      return statsSortDir === "asc" ? result : -result;
+    });
+
+    return next;
+  }, [stats, statsQuery, statsSortKey, statsSortDir]);
+
+  const statsPageCount = Math.max(1, Math.ceil(filteredStats.length / pageSize));
+  const normalizedStatsPage = Math.min(statsPage, statsPageCount);
+  const visibleStats = useMemo(() => {
+    const start = (normalizedStatsPage - 1) * pageSize;
+    return filteredStats.slice(start, start + pageSize);
+  }, [filteredStats, normalizedStatsPage]);
+
+  const toggleStatsSort = (key: StatsSortKey) => {
+    if (statsSortKey === key) {
+      setStatsSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setStatsSortKey(key);
+    setStatsSortDir(key === "managerName" ? "asc" : "desc");
+  };
 
   const toggleDealsSort = (key: DealsSortKey) => {
     if (dealsSortKey === key) {
@@ -293,23 +339,54 @@ export default function AdminReferralsPage() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-lg font-semibold text-slate-800">Заробіток по менеджерах</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-800">Заробіток по менеджерах</h2>
+          <p className="text-sm text-slate-500">Показано {visibleStats.length} з {filteredStats.length}</p>
+        </div>
+        <div className="sticky top-3 z-20 mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <input
+            value={statsQuery}
+            onChange={(event) => setStatsQuery(event.target.value)}
+            placeholder="Пошук за менеджером або логіном"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none"
+          />
+        </div>
         {stats.length === 0 ? (
           <p className="text-sm text-slate-500">Поки немає даних.</p>
         ) : (
-          <div className="max-h-[460px] overflow-auto">
+          <div className="max-h-[520px] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-2">Менеджер</th>
-                  <th className="px-3 py-2">Привів клієнтів</th>
-                  <th className="px-3 py-2">Клієнтів з оплатою</th>
-                  <th className="px-3 py-2">Угод</th>
-                  <th className="px-3 py-2">Заробив</th>
+                  <th className="px-3 py-2">
+                    <button type="button" onClick={() => toggleStatsSort("managerName")} className="hover:text-slate-700">
+                      Менеджер{sortIndicator(statsSortKey === "managerName", statsSortDir)}
+                    </button>
+                  </th>
+                  <th className="px-3 py-2">
+                    <button type="button" onClick={() => toggleStatsSort("referredClients")} className="hover:text-slate-700">
+                      Привів клієнтів{sortIndicator(statsSortKey === "referredClients", statsSortDir)}
+                    </button>
+                  </th>
+                  <th className="px-3 py-2">
+                    <button type="button" onClick={() => toggleStatsSort("clientsWithDeals")} className="hover:text-slate-700">
+                      Клієнтів з оплатою{sortIndicator(statsSortKey === "clientsWithDeals", statsSortDir)}
+                    </button>
+                  </th>
+                  <th className="px-3 py-2">
+                    <button type="button" onClick={() => toggleStatsSort("dealsCount")} className="hover:text-slate-700">
+                      Угод{sortIndicator(statsSortKey === "dealsCount", statsSortDir)}
+                    </button>
+                  </th>
+                  <th className="px-3 py-2">
+                    <button type="button" onClick={() => toggleStatsSort("commissionTotal")} className="hover:text-slate-700">
+                      Заробив{sortIndicator(statsSortKey === "commissionTotal", statsSortDir)}
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {stats.map((item) => (
+                {visibleStats.map((item) => (
                   <tr key={item.managerId} className="border-b border-slate-100 last:border-0">
                     <td className="px-3 py-2">
                       <p className="font-semibold text-slate-800">{item.managerName}</p>
@@ -323,6 +400,29 @@ export default function AdminReferralsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {filteredStats.length > pageSize && (
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">Сторінка {normalizedStatsPage} з {statsPageCount}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={normalizedStatsPage <= 1}
+                onClick={() => setStatsPage((prev) => Math.max(1, prev - 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Назад
+              </button>
+              <button
+                type="button"
+                disabled={normalizedStatsPage >= statsPageCount}
+                onClick={() => setStatsPage((prev) => Math.min(statsPageCount, prev + 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Далі
+              </button>
+            </div>
           </div>
         )}
       </section>
