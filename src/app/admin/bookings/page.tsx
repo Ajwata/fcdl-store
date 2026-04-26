@@ -481,8 +481,15 @@ export default function BookingsPage() {
                     });
 
                     const data = (await res.json()) as { error?: string; booking?: Booking };
-                    if (!res.ok || !data.booking) {
-                      setCancelError(data.error ?? "Не вдалось скасувати бронювання");
+                    
+                    if (!res.ok) {
+                      setCancelError(data.error ?? `Помилка сервера (${res.status})`);
+                      setSaving(null);
+                      return;
+                    }
+
+                    if (!data.booking) {
+                      setCancelError("Бронювання не повернено сервером");
                       setSaving(null);
                       return;
                     }
@@ -492,7 +499,8 @@ export default function BookingsPage() {
                     setCancelReason("");
                     setCancelError("");
                   } catch (error) {
-                    setCancelError("Помилка мережі. Спробуйте ще раз.");
+                    const errorMsg = error instanceof Error ? error.message : "Невідома помилка";
+                    setCancelError(`Помилка мережі: ${errorMsg}`);
                   } finally {
                     setSaving(null);
                   }
