@@ -102,10 +102,10 @@ export async function PATCH(
   if (next.paymentStatus === "paid") {
     next.paymentDueAt = undefined;
     next.adminDecisionDueAt = undefined;
-    if (next.status !== "completed") {
+    if (next.status !== "completed" && next.status !== "cancelled") {
       next.status = "confirmed";
     }
-    if (!next.confirmedAt) {
+    if (!next.confirmedAt && next.status !== "cancelled") {
       next.confirmedAt = nowIso;
     }
 
