@@ -43,13 +43,29 @@ type ReferralDeal = {
   commission: number;
 };
 
+type MonthlyStat = {
+  monthKey: string;
+  monthSort: string;
+  managerId: string;
+  managerName: string;
+  dealsCount: number;
+  commissionTotal: number;
+};
+
+type TablePage<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  pageCount: number;
+};
+
 type ResponseShape = {
   role: "superadmin" | "manager";
   managers: Manager[];
-  assignments: ReferralAssignment[];
   report: {
     managerStats: ManagerReferralStats[];
-    deals: ReferralDeal[];
+    monthlyStats: MonthlyStat[];
     totals: {
       referredClients: number;
       clientsWithDeals: number;
@@ -57,88 +73,116 @@ type ResponseShape = {
       commissionTotal: number;
     };
   };
+  tables: {
+    deals: TablePage<ReferralDeal>;
+    assignments: TablePage<ReferralAssignment>;
+  };
 };
+
+type DealsSortKey = "date" | "bookingId" | "clientName" | "managerName" | "totalPrice" | "commission";
+type AssignmentsSortKey = "assignedAt" | "clientPhone" | "managerName";
+type SortDir = "asc" | "desc";
+
+const pageSize = 25;
 
 export default function AdminReferralsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<ResponseShape | null>(null);
+
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+
   const [dealsQuery, setDealsQuery] = useState("");
   const [selectedDealsManager, setSelectedDealsManager] = useState<string>("all");
   const [dealsPage, setDealsPage] = useState(1);
+  const [dealsSortKey, setDealsSortKey] = useState<DealsSortKey>("date");
+  const [dealsSortDir, setDealsSortDir] = useState<SortDir>("desc");
+
   const [assignmentsQuery, setAssignmentsQuery] = useState("");
   const [selectedAssignmentsManager, setSelectedAssignmentsManager] = useState<string>("all");
   const [assignmentsPage, setAssignmentsPage] = useState(1);
-
-  const pageSize = 25;
-
-  const loadData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/admin/referrals", { cache: "no-store" });
-      const result = (await res.json()) as ResponseShape & { error?: string };
-      if (!res.ok) {
-        setError(result.error ?? "Не вдалося завантажити реферальні дані");
-        return;
-      }
-      setData(result);
-    } catch {
-      setError("Помилка мережі");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [assignmentsSortKey, setAssignmentsSortKey] = useState<AssignmentsSortKey>("assignedAt");
+  const [assignmentsSortDir, setAssignmentsSortDir] = useState<SortDir>("desc");
 
   useEffect(() => {
+    setDealsPage(1);
+  }, [dealsQuery, selectedDealsManager]);
+
+  useEffect(() => {
+    setAssignmentsPage(1);
+  }, [assignmentsQuery, selectedAssignmentsManager]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadData = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const params = new URLSearchParams({
+          dealsPage: String(dealsPage),
+          dealsLimit: String(pageSize),
+          dealsQuery,
+          dealsManager: selectedDealsManager,
+          dealsSortKey,
+          dealsSortDir,
+          assignmentsPage: String(assignmentsPage),
+          assignmentsLimit: String(pageSize),
+          assignmentsQuery,
+          assignmentsManager: selectedAssignmentsManager,
+          assignmentsSortKey,
+          assignmentsSortDir,
+        });
+
+        const res = await fetch(`/api/admin/referrals?${params.toString()}`, { cache: "no-store" });
+        const result = (await res.json()) as ResponseShape & { error?: string };
+        if (!res.ok) {
+          if (cancelled) return;
+          setError(result.error ?? "Не вдалося завантажити реферальні дані");
+          setData(null);
+          return;
+        }
+        if (!cancelled) {
+          setData(result);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Помилка мережі");
+          setData(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
     void loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    dealsPage,
+    dealsQuery,
+    selectedDealsManager,
+    dealsSortKey,
+    dealsSortDir,
+    assignmentsPage,
+    assignmentsQuery,
+    selectedAssignmentsManager,
+    assignmentsSortKey,
+    assignmentsSortDir,
+  ]);
 
   const stats = useMemo(() => data?.report.managerStats ?? [], [data]);
-  const deals = useMemo(() => data?.report.deals ?? [], [data]);
-  const assignments = useMemo(() => data?.assignments ?? [], [data]);
+  const monthlyStats = useMemo(() => data?.report.monthlyStats ?? [], [data]);
+  const managerOptions = useMemo(() => data?.managers ?? [], [data]);
 
-  const monthlyStats = useMemo(() => {
-    const map = new Map<string, {
-      monthKey: string;
-      monthSort: string;
-      managerId: string;
-      managerName: string;
-      dealsCount: number;
-      commissionTotal: number;
-    }>();
-
-    for (const deal of deals) {
-      const year = /^\d{4}-\d{2}-\d{2}$/.test(deal.date) ? deal.date.slice(0, 4) : "0000";
-      const month = /^\d{4}-\d{2}-\d{2}$/.test(deal.date) ? deal.date.slice(5, 7) : "00";
-      const monthKey = `${month}.${year}`;
-      const monthSort = `${year}-${month}`;
-      const key = `${deal.managerId}|${monthSort}`;
-
-      if (!map.has(key)) {
-        map.set(key, {
-          monthKey,
-          monthSort,
-          managerId: deal.managerId,
-          managerName: deal.managerName,
-          dealsCount: 0,
-          commissionTotal: 0,
-        });
-      }
-
-      const row = map.get(key)!;
-      row.dealsCount += 1;
-      row.commissionTotal += deal.commission;
-    }
-
-    return Array.from(map.values()).sort((a, b) => {
-      const byMonth = b.monthSort.localeCompare(a.monthSort);
-      if (byMonth !== 0) return byMonth;
-      return b.commissionTotal - a.commissionTotal;
-    });
-  }, [deals]);
+  const filteredMonthlyStats = useMemo(() => {
+    if (selectedMonth === "all") return monthlyStats;
+    return monthlyStats.filter((item) => item.monthSort === selectedMonth);
+  }, [monthlyStats, selectedMonth]);
 
   const monthOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -151,76 +195,31 @@ export default function AdminReferralsPage() {
     return options;
   }, [monthlyStats]);
 
-  const managerOptions = useMemo(() => data?.managers ?? [], [data]);
+  const dealsTable = data?.tables.deals;
+  const assignmentsTable = data?.tables.assignments;
 
-  const filteredMonthlyStats = useMemo(() => {
-    if (selectedMonth === "all") return monthlyStats;
-    return monthlyStats.filter((item) => item.monthSort === selectedMonth);
-  }, [monthlyStats, selectedMonth]);
-
-  const filteredDeals = useMemo(() => {
-    const query = dealsQuery.trim().toLowerCase();
-    return deals.filter((deal) => {
-      if (selectedDealsManager !== "all" && deal.managerId !== selectedDealsManager) {
-        return false;
-      }
-      if (!query) return true;
-      return (
-        deal.bookingId.toLowerCase().includes(query) ||
-        deal.clientName.toLowerCase().includes(query) ||
-        deal.clientPhone.toLowerCase().includes(query) ||
-        deal.managerName.toLowerCase().includes(query)
-      );
-    });
-  }, [deals, dealsQuery, selectedDealsManager]);
-
-  const filteredAssignments = useMemo(() => {
-    const query = assignmentsQuery.trim().toLowerCase();
-    return assignments.filter((item) => {
-      if (selectedAssignmentsManager !== "all" && item.managerId !== selectedAssignmentsManager) {
-        return false;
-      }
-      if (!query) return true;
-      return (
-        item.clientPhone.toLowerCase().includes(query) ||
-        item.managerName.toLowerCase().includes(query) ||
-        item.managerLogin.toLowerCase().includes(query)
-      );
-    });
-  }, [assignments, assignmentsQuery, selectedAssignmentsManager]);
-
-  const dealsPageCount = Math.max(1, Math.ceil(filteredDeals.length / pageSize));
-  const assignmentsPageCount = Math.max(1, Math.ceil(filteredAssignments.length / pageSize));
-
-  const visibleDeals = useMemo(() => {
-    const start = (dealsPage - 1) * pageSize;
-    return filteredDeals.slice(start, start + pageSize);
-  }, [dealsPage, filteredDeals]);
-
-  const visibleAssignments = useMemo(() => {
-    const start = (assignmentsPage - 1) * pageSize;
-    return filteredAssignments.slice(start, start + pageSize);
-  }, [assignmentsPage, filteredAssignments]);
-
-  useEffect(() => {
-    setDealsPage(1);
-  }, [dealsQuery, selectedDealsManager]);
-
-  useEffect(() => {
-    setAssignmentsPage(1);
-  }, [assignmentsQuery, selectedAssignmentsManager]);
-
-  useEffect(() => {
-    if (dealsPage > dealsPageCount) {
-      setDealsPage(dealsPageCount);
+  const toggleDealsSort = (key: DealsSortKey) => {
+    if (dealsSortKey === key) {
+      setDealsSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
     }
-  }, [dealsPage, dealsPageCount]);
+    setDealsSortKey(key);
+    setDealsSortDir(key === "date" || key === "totalPrice" || key === "commission" ? "desc" : "asc");
+  };
 
-  useEffect(() => {
-    if (assignmentsPage > assignmentsPageCount) {
-      setAssignmentsPage(assignmentsPageCount);
+  const toggleAssignmentsSort = (key: AssignmentsSortKey) => {
+    if (assignmentsSortKey === key) {
+      setAssignmentsSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
     }
-  }, [assignmentsPage, assignmentsPageCount]);
+    setAssignmentsSortKey(key);
+    setAssignmentsSortDir(key === "assignedAt" ? "desc" : "asc");
+  };
+
+  const sortIndicator = (active: boolean, dir: SortDir) => {
+    if (!active) return "";
+    return dir === "asc" ? " ↑" : " ↓";
+  };
 
   const exportMonthlyCsv = () => {
     const rows = [
@@ -240,9 +239,7 @@ export default function AdminReferralsPage() {
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const monthLabel = selectedMonth === "all"
-      ? "all"
-      : selectedMonth;
+    const monthLabel = selectedMonth === "all" ? "all" : selectedMonth;
     link.href = url;
     link.download = `referral-monthly-${monthLabel}.csv`;
     document.body.appendChild(link);
@@ -268,7 +265,7 @@ export default function AdminReferralsPage() {
   }
 
   return (
-    <main className="flex-1 p-6 lg:p-8 space-y-6">
+    <main className="flex-1 space-y-6 p-6 lg:p-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Реферальна система менеджерів</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -293,13 +290,6 @@ export default function AdminReferralsPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Нараховано менеджерам</p>
           <p className="mt-1 text-3xl font-black text-emerald-700">₴ {data.report.totals.commissionTotal.toLocaleString("uk-UA")}</p>
         </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
-        <h2 className="text-lg font-semibold text-slate-800">Прив'язка клієнтів</h2>
-        <p className="text-sm text-slate-600">
-          Ручна прив'язка менеджером вимкнена. Клієнт сам обирає, хто його привів, під час оформлення бронювання.
-        </p>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -392,10 +382,10 @@ export default function AdminReferralsPage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-800">Останні нарахування</h2>
-          <p className="text-sm text-slate-500">Показано {visibleDeals.length} з {filteredDeals.length}</p>
+          <p className="text-sm text-slate-500">Показано {dealsTable?.items.length ?? 0} з {dealsTable?.total ?? 0}</p>
         </div>
 
-        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_220px]">
+        <div className="sticky top-3 z-20 mb-4 grid gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-[1fr_220px]">
           <input
             value={dealsQuery}
             onChange={(event) => setDealsQuery(event.target.value)}
@@ -414,69 +404,96 @@ export default function AdminReferralsPage() {
           </select>
         </div>
 
-        {filteredDeals.length === 0 ? (
+        {!dealsTable || dealsTable.total === 0 ? (
           <p className="text-sm text-slate-500">Ще немає завершених оплачених реферальних угод.</p>
         ) : (
-          <div className="max-h-[520px] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-white">
-                <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-2">Дата</th>
-                  <th className="px-3 py-2">Клієнт</th>
-                  <th className="px-3 py-2">Менеджер</th>
-                  <th className="px-3 py-2">Сума угоди</th>
-                  <th className="px-3 py-2">5%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleDeals.map((deal) => (
-                  <tr key={deal.bookingId} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2 text-slate-700">{formatDateUk(deal.date)}</td>
-                    <td className="px-3 py-2">
-                      <p className="font-semibold text-slate-800">{deal.clientName}</p>
-                      <p className="text-xs text-slate-500">{deal.clientPhone}</p>
-                    </td>
-                    <td className="px-3 py-2 text-slate-700">{deal.managerName}</td>
-                    <td className="px-3 py-2 text-slate-700">₴ {deal.totalPrice.toLocaleString("uk-UA")}</td>
-                    <td className="px-3 py-2 font-bold text-emerald-700">₴ {deal.commission.toLocaleString("uk-UA")}</td>
+          <>
+            <div className="max-h-[520px] overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleDealsSort("date")} className="hover:text-slate-700">
+                        Дата{sortIndicator(dealsSortKey === "date", dealsSortDir)}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleDealsSort("clientName")} className="hover:text-slate-700">
+                        Клієнт{sortIndicator(dealsSortKey === "clientName", dealsSortDir)}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleDealsSort("managerName")} className="hover:text-slate-700">
+                        Менеджер{sortIndicator(dealsSortKey === "managerName", dealsSortDir)}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleDealsSort("totalPrice")} className="hover:text-slate-700">
+                        Сума угоди{sortIndicator(dealsSortKey === "totalPrice", dealsSortDir)}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleDealsSort("commission")} className="hover:text-slate-700">
+                        5%{sortIndicator(dealsSortKey === "commission", dealsSortDir)}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleDealsSort("bookingId")} className="hover:text-slate-700">
+                        ID{sortIndicator(dealsSortKey === "bookingId", dealsSortDir)}
+                      </button>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {filteredDeals.length > pageSize && (
-          <div className="mt-4 flex items-center justify-between gap-2">
-            <p className="text-xs text-slate-500">Сторінка {dealsPage} з {dealsPageCount}</p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={dealsPage === 1}
-                onClick={() => setDealsPage((prev) => Math.max(1, prev - 1))}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
-              >
-                Назад
-              </button>
-              <button
-                type="button"
-                disabled={dealsPage >= dealsPageCount}
-                onClick={() => setDealsPage((prev) => Math.min(dealsPageCount, prev + 1))}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
-              >
-                Далі
-              </button>
+                </thead>
+                <tbody>
+                  {dealsTable.items.map((deal) => (
+                    <tr key={deal.bookingId} className="border-b border-slate-100 last:border-0">
+                      <td className="px-3 py-2 text-slate-700">{formatDateUk(deal.date)}</td>
+                      <td className="px-3 py-2">
+                        <p className="font-semibold text-slate-800">{deal.clientName}</p>
+                        <p className="text-xs text-slate-500">{deal.clientPhone}</p>
+                      </td>
+                      <td className="px-3 py-2 text-slate-700">{deal.managerName}</td>
+                      <td className="px-3 py-2 text-slate-700">₴ {deal.totalPrice.toLocaleString("uk-UA")}</td>
+                      <td className="px-3 py-2 font-bold text-emerald-700">₴ {deal.commission.toLocaleString("uk-UA")}</td>
+                      <td className="px-3 py-2 text-xs text-slate-500">{deal.bookingId}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <p className="text-xs text-slate-500">Сторінка {dealsTable.page} з {dealsTable.pageCount}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={dealsTable.page <= 1}
+                  onClick={() => setDealsPage((prev) => Math.max(1, prev - 1))}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+                >
+                  Назад
+                </button>
+                <button
+                  type="button"
+                  disabled={dealsTable.page >= dealsTable.pageCount}
+                  onClick={() => setDealsPage((prev) => Math.min(dealsTable.pageCount, prev + 1))}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+                >
+                  Далі
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-800">Прив'язані клієнти</h2>
-          <p className="text-sm text-slate-500">Показано {visibleAssignments.length} з {filteredAssignments.length}</p>
+          <p className="text-sm text-slate-500">Показано {assignmentsTable?.items.length ?? 0} з {assignmentsTable?.total ?? 0}</p>
         </div>
 
-        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_220px]">
+        <div className="sticky top-3 z-20 mb-4 grid gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-[1fr_220px]">
           <input
             value={assignmentsQuery}
             onChange={(event) => setAssignmentsQuery(event.target.value)}
@@ -495,52 +512,65 @@ export default function AdminReferralsPage() {
           </select>
         </div>
 
-        {filteredAssignments.length === 0 ? (
+        {!assignmentsTable || assignmentsTable.total === 0 ? (
           <p className="text-sm text-slate-500">Ще немає прив'язок клієнтів.</p>
         ) : (
-          <div className="max-h-[520px] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-white">
-                <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-2">Телефон клієнта</th>
-                  <th className="px-3 py-2">Менеджер</th>
-                  <th className="px-3 py-2">Дата прив'язки</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleAssignments.map((item) => (
-                  <tr key={item.clientPhoneKey} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2 text-slate-700">{item.clientPhone}</td>
-                    <td className="px-3 py-2 text-slate-700">{item.managerName}</td>
-                    <td className="px-3 py-2 text-slate-700">{formatDateTimeUk(item.assignedAt)}</td>
+          <>
+            <div className="max-h-[520px] overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleAssignmentsSort("clientPhone")} className="hover:text-slate-700">
+                        Телефон клієнта{sortIndicator(assignmentsSortKey === "clientPhone", assignmentsSortDir)}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleAssignmentsSort("managerName")} className="hover:text-slate-700">
+                        Менеджер{sortIndicator(assignmentsSortKey === "managerName", assignmentsSortDir)}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2">
+                      <button type="button" onClick={() => toggleAssignmentsSort("assignedAt")} className="hover:text-slate-700">
+                        Дата прив'язки{sortIndicator(assignmentsSortKey === "assignedAt", assignmentsSortDir)}
+                      </button>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {filteredAssignments.length > pageSize && (
-          <div className="mt-4 flex items-center justify-between gap-2">
-            <p className="text-xs text-slate-500">Сторінка {assignmentsPage} з {assignmentsPageCount}</p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={assignmentsPage === 1}
-                onClick={() => setAssignmentsPage((prev) => Math.max(1, prev - 1))}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
-              >
-                Назад
-              </button>
-              <button
-                type="button"
-                disabled={assignmentsPage >= assignmentsPageCount}
-                onClick={() => setAssignmentsPage((prev) => Math.min(assignmentsPageCount, prev + 1))}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
-              >
-                Далі
-              </button>
+                </thead>
+                <tbody>
+                  {assignmentsTable.items.map((item) => (
+                    <tr key={item.clientPhoneKey} className="border-b border-slate-100 last:border-0">
+                      <td className="px-3 py-2 text-slate-700">{item.clientPhone}</td>
+                      <td className="px-3 py-2 text-slate-700">{item.managerName}</td>
+                      <td className="px-3 py-2 text-slate-700">{formatDateTimeUk(item.assignedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <p className="text-xs text-slate-500">Сторінка {assignmentsTable.page} з {assignmentsTable.pageCount}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={assignmentsTable.page <= 1}
+                  onClick={() => setAssignmentsPage((prev) => Math.max(1, prev - 1))}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+                >
+                  Назад
+                </button>
+                <button
+                  type="button"
+                  disabled={assignmentsTable.page >= assignmentsTable.pageCount}
+                  onClick={() => setAssignmentsPage((prev) => Math.min(assignmentsTable.pageCount, prev + 1))}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+                >
+                  Далі
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </section>
     </main>
