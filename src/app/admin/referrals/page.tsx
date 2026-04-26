@@ -307,9 +307,9 @@ export default function AdminReferralsPage() {
         {stats.length === 0 ? (
           <p className="text-sm text-slate-500">Поки немає даних.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[460px] overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2">Менеджер</th>
                   <th className="px-3 py-2">Привів клієнтів</th>
@@ -364,9 +364,9 @@ export default function AdminReferralsPage() {
         {monthlyStats.length === 0 ? (
           <p className="text-sm text-slate-500">Ще немає завершених оплачених реферальних угод.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[460px] overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2">Місяць</th>
                   <th className="px-3 py-2">Менеджер</th>
@@ -417,9 +417,9 @@ export default function AdminReferralsPage() {
         {filteredDeals.length === 0 ? (
           <p className="text-sm text-slate-500">Ще немає завершених оплачених реферальних угод.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[520px] overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2">Дата</th>
                   <th className="px-3 py-2">Клієнт</th>
@@ -498,9 +498,9 @@ export default function AdminReferralsPage() {
         {filteredAssignments.length === 0 ? (
           <p className="text-sm text-slate-500">Ще немає прив'язок клієнтів.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[520px] overflow-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2">Телефон клієнта</th>
                   <th className="px-3 py-2">Менеджер</th>
