@@ -86,7 +86,7 @@ export default async function AccountPaymentsPage() {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <Link href="/#booking" className="rounded-full bg-[var(--green-700)] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] !text-white">Нова бронь</Link>
+            <a href="/#booking" className="rounded-full bg-[var(--green-700)] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] !text-white">Нова бронь</a>
             <a href="/api/account/documents/export" className="rounded-full border border-[var(--blue-200)] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--blue-900)]">Експорт CSV</a>
           </div>
 

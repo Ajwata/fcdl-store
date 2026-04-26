@@ -18,6 +18,16 @@ type SiteFooterProps = {
   siteName?: string;
 };
 
+function isHomeAnchorHref(href: string): boolean {
+  return href.startsWith("/#") || href.startsWith("#");
+}
+
+function normalizeHomeAnchorHref(href: string): string {
+  if (href.startsWith("/#")) return href;
+  if (href.startsWith("#")) return `/${href}`;
+  return href;
+}
+
 export function SiteFooter({ footerNavLinks, footerDocLinks, footerSocialLinks, footerContent, logoUrl, siteName = "FCDL.STORE" }: SiteFooterProps) {
   const resolvedLogo = footerContent.logoUrl || logoUrl;
 
@@ -43,11 +53,21 @@ export function SiteFooter({ footerNavLinks, footerDocLinks, footerSocialLinks, 
         <div>
           <p className="text-sm font-extrabold uppercase tracking-[0.22em] text-white/60">Навігація</p>
           <div className="mt-4 flex flex-col gap-3 text-base text-white/85">
-            {footerNavLinks.map((item) => (
-              <Link key={item.label} href={item.href} className="transition hover:text-white">
-                {item.label}
-              </Link>
-            ))}
+            {footerNavLinks.map((item) => {
+              const href = normalizeHomeAnchorHref(item.href);
+              if (isHomeAnchorHref(item.href)) {
+                return (
+                  <a key={item.label} href={href} className="transition hover:text-white">
+                    {item.label}
+                  </a>
+                );
+              }
+              return (
+                <Link key={item.label} href={href} className="transition hover:text-white">
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
 

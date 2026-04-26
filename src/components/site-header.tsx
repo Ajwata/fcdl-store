@@ -18,6 +18,16 @@ type SiteHeaderProps = {
   siteName?: string;
 };
 
+function isHomeAnchorHref(href: string): boolean {
+  return href.startsWith("/#") || href.startsWith("#");
+}
+
+function normalizeHomeAnchorHref(href: string): string {
+  if (href.startsWith("/#")) return href;
+  if (href.startsWith("#")) return `/${href}`;
+  return href;
+}
+
 function normalizeAvatarUrl(value: string | null | undefined): string {
   const avatar = (value ?? "").trim();
   if (!avatar) return "";
@@ -122,11 +132,22 @@ export function SiteHeader({ navigationItems, logoUrl, siteName = "FCDL.STORE" }
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-bold text-[var(--blue-900)] lg:flex">
-          {navigationItems.map((item) => (
-            <Link key={item.href} href={item.href} className="ui-link transition hover:text-[var(--green-700)]">
-              {item.label}
-            </Link>
-          ))}
+          {navigationItems.map((item) => {
+            const href = normalizeHomeAnchorHref(item.href);
+            if (isHomeAnchorHref(item.href)) {
+              return (
+                <a key={item.href} href={href} className="ui-link transition hover:text-[var(--green-700)]">
+                  {item.label}
+                </a>
+              );
+            }
+
+            return (
+              <Link key={item.href} href={href} className="ui-link transition hover:text-[var(--green-700)]">
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -185,7 +206,7 @@ export function SiteHeader({ navigationItems, logoUrl, siteName = "FCDL.STORE" }
                       <Link href="/account/payments" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Платежі</Link>
                       <Link href="/account/notifications" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Сповіщення</Link>
                       <Link href="/account/profile" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-[var(--blue-900)] hover:bg-[var(--blue-50)]">Профіль</Link>
-                      <Link href="/#booking" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl bg-[var(--green-700)] px-3 py-2 text-sm font-semibold !text-white hover:bg-[var(--green-800)]">Нова бронь</Link>
+                      <a href="/#booking" onClick={() => setAccountMenuOpen(false)} className="block rounded-xl bg-[var(--green-700)] px-3 py-2 text-sm font-semibold !text-white hover:bg-[var(--green-800)]">Нова бронь</a>
                     </div>
                     <div className="mt-2 border-t border-[var(--blue-100)] pt-2">
                       <button
@@ -214,16 +235,32 @@ export function SiteHeader({ navigationItems, logoUrl, siteName = "FCDL.STORE" }
       {mobileOpen && (
         <div className="border-t border-white/45 bg-white/95 px-4 py-4 lg:hidden">
           <nav className="flex flex-col gap-3 text-sm font-bold text-[var(--blue-900)]">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className="rounded-[12px] px-3 py-2 transition hover:bg-[var(--blue-50)]"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {navigationItems.map((item) => {
+              const href = normalizeHomeAnchorHref(item.href);
+              if (isHomeAnchorHref(item.href)) {
+                return (
+                  <a
+                    key={item.href}
+                    href={href}
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-[12px] px-3 py-2 transition hover:bg-[var(--blue-50)]"
+                  >
+                    {item.label}
+                  </a>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.href}
+                  href={href}
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-[12px] px-3 py-2 transition hover:bg-[var(--blue-50)]"
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         </div>
       )}

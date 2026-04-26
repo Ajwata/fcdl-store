@@ -29,12 +29,12 @@ export default async function GalleryPage() {
               </p>
             </div>
 
-            <Link
+            <a
               href="/#booking"
               className="inline-flex items-center justify-center rounded-full bg-[var(--green-700)] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
             >
               Забронювати поле
-            </Link>
+            </a>
           </div>
 
           <GalleryLightbox items={cms.galleryItems} />

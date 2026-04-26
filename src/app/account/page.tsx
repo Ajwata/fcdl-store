@@ -107,7 +107,7 @@ export default async function AccountPage() {
               <Link href="/account/profile" className="rounded-2xl border border-[var(--blue-200)] bg-[var(--blue-50)] px-4 py-3 text-sm font-semibold text-[var(--blue-900)]">Редагувати профіль</Link>
               <Link href="/account/payments" className="rounded-2xl border border-[var(--blue-200)] bg-[var(--blue-50)] px-4 py-3 text-sm font-semibold text-[var(--blue-900)]">Перевірити платежі</Link>
               <Link href="/account/notifications" className="rounded-2xl border border-[var(--blue-200)] bg-[var(--blue-50)] px-4 py-3 text-sm font-semibold text-[var(--blue-900)]">Відкрити сповіщення</Link>
-              <Link href="/#booking" className="rounded-2xl bg-[var(--green-700)] px-4 py-3 text-sm font-bold uppercase tracking-[0.1em] !text-white">Нова бронь</Link>
+              <a href="/#booking" className="rounded-2xl bg-[var(--green-700)] px-4 py-3 text-sm font-bold uppercase tracking-[0.1em] !text-white">Нова бронь</a>
             </div>
           </section>
         </div>

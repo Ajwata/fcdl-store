@@ -40,9 +40,9 @@ export default async function AccountNotificationsPage() {
 
         <div className="rounded-3xl border border-[var(--blue-100)] bg-white p-6 shadow-[0_24px_60px_rgba(8,26,51,0.12)] sm:p-8">
           <div className="flex flex-wrap gap-2">
-            <Link href="/#booking" className="rounded-full bg-[var(--green-700)] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] !text-white">
+            <a href="/#booking" className="rounded-full bg-[var(--green-700)] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] !text-white">
               Нова бронь
-            </Link>
+            </a>
           </div>
         </div>
 
