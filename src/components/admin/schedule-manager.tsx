@@ -64,8 +64,7 @@ export function ScheduleManager() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  const [sector, setSector] = useState(SECTORS[0]);
-  const [slots, setSlots] = useState<Record<number, SlotInfo>>({});
+  const [slotsBySector, setSlotsBySector] = useState<Record<string, Record<number, SlotInfo>>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
@@ -79,39 +78,39 @@ export function ScheduleManager() {
   const [rangeMessage, setRangeMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
   const loadSlots = useCallback(async () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !sector) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch(
-        `/api/admin/availability?date=${encodeURIComponent(date)}&sector=${encodeURIComponent(sector)}`,
-        { cache: "no-store" },
-      );
+      const res = await fetch(`/api/admin/availability?date=${encodeURIComponent(date)}`, { cache: "no-store" });
       const data = (await res.json()) as { slots?: ApiSlot[] };
       const apiSlots = data.slots ?? [];
 
-      const map: Record<number, SlotInfo> = {};
-      for (const h of HOURS) {
-        const time = toTime(h);
-        const match = apiSlots.find((s) => s.sector === sector && s.startTime <= time && s.endTime > time);
-        if (!match) {
-          map[h] = { status: "free" };
-        } else if (match.status === "blocked") {
-          map[h] = { status: "blocked", blockedReason: match.bookedBy };
-        } else {
-          map[h] = {
-            status: "booked",
-            booked: { status: match.status, paymentStatus: match.paymentStatus, bookedBy: match.bookedBy },
-          };
+      const bySector: Record<string, Record<number, SlotInfo>> = {};
+      for (const sectorName of SECTORS) {
+        bySector[sectorName] = {};
+        for (const h of HOURS) {
+          const time = toTime(h);
+          const match = apiSlots.find((s) => s.sector === sectorName && s.startTime <= time && s.endTime > time);
+          if (!match) {
+            bySector[sectorName][h] = { status: "free" };
+          } else if (match.status === "blocked") {
+            bySector[sectorName][h] = { status: "blocked", blockedReason: match.bookedBy };
+          } else {
+            bySector[sectorName][h] = {
+              status: "booked",
+              booked: { status: match.status, paymentStatus: match.paymentStatus, bookedBy: match.bookedBy },
+            };
+          }
         }
       }
-      setSlots(map);
+      setSlotsBySector(bySector);
     } catch {
       setMessage({ text: "Помилка завантаження", ok: false });
     } finally {
       setLoading(false);
     }
-  }, [date, sector]);
+  }, [date]);
 
   useEffect(() => {
     void loadSlots();
@@ -165,37 +164,46 @@ export function ScheduleManager() {
     return days;
   }, [calendarMonth]);
 
-  function toggleHour(hour: number) {
-    const current = slots[hour];
+  function toggleHour(sectorName: string, hour: number) {
+    const current = slotsBySector[sectorName]?.[hour];
     if (!current || current.status === "booked") return;
-    setSlots((prev) => ({
+    setSlotsBySector((prev) => ({
       ...prev,
-      [hour]: { status: current.status === "blocked" ? "free" : "blocked" },
+      [sectorName]: {
+        ...(prev[sectorName] ?? {}),
+        [hour]: { status: current.status === "blocked" ? "free" : "blocked" },
+      },
     }));
   }
 
   async function save() {
     setSaving(true);
     setMessage(null);
-    const blocked = HOURS.filter((h) => slots[h]?.status === "blocked").map((h) => ({
-      startTime: toTime(h),
-      endTime: toTime(h + 1),
-    }));
 
     try {
-      const res = await fetch("/api/admin/blocked-slots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, sector, slots: blocked }),
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setMessage({ text: data.error ?? "Помилка збереження", ok: false });
-      } else {
-        setMessage({ text: `Збережено: ${blocked.length} заблоковано`, ok: true });
-        // Reload to get fresh state
-        await loadSlots();
+      let totalBlocked = 0;
+      for (const sectorName of SECTORS) {
+        const sectorSlots = slotsBySector[sectorName] ?? {};
+        const blocked = HOURS.filter((h) => sectorSlots[h]?.status === "blocked").map((h) => ({
+          startTime: toTime(h),
+          endTime: toTime(h + 1),
+        }));
+        totalBlocked += blocked.length;
+
+        const res = await fetch("/api/admin/blocked-slots", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, sector: sectorName, slots: blocked }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          throw new Error(data.error ?? `Помилка збереження для ${sectorName}`);
+        }
       }
+
+      setMessage({ text: `Збережено: ${totalBlocked} заблоковано по всіх полях`, ok: true });
+      // Reload to get fresh state
+      await loadSlots();
     } catch {
       setMessage({ text: "Помилка мережі", ok: false });
     } finally {
@@ -203,7 +211,10 @@ export function ScheduleManager() {
     }
   }
 
-  const blockedCount = HOURS.filter((h) => slots[h]?.status === "blocked").length;
+  const blockedCount = SECTORS.reduce((sum, sectorName) => {
+    const sectorSlots = slotsBySector[sectorName] ?? {};
+    return sum + HOURS.filter((h) => sectorSlots[h]?.status === "blocked").length;
+  }, 0);
 
   // ── Range logic ──────────────────────────────────────────────────────────
   function toggleRangeSector(s: string) {
@@ -272,7 +283,7 @@ export function ScheduleManager() {
 
       {mode === "single" && (<>
       {/* Controls */}
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      <div className="grid gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Дата</p>
           <div className="mt-2 flex items-center justify-between gap-2">
@@ -331,27 +342,6 @@ export function ScheduleManager() {
           </div>
           <p className="mt-2 text-xs font-medium text-slate-500">Обрано: {formatDateUk(date)}</p>
         </div>
-
-        {/* Sector tabs */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Сектор</label>
-          <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-            {SECTORS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSector(s)}
-                className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-                  sector === s
-                    ? "bg-[#10243a] text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Legend */}
@@ -378,7 +368,7 @@ export function ScheduleManager() {
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-6 py-4">
           <p className="text-sm font-semibold text-slate-700">
-            {sector} · {formatDateUk(date)}
+            {formatDateUk(date)} · всі поля
             {loading && <span className="ml-2 text-xs font-normal text-slate-400">завантаження…</span>}
           </p>
           <p className="mt-0.5 text-xs text-slate-400">
@@ -386,47 +376,57 @@ export function ScheduleManager() {
           </p>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 p-4 sm:grid-cols-8">
-          {HOURS.map((h) => {
-            const info = slots[h] ?? { status: "free" };
-            const isBooked = info.status === "booked";
-            const isBlocked = info.status === "blocked";
-            const isPaid =
-              isBooked &&
-              (info.booked?.paymentStatus === "paid" || info.booked?.paymentStatus === "verification");
-
-            let bgClass =
-              "bg-slate-50 ring-1 ring-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer";
-            if (isBlocked) bgClass = "bg-orange-400 text-white ring-orange-400 cursor-pointer hover:bg-orange-500";
-            if (isBooked && isPaid) bgClass = "bg-emerald-500 text-white ring-emerald-500 cursor-default opacity-80";
-            if (isBooked && !isPaid) bgClass = "bg-blue-200 text-blue-800 ring-blue-200 cursor-default opacity-80";
-
-            const bookingTitle =
-              info.booked?.bookedBy && info.booked.bookedBy.trim().length > 0
-                ? `Заброньовано: ${info.booked.bookedBy}`
-                : "Слот зайнятий бронюванням";
-
+        <div className="grid gap-4 p-4 md:grid-cols-2">
+          {SECTORS.map((sectorName) => {
+            const sectorSlots = slotsBySector[sectorName] ?? {};
             return (
-              <button
-                key={h}
-                type="button"
-                aria-disabled={isBooked}
-                onClick={() => toggleHour(h)}
-                className={`relative flex flex-col items-center justify-center rounded-xl px-2 py-3 text-center text-xs font-semibold ring-1 transition ${bgClass}`}
-                title={
-                  isBooked
-                    ? bookingTitle
-                    : isBlocked
-                      ? info.blockedReason?.trim() || "Заблоковано — клікніть щоб розблокувати"
-                      : "Вільно — клікніть щоб заблокувати"
-                }
-              >
-                <span>{toTime(h)}</span>
-                <span className="mt-0.5 text-[10px] font-normal opacity-70">— {toTime(h + 1)}</span>
-                {isBlocked && (
-                  <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">блок</span>
-                )}
-              </button>
+              <div key={sectorName} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                <p className="mb-3 text-sm font-semibold text-slate-700">{sectorName}</p>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                  {HOURS.map((h) => {
+                    const info = sectorSlots[h] ?? { status: "free" };
+                    const isBooked = info.status === "booked";
+                    const isBlocked = info.status === "blocked";
+                    const isPaid =
+                      isBooked &&
+                      (info.booked?.paymentStatus === "paid" || info.booked?.paymentStatus === "verification");
+
+                    let bgClass =
+                      "bg-slate-50 ring-1 ring-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer";
+                    if (isBlocked) bgClass = "bg-orange-400 text-white ring-orange-400 cursor-pointer hover:bg-orange-500";
+                    if (isBooked && isPaid) bgClass = "bg-emerald-500 text-white ring-emerald-500 cursor-default opacity-80";
+                    if (isBooked && !isPaid) bgClass = "bg-blue-200 text-blue-800 ring-blue-200 cursor-default opacity-80";
+
+                    const bookingTitle =
+                      info.booked?.bookedBy && info.booked.bookedBy.trim().length > 0
+                        ? `Заброньовано: ${info.booked.bookedBy}`
+                        : "Слот зайнятий бронюванням";
+
+                    return (
+                      <button
+                        key={`${sectorName}-${h}`}
+                        type="button"
+                        aria-disabled={isBooked}
+                        onClick={() => toggleHour(sectorName, h)}
+                        className={`relative flex flex-col items-center justify-center rounded-xl px-2 py-3 text-center text-xs font-semibold ring-1 transition ${bgClass}`}
+                        title={
+                          isBooked
+                            ? bookingTitle
+                            : isBlocked
+                              ? info.blockedReason?.trim() || "Заблоковано — клікніть щоб розблокувати"
+                              : "Вільно — клікніть щоб заблокувати"
+                        }
+                      >
+                        <span>{toTime(h)}</span>
+                        <span className="mt-0.5 text-[10px] font-normal opacity-70">— {toTime(h + 1)}</span>
+                        {isBlocked && (
+                          <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">блок</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
