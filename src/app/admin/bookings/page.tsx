@@ -471,11 +471,31 @@ export default function BookingsPage() {
                     setCancelError("Вкажіть причину скасування");
                     return;
                   }
-                  const ok = await updateBooking(cancelTarget.id, { status: "cancelled" }, { cancelReason: reason });
-                  if (!ok) return;
-                  setCancelTarget(null);
-                  setCancelReason("");
+                  setSaving(cancelTarget.id);
                   setCancelError("");
+                  try {
+                    const res = await fetch(`/api/admin/bookings/${cancelTarget.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: "cancelled", cancelReason: reason }),
+                    });
+
+                    const data = (await res.json()) as { error?: string; booking?: Booking };
+                    if (!res.ok || !data.booking) {
+                      setCancelError(data.error ?? "Не вдалось скасувати бронювання");
+                      setSaving(null);
+                      return;
+                    }
+
+                    setBookings((prev) => prev.map((b) => (b.id === cancelTarget.id ? data.booking! : b)));
+                    setCancelTarget(null);
+                    setCancelReason("");
+                    setCancelError("");
+                  } catch (error) {
+                    setCancelError("Помилка мережі. Спробуйте ще раз.");
+                  } finally {
+                    setSaving(null);
+                  }
                 }}
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
