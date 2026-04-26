@@ -64,6 +64,14 @@ export default function AdminReferralsPage() {
   const [error, setError] = useState("");
   const [data, setData] = useState<ResponseShape | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [dealsQuery, setDealsQuery] = useState("");
+  const [selectedDealsManager, setSelectedDealsManager] = useState<string>("all");
+  const [dealsPage, setDealsPage] = useState(1);
+  const [assignmentsQuery, setAssignmentsQuery] = useState("");
+  const [selectedAssignmentsManager, setSelectedAssignmentsManager] = useState<string>("all");
+  const [assignmentsPage, setAssignmentsPage] = useState(1);
+
+  const pageSize = 25;
 
   const loadData = async () => {
     setLoading(true);
@@ -143,10 +151,76 @@ export default function AdminReferralsPage() {
     return options;
   }, [monthlyStats]);
 
+  const managerOptions = useMemo(() => data?.managers ?? [], [data]);
+
   const filteredMonthlyStats = useMemo(() => {
     if (selectedMonth === "all") return monthlyStats;
     return monthlyStats.filter((item) => item.monthSort === selectedMonth);
   }, [monthlyStats, selectedMonth]);
+
+  const filteredDeals = useMemo(() => {
+    const query = dealsQuery.trim().toLowerCase();
+    return deals.filter((deal) => {
+      if (selectedDealsManager !== "all" && deal.managerId !== selectedDealsManager) {
+        return false;
+      }
+      if (!query) return true;
+      return (
+        deal.bookingId.toLowerCase().includes(query) ||
+        deal.clientName.toLowerCase().includes(query) ||
+        deal.clientPhone.toLowerCase().includes(query) ||
+        deal.managerName.toLowerCase().includes(query)
+      );
+    });
+  }, [deals, dealsQuery, selectedDealsManager]);
+
+  const filteredAssignments = useMemo(() => {
+    const query = assignmentsQuery.trim().toLowerCase();
+    return assignments.filter((item) => {
+      if (selectedAssignmentsManager !== "all" && item.managerId !== selectedAssignmentsManager) {
+        return false;
+      }
+      if (!query) return true;
+      return (
+        item.clientPhone.toLowerCase().includes(query) ||
+        item.managerName.toLowerCase().includes(query) ||
+        item.managerLogin.toLowerCase().includes(query)
+      );
+    });
+  }, [assignments, assignmentsQuery, selectedAssignmentsManager]);
+
+  const dealsPageCount = Math.max(1, Math.ceil(filteredDeals.length / pageSize));
+  const assignmentsPageCount = Math.max(1, Math.ceil(filteredAssignments.length / pageSize));
+
+  const visibleDeals = useMemo(() => {
+    const start = (dealsPage - 1) * pageSize;
+    return filteredDeals.slice(start, start + pageSize);
+  }, [dealsPage, filteredDeals]);
+
+  const visibleAssignments = useMemo(() => {
+    const start = (assignmentsPage - 1) * pageSize;
+    return filteredAssignments.slice(start, start + pageSize);
+  }, [assignmentsPage, filteredAssignments]);
+
+  useEffect(() => {
+    setDealsPage(1);
+  }, [dealsQuery, selectedDealsManager]);
+
+  useEffect(() => {
+    setAssignmentsPage(1);
+  }, [assignmentsQuery, selectedAssignmentsManager]);
+
+  useEffect(() => {
+    if (dealsPage > dealsPageCount) {
+      setDealsPage(dealsPageCount);
+    }
+  }, [dealsPage, dealsPageCount]);
+
+  useEffect(() => {
+    if (assignmentsPage > assignmentsPageCount) {
+      setAssignmentsPage(assignmentsPageCount);
+    }
+  }, [assignmentsPage, assignmentsPageCount]);
 
   const exportMonthlyCsv = () => {
     const rows = [
@@ -316,8 +390,31 @@ export default function AdminReferralsPage() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-lg font-semibold text-slate-800">Останні нарахування</h2>
-        {deals.length === 0 ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-800">Останні нарахування</h2>
+          <p className="text-sm text-slate-500">Показано {visibleDeals.length} з {filteredDeals.length}</p>
+        </div>
+
+        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_220px]">
+          <input
+            value={dealsQuery}
+            onChange={(event) => setDealsQuery(event.target.value)}
+            placeholder="Пошук за ID, клієнтом, телефоном або менеджером"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none"
+          />
+          <select
+            value={selectedDealsManager}
+            onChange={(event) => setSelectedDealsManager(event.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none"
+          >
+            <option value="all">Усі менеджери</option>
+            {managerOptions.map((manager) => (
+              <option key={manager.id} value={manager.id}>{manager.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {filteredDeals.length === 0 ? (
           <p className="text-sm text-slate-500">Ще немає завершених оплачених реферальних угод.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -332,7 +429,7 @@ export default function AdminReferralsPage() {
                 </tr>
               </thead>
               <tbody>
-                {deals.slice(0, 100).map((deal) => (
+                {visibleDeals.map((deal) => (
                   <tr key={deal.bookingId} className="border-b border-slate-100 last:border-0">
                     <td className="px-3 py-2 text-slate-700">{formatDateUk(deal.date)}</td>
                     <td className="px-3 py-2">
@@ -348,11 +445,57 @@ export default function AdminReferralsPage() {
             </table>
           </div>
         )}
+        {filteredDeals.length > pageSize && (
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">Сторінка {dealsPage} з {dealsPageCount}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={dealsPage === 1}
+                onClick={() => setDealsPage((prev) => Math.max(1, prev - 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Назад
+              </button>
+              <button
+                type="button"
+                disabled={dealsPage >= dealsPageCount}
+                onClick={() => setDealsPage((prev) => Math.min(dealsPageCount, prev + 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Далі
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-lg font-semibold text-slate-800">Прив'язані клієнти</h2>
-        {assignments.length === 0 ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-800">Прив'язані клієнти</h2>
+          <p className="text-sm text-slate-500">Показано {visibleAssignments.length} з {filteredAssignments.length}</p>
+        </div>
+
+        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_220px]">
+          <input
+            value={assignmentsQuery}
+            onChange={(event) => setAssignmentsQuery(event.target.value)}
+            placeholder="Пошук за телефоном або менеджером"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none"
+          />
+          <select
+            value={selectedAssignmentsManager}
+            onChange={(event) => setSelectedAssignmentsManager(event.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none"
+          >
+            <option value="all">Усі менеджери</option>
+            {managerOptions.map((manager) => (
+              <option key={manager.id} value={manager.id}>{manager.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {filteredAssignments.length === 0 ? (
           <p className="text-sm text-slate-500">Ще немає прив'язок клієнтів.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -365,7 +508,7 @@ export default function AdminReferralsPage() {
                 </tr>
               </thead>
               <tbody>
-                {assignments.map((item) => (
+                {visibleAssignments.map((item) => (
                   <tr key={item.clientPhoneKey} className="border-b border-slate-100 last:border-0">
                     <td className="px-3 py-2 text-slate-700">{item.clientPhone}</td>
                     <td className="px-3 py-2 text-slate-700">{item.managerName}</td>
@@ -374,6 +517,29 @@ export default function AdminReferralsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {filteredAssignments.length > pageSize && (
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">Сторінка {assignmentsPage} з {assignmentsPageCount}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={assignmentsPage === 1}
+                onClick={() => setAssignmentsPage((prev) => Math.max(1, prev - 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Назад
+              </button>
+              <button
+                type="button"
+                disabled={assignmentsPage >= assignmentsPageCount}
+                onClick={() => setAssignmentsPage((prev) => Math.min(assignmentsPageCount, prev + 1))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Далі
+              </button>
+            </div>
           </div>
         )}
       </section>
