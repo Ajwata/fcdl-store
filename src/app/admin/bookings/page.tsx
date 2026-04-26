@@ -406,17 +406,19 @@ export default function BookingsPage() {
                               Підтвердити оплату
                             </button>
                           )}
-                          <button
-                            disabled={saving === b.id || b.status === "cancelled"}
-                            onClick={() => {
-                              setCancelTarget(b);
-                              setCancelReason("");
-                              setCancelError("");
-                            }}
-                            className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-200 transition hover:bg-red-100 disabled:opacity-50"
-                          >
-                            Скасувати
-                          </button>
+                          {b.status !== "completed" && (
+                            <button
+                              disabled={saving === b.id || b.status === "cancelled"}
+                              onClick={() => {
+                                setCancelTarget(b);
+                                setCancelReason("");
+                                setCancelError("");
+                              }}
+                              className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-200 transition hover:bg-red-100 disabled:opacity-50"
+                            >
+                              Скасувати
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
