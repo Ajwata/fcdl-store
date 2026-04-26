@@ -1,5 +1,4 @@
 import type { AdminRole } from "@/lib/admin-users";
-import { getManagerAccessById } from "@/lib/access-control";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -73,13 +72,6 @@ export async function verifySessionToken(token: string | undefined): Promise<Adm
     }
     if (Date.now() > payload.exp) {
       return null;
-    }
-
-    if (payload.role === "manager") {
-      const managerAccess = await getManagerAccessById(payload.uid);
-      if (managerAccess?.isBlocked) {
-        return null;
-      }
     }
 
     return payload;
