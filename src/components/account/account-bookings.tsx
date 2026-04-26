@@ -108,6 +108,7 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
   const [repeatDrafts, setRepeatDrafts] = useState<Record<string, { date: string; startTime: string; durationHours: number }>>({});
   const [occupiedSlotsByKey, setOccupiedSlotsByKey] = useState<Record<string, OccupiedSlot[]>>({});
   const [requisitesBookingId, setRequisitesBookingId] = useState<string | null>(null);
+  const [requisitesReceiptUrl, setRequisitesReceiptUrl] = useState("");
   const [requisitesStatus, setRequisitesStatus] = useState("");
   const [requisitesError, setRequisitesError] = useState("");
   const requisitesBooking = requisitesBookingId
@@ -129,18 +130,22 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
     }
   };
 
-  const uploadPaymentReceipt = async (bookingId: string, file: File) => {
+  const uploadPaymentReceipt = async (bookingId: string, receiptUrl: string) => {
+    const normalized = receiptUrl.trim();
+    if (!normalized) {
+      setRequisitesError("Вкажіть посилання на квитанцію");
+      return;
+    }
+
     setRequisitesError("");
     setRequisitesStatus("");
     setBusyId(bookingId);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
       const response = await fetch(`/api/account/bookings/${bookingId}/payment-proof`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiptUrl: normalized }),
       });
 
       const result = (await response.json()) as { error?: string; booking?: Booking };
@@ -150,7 +155,8 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
       }
 
       setBookings((prev) => prev.map((item) => (item.id === bookingId ? result.booking! : item)));
-      setRequisitesStatus("Квитанцію відправлено. Статус: перевірка оплати.");
+      setRequisitesReceiptUrl("");
+      setRequisitesStatus("Посилання на квитанцію відправлено. Статус: перевірка оплати.");
     } catch {
       setRequisitesError("Помилка мережі. Спробуйте ще раз.");
     } finally {
@@ -396,6 +402,7 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
                           type="button"
                           onClick={() => {
                             setRequisitesBookingId(booking.id);
+                            setRequisitesReceiptUrl(booking.paymentProofUrl ?? "");
                             setRequisitesStatus("");
                             setRequisitesError("");
                           }}
@@ -624,22 +631,26 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
             </div>
 
             <div className="mt-4 rounded-2xl border border-[var(--blue-100)] bg-white p-4">
-              <p className="text-sm font-semibold text-[var(--blue-950)]">Після оплати надішліть квитанцію</p>
-              <label className={`mt-3 inline-flex cursor-pointer items-center justify-center rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.1em] ${busyId === requisitesBookingId ? "cursor-not-allowed bg-slate-200 text-slate-400" : "bg-[var(--green-700)] text-white hover:bg-[var(--green-800)]"}`}>
-                {busyId === requisitesBookingId ? "Завантаження..." : "Відправити квитанцію"}
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  disabled={busyId === requisitesBookingId}
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.currentTarget.value = "";
-                    if (!file || !requisitesBookingId) return;
-                    void uploadPaymentReceipt(requisitesBookingId, file);
-                  }}
-                />
-              </label>
+              <p className="text-sm font-semibold text-[var(--blue-950)]">Після оплати вставте посилання на квитанцію (PDF)</p>
+              <input
+                type="url"
+                value={requisitesReceiptUrl}
+                onChange={(event) => setRequisitesReceiptUrl(event.target.value)}
+                placeholder="https://..."
+                disabled={busyId === requisitesBookingId}
+                className="mt-3 w-full rounded-xl border border-[var(--blue-200)] bg-white px-3 py-2 text-sm text-[var(--blue-950)]"
+              />
+              <button
+                type="button"
+                disabled={busyId === requisitesBookingId}
+                onClick={() => {
+                  if (!requisitesBookingId) return;
+                  void uploadPaymentReceipt(requisitesBookingId, requisitesReceiptUrl);
+                }}
+                className={`mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.1em] ${busyId === requisitesBookingId ? "cursor-not-allowed bg-slate-200 text-slate-400" : "bg-[var(--green-700)] text-white hover:bg-[var(--green-800)]"}`}
+              >
+                {busyId === requisitesBookingId ? "Відправка..." : "Відправити квитанцію"}
+              </button>
               {requisitesStatus && <p className="mt-2 text-xs font-semibold text-emerald-700">{requisitesStatus}</p>}
               {requisitesError && <p className="mt-2 text-xs font-semibold text-rose-700">{requisitesError}</p>}
             </div>

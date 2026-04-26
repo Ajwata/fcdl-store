@@ -11,6 +11,11 @@ function overlaps(startA: string, endA: string, startB: string, endB: string): b
   return startA < endB && startB < endA;
 }
 
+function appendNote(source: string, note: string): string {
+  const normalized = source.trim();
+  return normalized ? `${normalized}\n${note}` : note;
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -23,7 +28,9 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const body = (await request.json()) as Partial<Omit<Booking, "id" | "createdAt">>;
+  const body = (await request.json()) as Partial<Omit<Booking, "id" | "createdAt">> & {
+    cancelReason?: string;
+  };
 
   const bookings = await autoCompleteExpiredPaidBookings();
   const index = bookings.findIndex((booking) => booking.id === id);
@@ -44,6 +51,7 @@ export async function PATCH(
   }
 
   const next: Booking = { ...current, ...body };
+  const cancelReason = body.cancelReason?.trim() ?? "";
 
   const statusChangedToConfirmed = current.status !== "confirmed" && next.status === "confirmed";
   const paymentChangedToVerification =
@@ -100,6 +108,10 @@ export async function PATCH(
     if (!next.confirmedAt) {
       next.confirmedAt = nowIso;
     }
+
+    if (paymentChangedToPaid) {
+      next.notes = appendNote(next.notes, `Підтверджено менеджером: ${session.name}.`);
+    }
   }
 
   if (next.paymentStatus === "refunded") {
@@ -110,6 +122,13 @@ export async function PATCH(
     next.notes = next.notes
       ? `${next.notes}\nСкасовано адміністратором із поверненням коштів.`
       : "Скасовано адміністратором із поверненням коштів.";
+  }
+
+  if (current.status !== "cancelled" && next.status === "cancelled") {
+    if (!cancelReason) {
+      return NextResponse.json({ error: "Вкажіть причину скасування" }, { status: 400 });
+    }
+    next.notes = appendNote(next.notes, `Скасовано менеджером: ${session.name}. Причина: ${cancelReason}`);
   }
 
   if (next.status === "cancelled" || next.status === "completed") {

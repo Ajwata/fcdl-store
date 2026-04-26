@@ -1,6 +1,3 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
@@ -10,51 +7,8 @@ import { getClientUserById } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { notifyPaymentVerification } from "@/lib/telegram";
 
-const IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const PDF_MIME = new Set(["application/pdf"]);
-const MAX_RECEIPT_BYTES = 10 * 1024 * 1024; // 10 MB
-
 function overlaps(startA: string, endA: string, startB: string, endB: string): boolean {
   return startA < endB && startB < endA;
-}
-
-function extensionFromFile(file: File): string {
-  const extByName = file.name.split(".").pop()?.toLowerCase();
-  if (extByName && /^[a-z0-9]+$/.test(extByName)) {
-    return extByName;
-  }
-
-  if (file.type === "image/jpeg") return "jpg";
-  if (file.type === "image/png") return "png";
-  if (file.type === "image/webp") return "webp";
-  if (file.type === "image/gif") return "gif";
-  if (file.type === "application/pdf") return "pdf";
-  return "bin";
-}
-
-async function pathExists(targetPath: string): Promise<boolean> {
-  try {
-    await fs.access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function resolveProjectRoot(): string {
-  const cwd = process.cwd();
-  const standaloneSuffix = `${path.sep}.next${path.sep}standalone`;
-  if (cwd.endsWith(standaloneSuffix)) {
-    return path.resolve(cwd, "..", "..");
-  }
-  return cwd;
-}
-
-function getReceiptDirs(projectRoot: string): string[] {
-  return [
-    path.join(projectRoot, "public", "uploads", "receipts"),
-    path.join(projectRoot, ".next", "standalone", "public", "uploads", "receipts"),
-  ];
 }
 
 function detectPublicOrigin(request: Request): string {
@@ -66,6 +20,21 @@ function detectPublicOrigin(request: Request): string {
   const forwardedProto = request.headers.get("x-forwarded-proto")?.trim();
   const proto = forwardedProto || new URL(request.url).protocol.replace(":", "");
   return `${proto}://${host}`;
+}
+
+function normalizeReceiptUrl(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(
@@ -85,19 +54,10 @@ export async function POST(
     return NextResponse.json({ error: "Користувач не знайдений" }, { status: 404 });
   }
 
-  const formData = await request.formData();
-  const file = formData.get("file") as File | null;
-
-  if (!file) {
-    return NextResponse.json({ error: "Додайте файл квитанції" }, { status: 400 });
-  }
-
-  if (!IMAGE_MIME.has(file.type) && !PDF_MIME.has(file.type)) {
-    return NextResponse.json({ error: "Дозволено JPG, PNG, WebP, GIF або PDF" }, { status: 400 });
-  }
-
-  if (file.size > MAX_RECEIPT_BYTES) {
-    return NextResponse.json({ error: "Файл завеликий (максимум 10 MB)" }, { status: 400 });
+  const body = (await request.json().catch(() => ({}))) as { receiptUrl?: string };
+  const normalizedReceiptUrl = normalizeReceiptUrl(body.receiptUrl ?? "");
+  if (!normalizedReceiptUrl) {
+    return NextResponse.json({ error: "Вкажіть коректне посилання на квитанцію (http/https)" }, { status: 400 });
   }
 
   const { id } = await params;
@@ -125,29 +85,8 @@ export async function POST(
     return NextResponse.json({ error: "Для цього бронювання оплата вже зафіксована" }, { status: 400 });
   }
 
-  const ext = extensionFromFile(file);
-  const projectRoot = resolveProjectRoot();
-  const [rootUploadsDir, standaloneUploadsDir] = getReceiptDirs(projectRoot);
-
-  const filename = `receipt-${booking.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-  const targetDirs = [rootUploadsDir];
-  if (await pathExists(path.join(projectRoot, ".next", "standalone", "public"))) {
-    targetDirs.push(standaloneUploadsDir);
-  }
-
-  await Promise.all(
-    targetDirs.map(async (dir) => {
-      await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(path.join(dir, filename), fileBuffer);
-    }),
-  );
-
   const nowIso = new Date().toISOString();
-  const receiptUrl = `/api/account/receipt?file=${encodeURIComponent(filename)}`;
   const publicOrigin = detectPublicOrigin(request);
-  const receiptAbsoluteUrl = new URL(receiptUrl, publicOrigin).toString();
   const adminBookingUrl = new URL(`/admin/bookings?bookingId=${encodeURIComponent(booking.id)}`, publicOrigin).toString();
 
   bookings[index] = {
@@ -155,14 +94,14 @@ export async function POST(
     status: "confirmed",
     paymentStatus: "verification",
     paymentMethod: "iban",
-    paymentProofUrl: receiptUrl,
+    paymentProofUrl: normalizedReceiptUrl,
     paymentProofUploadedAt: nowIso,
     paymentDueAt: undefined,
     adminDecisionDueAt: undefined,
     confirmedAt: booking.confirmedAt ?? nowIso,
     notes: booking.notes
-      ? `${booking.notes}\nОплату підтверджено клієнтом, квитанцію додано.`
-      : "Оплату підтверджено клієнтом, квитанцію додано.",
+      ? `${booking.notes}\nКлієнт надав посилання на квитанцію.`
+      : "Клієнт надав посилання на квитанцію.",
   };
 
   const winner = bookings[index];
@@ -206,7 +145,7 @@ export async function POST(
     date: winner.date,
     sector: winner.sector,
     totalPrice: winner.totalPrice,
-    proofUrl: receiptAbsoluteUrl,
+    proofUrl: normalizedReceiptUrl,
     adminBookingUrl,
   });
 

@@ -183,7 +183,7 @@ export async function POST(request: Request) {
       paymentDueAt,
       adminDecisionDueAt,
       createdAt,
-      notes: "Створено з календаря клієнтом",
+      notes: "",
     };
   });
 

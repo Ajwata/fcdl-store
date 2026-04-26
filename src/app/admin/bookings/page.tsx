@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import type { Booking, BookingStatus, PaymentStatus } from "@/lib/bookings";
+import type { Booking } from "@/lib/bookings";
 import { formatDateTimeUk, formatDateUk } from "@/lib/date-format";
 
 const statusColors: Record<string, string> = {
@@ -34,7 +34,7 @@ const paymentLabels: Record<string, string> = {
   refunded: "Повернено",
 };
 
-type SortKey = "clientName" | "dateTime" | "sector" | "totalPrice" | "status" | "paymentStatus";
+type SortKey = "id" | "clientName" | "createdAt" | "eventDateTime" | "sector" | "totalPrice" | "status" | "paymentStatus";
 type SortDirection = "asc" | "desc";
 
 const statusFilterOptions: Array<{ value: string; label: string }> = [
@@ -54,6 +54,15 @@ function normalizeReceiptUrl(url?: string): string {
   return url;
 }
 
+function cleanSystemNotes(note: string): string {
+  const removed = new Set(["Створено з календаря клієнтом", "Створено з календаря клієнта"]);
+  return note
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !removed.has(line))
+    .join("\n");
+}
+
 export default function BookingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,8 +70,13 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("dateTime");
+  const [sortKey, setSortKey] = useState<SortKey>("eventDateTime");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [actionError, setActionError] = useState("");
+
+  const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState("");
 
   const statusFilter = searchParams.get("status") ?? "all";
   const bookingIdFilter = searchParams.get("bookingId")?.trim() ?? "";
@@ -100,15 +114,28 @@ export default function BookingsPage() {
   const updateBooking = async (
     id: string,
     updates: Partial<Pick<Booking, "status" | "paymentStatus">>,
+    options?: { cancelReason?: string },
   ) => {
     setSaving(id);
+    setActionError("");
     try {
-      await fetch(`/api/admin/bookings/${id}`, {
+      const res = await fetch(`/api/admin/bookings/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ ...updates, ...(options?.cancelReason ? { cancelReason: options.cancelReason } : {}) }),
       });
-      setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)));
+
+      const data = (await res.json()) as { error?: string; booking?: Booking };
+      if (!res.ok || !data.booking) {
+        setActionError(data.error ?? "Не вдалося оновити бронювання");
+        return false;
+      }
+
+      setBookings((prev) => prev.map((b) => (b.id === id ? data.booking! : b)));
+      return true;
+    } catch {
+      setActionError("Помилка мережі. Спробуйте ще раз.");
+      return false;
     } finally {
       setSaving(null);
     }
@@ -130,9 +157,13 @@ export default function BookingsPage() {
 
     list.sort((a, b) => {
       let result = 0;
-      if (sortKey === "clientName") {
+      if (sortKey === "id") {
+        result = a.id.localeCompare(b.id, "uk");
+      } else if (sortKey === "clientName") {
         result = a.clientName.localeCompare(b.clientName, "uk");
-      } else if (sortKey === "dateTime") {
+      } else if (sortKey === "createdAt") {
+        result = a.createdAt.localeCompare(b.createdAt);
+      } else if (sortKey === "eventDateTime") {
         result = `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`);
       } else if (sortKey === "sector") {
         result = a.sector.localeCompare(b.sector, "uk");
@@ -162,7 +193,7 @@ export default function BookingsPage() {
       return;
     }
     setSortKey(key);
-    setSortDirection(key === "dateTime" || key === "totalPrice" ? "desc" : "asc");
+    setSortDirection(key === "createdAt" || key === "eventDateTime" || key === "totalPrice" ? "desc" : "asc");
   };
 
   const sortIndicator = (key: SortKey) => {
@@ -188,7 +219,12 @@ export default function BookingsPage() {
         </p>
       </div>
 
-      {/* Filters */}
+      {actionError && (
+        <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700">
+          {actionError}
+        </p>
+      )}
+
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           type="text"
@@ -232,7 +268,6 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         {loading ? (
           <div className="py-16 text-center text-sm text-slate-400">Завантаження...</div>
@@ -243,14 +278,24 @@ export default function BookingsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort("id")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      ID{sortIndicator("id")}
+                    </button>
+                  </th>
                   <th className="px-5 py-3">
                     <button type="button" onClick={() => toggleSort("clientName")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
                       Клієнт{sortIndicator("clientName")}
                     </button>
                   </th>
                   <th className="px-4 py-3">
-                    <button type="button" onClick={() => toggleSort("dateTime")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
-                      Дата / Час{sortIndicator("dateTime")}
+                    <button type="button" onClick={() => toggleSort("createdAt")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Дата / Час бронювання{sortIndicator("createdAt")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort("eventDateTime")} className="font-semibold uppercase tracking-wide hover:text-slate-600">
+                      Дата / Час події{sortIndicator("eventDateTime")}
                     </button>
                   </th>
                   <th className="px-4 py-3">
@@ -277,124 +322,167 @@ export default function BookingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((b) => (
-                  <tr
-                    key={b.id}
-                    className="border-b border-slate-50 transition last:border-0 hover:bg-slate-50"
-                  >
-                    <td className="px-5 py-3">
-                      <p className="font-medium text-slate-800">{b.clientName}</p>
-                      <p className="text-xs text-slate-400">{b.clientPhone}</p>
-                      {b.clientEmail && (
-                        <p className="text-xs text-slate-400">{b.clientEmail}</p>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <p className="text-slate-700">{formatDateUk(b.date)}</p>
-                      <p className="text-xs text-slate-400">
-                        {b.startTime}–{b.endTime} ({b.durationHours}г)
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">Поле {b.sector}</td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <p className="font-semibold text-slate-800">
-                        ₴ {b.totalPrice.toLocaleString("uk-UA")}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        ₴ {b.pricePerHour}/год
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${statusColors[b.status] ?? "bg-slate-100 text-slate-600 ring-slate-200"}`}
-                      >
-                        {statusLabels[b.status] ?? b.status}
-                      </span>
-                      {b.notes && (
-                        <p className="mt-1 max-w-[180px] truncate text-xs text-slate-400" title={b.notes}>
-                          {b.notes}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={b.paymentStatus}
-                        disabled={saving === b.id}
-                        onChange={(e) =>
-                          updateBooking(b.id, {
-                            paymentStatus: e.target.value as PaymentStatus,
-                          })
-                        }
-                        className={`rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium outline-none transition focus:ring-1 focus:ring-[var(--green-700)] ${paymentColors[b.paymentStatus] ?? ""}`}
-                      >
-                        <option value="unpaid">Не оплачено</option>
-                        <option value="verification">Перевірка оплати</option>
-                        <option value="paid">Оплачено</option>
-                        <option value="refunded">Повернено</option>
-                      </select>
-                      {b.paymentProofUrl && (
-                        <div className="mt-1 space-y-1">
-                          <a
-                            href={normalizeReceiptUrl(b.paymentProofUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block text-xs font-semibold text-[var(--blue-800)] underline"
-                          >
-                            Квитанція від клієнта
-                          </a>
-                          {b.paymentProofUploadedAt && (
-                            <p className="text-[10px] text-slate-400">{formatDateTimeUk(b.paymentProofUploadedAt)}</p>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1.5">
-                        {b.status === "pending" && (
-                          <button
-                            disabled={saving === b.id}
-                            onClick={() =>
-                              updateBooking(b.id, { status: "confirmed" as BookingStatus })
-                            }
-                            className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-200 transition hover:bg-blue-100 disabled:opacity-50"
-                          >
-                            Підтвердити
-                          </button>
+                {sorted.map((b) => {
+                  const visibleNotes = cleanSystemNotes(b.notes ?? "");
+
+                  return (
+                    <tr
+                      key={b.id}
+                      className="border-b border-slate-50 transition last:border-0 hover:bg-slate-50"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 text-xs font-mono text-slate-700">{b.id}</td>
+                      <td className="px-5 py-3">
+                        <p className="font-medium text-slate-800">{b.clientName}</p>
+                        <p className="text-xs text-slate-400">{b.clientPhone}</p>
+                        {b.clientEmail && (
+                          <p className="text-xs text-slate-400">{b.clientEmail}</p>
                         )}
-                        {b.status !== "cancelled" && (
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">{formatDateTimeUk(b.createdAt)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <p className="text-slate-700">{formatDateUk(b.date)}</p>
+                        <p className="text-xs text-slate-400">
+                          {b.startTime}–{b.endTime} ({b.durationHours}г)
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">Поле {b.sector}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <p className="font-semibold text-slate-800">
+                          ₴ {b.totalPrice.toLocaleString("uk-UA")}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          ₴ {b.pricePerHour}/год
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${statusColors[b.status] ?? "bg-slate-100 text-slate-600 ring-slate-200"}`}
+                        >
+                          {statusLabels[b.status] ?? b.status}
+                        </span>
+                        {visibleNotes && (
+                          <p className="mt-1 max-w-[280px] whitespace-pre-line text-xs text-slate-500" title={visibleNotes}>
+                            {visibleNotes}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className={`text-xs font-semibold ${paymentColors[b.paymentStatus] ?? "text-slate-600"}`}>
+                          {paymentLabels[b.paymentStatus] ?? b.paymentStatus}
+                        </p>
+                        {b.paymentProofUrl && (
+                          <div className="mt-1 space-y-1">
+                            <a
+                              href={normalizeReceiptUrl(b.paymentProofUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block text-xs font-semibold text-[var(--blue-800)] underline"
+                            >
+                              Квитанція від клієнта
+                            </a>
+                            {b.paymentProofUploadedAt && (
+                              <p className="text-[10px] text-slate-400">{formatDateTimeUk(b.paymentProofUploadedAt)}</p>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {b.status === "pending" && (
+                            <button
+                              disabled={saving === b.id}
+                              onClick={() => void updateBooking(b.id, { status: "confirmed" })}
+                              className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-200 transition hover:bg-blue-100 disabled:opacity-50"
+                            >
+                              Підтвердити
+                            </button>
+                          )}
+                          {b.paymentStatus === "verification" && b.paymentProofUrl && b.status !== "cancelled" && b.status !== "completed" && (
+                            <button
+                              disabled={saving === b.id}
+                              onClick={() => void updateBooking(b.id, { paymentStatus: "paid" })}
+                              className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-50"
+                            >
+                              Підтвердити оплату
+                            </button>
+                          )}
                           <button
-                            disabled={saving === b.id}
-                            onClick={() =>
-                              updateBooking(b.id, { status: "cancelled" as BookingStatus })
-                            }
+                            disabled={saving === b.id || b.status === "cancelled"}
+                            onClick={() => {
+                              setCancelTarget(b);
+                              setCancelReason("");
+                              setCancelError("");
+                            }}
                             className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-200 transition hover:bg-red-100 disabled:opacity-50"
                           >
                             Скасувати
                           </button>
-                        )}
-                        {b.status !== "cancelled" && (b.paymentStatus === "paid" || b.paymentStatus === "verification") && (
-                          <button
-                            disabled={saving === b.id}
-                            onClick={() =>
-                              updateBooking(b.id, {
-                                status: "cancelled" as BookingStatus,
-                                paymentStatus: "refunded" as PaymentStatus,
-                              })
-                            }
-                            className="rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 ring-1 ring-orange-200 transition hover:bg-orange-100 disabled:opacity-50"
-                          >
-                            Повернення
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
+            <h2 className="text-lg font-semibold text-slate-800">Скасування бронювання</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Вкажіть причину для {cancelTarget.id}. Після збереження причина буде доступна тільки для перегляду.
+            </p>
+
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={4}
+              className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[var(--green-700)]"
+              placeholder="Причина скасування"
+            />
+
+            {cancelError && (
+              <p className="mt-2 text-sm font-semibold text-rose-700">{cancelError}</p>
+            )}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelTarget(null);
+                  setCancelReason("");
+                  setCancelError("");
+                }}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600"
+              >
+                Закрити
+              </button>
+              <button
+                type="button"
+                disabled={saving === cancelTarget.id}
+                onClick={async () => {
+                  const reason = cancelReason.trim();
+                  if (!reason) {
+                    setCancelError("Вкажіть причину скасування");
+                    return;
+                  }
+                  const ok = await updateBooking(cancelTarget.id, { status: "cancelled" }, { cancelReason: reason });
+                  if (!ok) return;
+                  setCancelTarget(null);
+                  setCancelReason("");
+                  setCancelError("");
+                }}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                ОК
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
