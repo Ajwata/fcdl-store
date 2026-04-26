@@ -273,7 +273,7 @@ export function ScheduleManager() {
 
       {mode === "single" && (<>
       {/* Controls */}
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[320px_auto] lg:items-start lg:justify-start">
         <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Дата</p>
           <div className="mt-2 flex items-center justify-between gap-2">
@@ -333,9 +333,9 @@ export function ScheduleManager() {
           <p className="mt-2 text-xs font-medium text-slate-500">Обрано: {formatDateUk(date)}</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:w-fit">
           <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Поле</label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:w-[430px]">
             {SECTORS.map((s) => {
               const active = sector === s;
               return (
