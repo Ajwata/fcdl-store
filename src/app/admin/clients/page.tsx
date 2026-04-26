@@ -1,4 +1,5 @@
 import { getBookings } from "@/lib/bookings";
+import { getClientAccessRecords } from "@/lib/access-control";
 import { getAllClientUsers } from "@/lib/client-auth";
 import { getClientDiscounts } from "@/lib/client-discounts";
 
@@ -13,11 +14,17 @@ type ClientSummary = {
   lastBookingDate: string;
   sectors: string[];
   registeredAt: string | null;
+  isBlocked: boolean;
 };
+
+function phoneKey(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
 
 function buildClients(
   bookings: Awaited<ReturnType<typeof getBookings>>,
   registeredUsers: Awaited<ReturnType<typeof getAllClientUsers>>,
+  blockedClientKeys: Set<string>,
 ): ClientSummary[] {
   const map = new Map<string, ClientSummary>();
 
@@ -32,6 +39,7 @@ function buildClients(
       lastBookingDate: "",
       sectors: [],
       registeredAt: u.createdAt,
+      isBlocked: blockedClientKeys.has(phoneKey(u.phone)),
     });
   }
 
@@ -57,6 +65,7 @@ function buildClients(
         lastBookingDate: b.date,
         sectors: [b.sector],
         registeredAt: null,
+        isBlocked: blockedClientKeys.has(phoneKey(b.clientPhone)),
       });
     }
   }
@@ -65,12 +74,16 @@ function buildClients(
 }
 
 export default async function ClientsPage() {
-  const [bookings, registeredUsers, discounts] = await Promise.all([
+  const [bookings, registeredUsers, discounts, clientAccess] = await Promise.all([
     getBookings(),
     getAllClientUsers(),
     getClientDiscounts(),
+    getClientAccessRecords(),
   ]);
-  const clients = buildClients(bookings, registeredUsers);
+  const blockedClientKeys = new Set(
+    clientAccess.filter((item) => item.isBlocked).map((item) => item.clientPhoneKey),
+  );
+  const clients = buildClients(bookings, registeredUsers, blockedClientKeys);
   const nonCancelledBookings = bookings.filter((b) => b.status !== "cancelled");
 
   const totalRevenue = nonCancelledBookings

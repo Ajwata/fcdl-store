@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getClientUserByPhone, toPublicClientUser, touchClientUserLogin, validateClientLoginPassword } from "@/lib/client-auth";
+import { isClientBlocked } from "@/lib/access-control";
 import { CLIENT_COOKIE_NAME, createClientSessionToken } from "@/lib/client-session";
 import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
@@ -34,6 +35,13 @@ export async function POST(request: Request) {
   const existingUser = await getClientUserByPhone(body.phone);
   if (!existingUser) {
     return NextResponse.json({ error: "Акаунт не знайдено. Оберіть реєстрацію." }, { status: 404 });
+  }
+
+  if (await isClientBlocked(existingUser.phone)) {
+    return NextResponse.json(
+      { error: "Доступ заборонено. Ваш акаунт заблоковано. Зверніться до адміністратора." },
+      { status: 403 },
+    );
   }
 
   const user = await touchClientUserLogin(existingUser.id);

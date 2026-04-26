@@ -2,7 +2,9 @@ import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { getManagerAccessById, getManagerAccessRecords, removeManagerAccess, upsertManagerAccess } from "@/lib/access-control";
 import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getReferralAssignments } from "@/lib/referrals";
 
 export type AdminRole = "superadmin" | "manager";
 
@@ -15,7 +17,10 @@ export type AdminUserRecord = {
   createdAt: string;
 };
 
-export type AdminUserPublic = Omit<AdminUserRecord, "passwordHash">;
+export type AdminUserPublic = Omit<AdminUserRecord, "passwordHash"> & {
+  isBlocked: boolean;
+  bonusPercent: number;
+};
 
 const adminUsersFilePath = path.join(process.cwd(), "src", "data", "admin-users.json");
 
@@ -175,9 +180,21 @@ async function saveAdminUsers(users: AdminUserRecord[]): Promise<void> {
   await writeJsonFile(adminUsersFilePath, users);
 }
 
-function toPublicUser(user: AdminUserRecord): AdminUserPublic {
+function toPublicUser(user: AdminUserRecord, managerMeta?: { isBlocked: boolean; bonusPercent: number }): AdminUserPublic {
   const { passwordHash: _passwordHash, ...publicData } = user;
-  return publicData;
+  if (user.role === "manager") {
+    return {
+      ...publicData,
+      isBlocked: managerMeta?.isBlocked ?? false,
+      bonusPercent: managerMeta?.bonusPercent ?? 0,
+    };
+  }
+
+  return {
+    ...publicData,
+    isBlocked: false,
+    bonusPercent: 0,
+  };
 }
 
 export function isValidAdminLogin(login: string): boolean {
@@ -186,7 +203,19 @@ export function isValidAdminLogin(login: string): boolean {
 
 export async function listAdminUsers(): Promise<AdminUserPublic[]> {
   const users = await readAdminUsers();
-  return users.map(toPublicUser);
+  const managerMeta = await getManagerAccessRecords();
+  const managerMetaById = new Map(managerMeta.map((item) => [item.managerId, item]));
+  return users.map((user) =>
+    toPublicUser(
+      user,
+      user.role === "manager"
+        ? {
+            isBlocked: managerMetaById.get(user.id)?.isBlocked ?? false,
+            bonusPercent: managerMetaById.get(user.id)?.bonusPercent ?? 0,
+          }
+        : undefined,
+    ),
+  );
 }
 
 export async function findAdminUserByLogin(loginRaw: string): Promise<AdminUserRecord | null> {
@@ -242,7 +271,50 @@ export async function createManagerUser(input: {
 
   const nextUsers = [...users, nextUser];
   await saveAdminUsers(nextUsers);
-  return toPublicUser(nextUser);
+  await upsertManagerAccess({ managerId: nextUser.id, isBlocked: false, bonusPercent: 0 });
+  return toPublicUser(nextUser, { isBlocked: false, bonusPercent: 0 });
+}
+
+export async function updateManagerUserAccess(input: {
+  userId: string;
+  isBlocked?: boolean;
+  bonusPercent?: number;
+  updatedById?: string;
+}): Promise<{ ok: boolean; user?: AdminUserPublic; error?: string }> {
+  const id = input.userId.trim();
+  if (!id) {
+    return { ok: false, error: "Некоректний ID користувача" };
+  }
+
+  const users = await readAdminUsers();
+  const target = users.find((item) => item.id === id);
+  if (!target) {
+    return { ok: false, error: "Користувача не знайдено" };
+  }
+  if (target.role !== "manager") {
+    return { ok: false, error: "Змінювати можна лише менеджерів" };
+  }
+
+  if (input.bonusPercent !== undefined) {
+    if (!Number.isFinite(input.bonusPercent) || input.bonusPercent < 0 || input.bonusPercent > 100) {
+      return { ok: false, error: "Надбавка має бути в межах 0-100%" };
+    }
+  }
+
+  const updatedMeta = await upsertManagerAccess({
+    managerId: id,
+    isBlocked: input.isBlocked,
+    bonusPercent: input.bonusPercent,
+    updatedById: input.updatedById,
+  });
+
+  return {
+    ok: true,
+    user: toPublicUser(target, {
+      isBlocked: updatedMeta.isBlocked,
+      bonusPercent: updatedMeta.bonusPercent,
+    }),
+  };
 }
 
 export async function updateAdminPassword(
@@ -287,7 +359,14 @@ export async function deleteManagerUser(userId: string): Promise<{ ok: boolean; 
     return { ok: false, error: "Можна видаляти лише менеджерів" };
   }
 
+  const assignments = await getReferralAssignments();
+  const referredClientsCount = assignments.filter((item) => item.managerId === id).length;
+  if (referredClientsCount > 0) {
+    return { ok: false, error: "Менеджера не можна видалити, бо за ним закріплені клієнти" };
+  }
+
   const nextUsers = users.filter((user) => user.id !== id);
   await saveAdminUsers(nextUsers);
+  await removeManagerAccess(id);
   return { ok: true };
 }

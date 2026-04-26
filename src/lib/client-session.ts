@@ -1,3 +1,5 @@
+import { isClientBlocked } from "@/lib/access-control";
+
 export const CLIENT_COOKIE_NAME = "client_session";
 
 const CLIENT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -69,6 +71,11 @@ export async function verifyClientSessionToken(token: string | undefined): Promi
     if (!payload.uid || !payload.phone || !payload.exp || Date.now() > payload.exp) {
       return null;
     }
+
+    if (await isClientBlocked(payload.phone)) {
+      return null;
+    }
+
     return payload;
   } catch {
     return null;

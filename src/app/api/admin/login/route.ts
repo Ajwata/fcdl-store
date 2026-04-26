@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { COOKIE_NAME, createSessionToken } from "@/lib/auth";
+import { getManagerAccessById } from "@/lib/access-control";
 import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 import { verifyAdminCredentials } from "@/lib/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -26,6 +27,13 @@ export async function POST(request: Request) {
   const user = await verifyAdminCredentials(login, password);
   if (!user) {
     return NextResponse.json({ error: "Невірний логін або пароль" }, { status: 401 });
+  }
+
+  if (user.role === "manager") {
+    const managerAccess = await getManagerAccessById(user.id);
+    if (managerAccess?.isBlocked) {
+      return NextResponse.json({ error: "Доступ заборонено. Ваш акаунт заблоковано." }, { status: 403 });
+    }
   }
 
   const token = await createSessionToken({

@@ -10,6 +10,9 @@ type AdminUser = {
   name: string;
   role: "superadmin" | "manager";
   createdAt: string;
+  isBlocked: boolean;
+  bonusPercent: number;
+  referredClients: number;
 };
 
 export function AdminUsersManager() {
@@ -17,6 +20,9 @@ export function AdminUsersManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "active" | "blocked">("active");
+  const [bonusDrafts, setBonusDrafts] = useState<Record<string, string>>({});
   const [status, setStatus] = useState("");
 
   const [name, setName] = useState("");
@@ -32,7 +38,13 @@ export function AdminUsersManager() {
         setStatus(result.error ?? "Не вдалося завантажити користувачів");
         return;
       }
-      setUsers(result.users ?? []);
+      const nextUsers = result.users ?? [];
+      setUsers(nextUsers);
+      setBonusDrafts(
+        Object.fromEntries(
+          nextUsers.filter((item) => item.role === "manager").map((item) => [item.id, String(item.bonusPercent ?? 0)]),
+        ),
+      );
     } catch {
       setStatus("Помилка мережі");
     } finally {
@@ -81,6 +93,11 @@ export function AdminUsersManager() {
       return;
     }
 
+    if (user.referredClients > 0) {
+      setStatus("Менеджера не можна видалити, бо за ним закріплені клієнти");
+      return;
+    }
+
     const confirmed = window.confirm(`Видалити менеджера ${user.name} (${user.login})?`);
     if (!confirmed) return;
 
@@ -107,6 +124,78 @@ export function AdminUsersManager() {
       setDeletingId(null);
     }
   };
+
+  const toggleManagerBlock = async (user: AdminUser) => {
+    if (user.role !== "manager") return;
+    setUpdatingId(user.id);
+    setStatus("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, isBlocked: !user.isBlocked }),
+      });
+
+      const result = (await response.json()) as { user?: AdminUser; error?: string };
+      if (!response.ok || !result.user) {
+        setStatus(result.error ?? "Не вдалося оновити доступ менеджера");
+        return;
+      }
+
+      setUsers((prev) => prev.map((item) => (item.id === user.id ? { ...item, isBlocked: result.user!.isBlocked } : item)));
+      setStatus(result.user.isBlocked ? "Менеджера заблоковано" : "Менеджера розблоковано");
+    } catch {
+      setStatus("Помилка мережі");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const saveBonus = async (user: AdminUser) => {
+    if (user.role !== "manager") return;
+    const numeric = Number(bonusDrafts[user.id] ?? "0");
+    if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100) {
+      setStatus("Надбавка має бути в межах 0-100%");
+      return;
+    }
+
+    setUpdatingId(user.id);
+    setStatus("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, bonusPercent: numeric }),
+      });
+
+      const result = (await response.json()) as { user?: AdminUser; error?: string };
+      if (!response.ok || !result.user) {
+        setStatus(result.error ?? "Не вдалося зберегти надбавку");
+        return;
+      }
+
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === user.id
+            ? { ...item, bonusPercent: result.user!.bonusPercent }
+            : item,
+        ),
+      );
+      setBonusDrafts((prev) => ({ ...prev, [user.id]: String(result.user!.bonusPercent) }));
+      setStatus("Надбавку збережено");
+    } catch {
+      setStatus("Помилка мережі");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const visibleUsers = users.filter((user) => {
+    if (user.role !== "manager") return true;
+    if (filter === "active") return !user.isBlocked;
+    if (filter === "blocked") return user.isBlocked;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -152,11 +241,34 @@ export function AdminUsersManager() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-bold text-slate-800">Користувачі адмінки</h2>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFilter("active")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${filter === "active" ? "bg-[var(--green-700)] text-white" : "bg-slate-100 text-slate-600"}`}
+            >
+              Активні
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter("blocked")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${filter === "blocked" ? "bg-[var(--green-700)] text-white" : "bg-slate-100 text-slate-600"}`}
+            >
+              Заблоковані
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${filter === "all" ? "bg-[var(--green-700)] text-white" : "bg-slate-100 text-slate-600"}`}
+            >
+              Всі
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <p className="py-10 text-center text-sm text-slate-400">Завантаження...</p>
-        ) : users.length === 0 ? (
+        ) : visibleUsers.length === 0 ? (
           <p className="py-10 text-center text-sm text-slate-400">Користувачів не знайдено</p>
         ) : (
           <div className="overflow-x-auto">
@@ -166,12 +278,14 @@ export function AdminUsersManager() {
                   <th className="px-6 py-3">Ім'я</th>
                   <th className="px-4 py-3">Логін</th>
                   <th className="px-4 py-3">Роль</th>
+                  <th className="px-4 py-3">Надбавка</th>
+                  <th className="px-4 py-3">Клієнти</th>
                   <th className="px-4 py-3">Створено</th>
                   <th className="px-4 py-3">Дії</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {visibleUsers.map((user) => (
                   <tr key={user.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-6 py-3 font-medium text-slate-800">{user.name}</td>
                     <td className="px-4 py-3 text-slate-600">{user.login}</td>
@@ -179,20 +293,69 @@ export function AdminUsersManager() {
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${user.role === "superadmin" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>
                         {user.role === "superadmin" ? "Головний адмін" : "Менеджер"}
                       </span>
+                      {user.role === "manager" && user.isBlocked && (
+                        <span className="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">Заблокований</span>
+                      )}
                     </td>
+                    <td className="px-4 py-3">
+                      {user.role === "manager" ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={bonusDrafts[user.id] ?? "0"}
+                            onChange={(event) =>
+                              setBonusDrafts((prev) => ({ ...prev, [user.id]: event.target.value }))
+                            }
+                            className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                          />
+                          <span className="text-xs text-slate-500">%</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void saveBonus(user);
+                            }}
+                            disabled={updatingId === user.id}
+                            className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                          >
+                            OK
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{user.role === "manager" ? user.referredClients : 0}</td>
                     <td className="px-4 py-3 text-slate-500">{formatDateTimeUk(user.createdAt)}</td>
                     <td className="px-4 py-3">
                       {user.role === "manager" ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void deleteManager(user);
-                          }}
-                          disabled={deletingId === user.id}
-                          className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100 disabled:opacity-60"
-                        >
-                          {deletingId === user.id ? "Видалення..." : "Видалити"}
-                        </button>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void toggleManagerBlock(user);
+                            }}
+                            disabled={updatingId === user.id}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                              user.isBlocked
+                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
+                                : "bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
+                            }`}
+                          >
+                            {user.isBlocked ? "Розблокувати" : "Заблокувати"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void deleteManager(user);
+                            }}
+                            disabled={deletingId === user.id || user.referredClients > 0}
+                            className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100 disabled:opacity-60"
+                          >
+                            {deletingId === user.id ? "Видалення..." : "Видалити"}
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}

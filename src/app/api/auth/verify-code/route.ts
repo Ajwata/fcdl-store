@@ -7,6 +7,7 @@ import {
   touchClientUserLogin,
   verifySmsCode,
 } from "@/lib/client-auth";
+import { isClientBlocked } from "@/lib/access-control";
 import { CLIENT_COOKIE_NAME, createClientSessionToken } from "@/lib/client-session";
 import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
   }
 
   const existingUser = await getClientUserByPhone(body.phone);
+
+  if (await isClientBlocked(body.phone)) {
+    return NextResponse.json(
+      { error: "Доступ заборонено. Ваш акаунт заблоковано. Зверніться до адміністратора." },
+      { status: 403 },
+    );
+  }
 
   if (mode === "login" && !existingUser) {
     return NextResponse.json({ error: "Акаунт не знайдено. Спочатку зареєструйтеся." }, { status: 404 });

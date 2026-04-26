@@ -13,6 +13,7 @@ type ClientSummary = {
   lastBookingDate: string;
   sectors: string[];
   registeredAt: string | null;
+  isBlocked: boolean;
 };
 
 type DiscountRow = {
@@ -34,9 +35,13 @@ function phoneKey(phone: string): string {
 
 export function ClientsTable({ clients, initialDiscounts }: Props) {
   const [discounts, setDiscounts] = useState<DiscountRow[]>(initialDiscounts);
+  const [blockedByKey, setBlockedByKey] = useState<Record<string, boolean>>(
+    Object.fromEntries(clients.map((item) => [phoneKey(item.phone), item.isBlocked])),
+  );
   const [modalClient, setModalClient] = useState<ClientSummary | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [togglingKey, setTogglingKey] = useState<string | null>(null);
   const [modalStatus, setModalStatus] = useState("");
 
   const discountsByKey = useMemo(
@@ -93,6 +98,32 @@ export function ClientsTable({ clients, initialDiscounts }: Props) {
     }
   }
 
+  async function toggleClientBlock(client: ClientSummary) {
+    const key = phoneKey(client.phone);
+    const nextBlocked = !(blockedByKey[key] ?? false);
+    setTogglingKey(key);
+    setModalStatus("");
+    try {
+      const response = await fetch("/api/admin/clients/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientPhone: client.phone, isBlocked: nextBlocked }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setModalStatus(result.error ?? "Не вдалося змінити доступ клієнта");
+        return;
+      }
+
+      setBlockedByKey((prev) => ({ ...prev, [key]: nextBlocked }));
+    } catch {
+      setModalStatus("Помилка мережі");
+    } finally {
+      setTogglingKey(null);
+    }
+  }
+
   return (
     <>
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -110,12 +141,14 @@ export function ClientsTable({ clients, initialDiscounts }: Props) {
                   <th className="px-4 py-3">Поля</th>
                   <th className="px-4 py-3">Останнє</th>
                   <th className="px-4 py-3">Знижка</th>
+                  <th className="px-4 py-3">Доступ</th>
                 </tr>
               </thead>
               <tbody>
                 {clients.map((client) => {
                   const key = phoneKey(client.phone);
                   const discount = discountsByKey.get(key)?.discountPercent ?? 0;
+                  const isBlocked = blockedByKey[key] ?? false;
                   return (
                     <tr
                       key={client.phone}
@@ -183,6 +216,26 @@ export function ClientsTable({ clients, initialDiscounts }: Props) {
                           }`}
                         >
                           {discount > 0 ? `${discount}%` : "+ знижка"}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void toggleClientBlock(client);
+                          }}
+                          disabled={togglingKey === key}
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold transition disabled:opacity-60 ${
+                            isBlocked
+                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                              : "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                          }`}
+                        >
+                          {togglingKey === key
+                            ? "..."
+                            : isBlocked
+                              ? "Розблокувати"
+                              : "Заблокувати"}
                         </button>
                       </td>
                     </tr>
