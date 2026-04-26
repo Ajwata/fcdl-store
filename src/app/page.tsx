@@ -7,6 +7,7 @@ import { LiveStreams } from "@/components/live-streams";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { StatsSection } from "@/components/stats-section";
+import { HashScrollLink } from "@/components/ui/hash-scroll-link";
 import type { StatItem } from "@/data/cms-defaults";
 import { getBookings } from "@/lib/bookings";
 import { getAllClientUsers } from "@/lib/client-auth";
@@ -178,12 +179,12 @@ export default async function Home() {
                       <p className="text-white/78">{promoOffers[0].terms}</p>
                       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/72">{promoOffers[0].usedBy}</p>
                     </div>
-                    <Link
+                    <HashScrollLink
                       href={promoOffers[0].href}
                       className="mt-6 inline-flex w-fit items-center justify-center rounded-full bg-[var(--green-700)] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[var(--green-800)]"
                     >
                       {promoOffers[0].cta}
-                    </Link>
+                    </HashScrollLink>
                   </div>
                 </article>
               )}
@@ -210,12 +211,12 @@ export default async function Home() {
                       <p className="mt-2 text-sm leading-6 text-white/92 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]">{offer.description}</p>
                       <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/72">{offer.validUntil}</p>
                       <p className="mt-1 text-xs text-white/72">{offer.terms}</p>
-                      <Link
+                      <HashScrollLink
                         href={offer.href}
                         className="mt-4 inline-flex w-fit items-center justify-center rounded-full bg-[var(--green-700)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] !text-white transition hover:bg-[var(--green-800)]"
                       >
                         {offer.cta}
-                      </Link>
+                      </HashScrollLink>
                     </div>
                   </article>
                 ))}
