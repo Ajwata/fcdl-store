@@ -25,6 +25,9 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
   }
+  if (session.role !== "superadmin") {
+    return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
+  }
 
   const settings = await getPaymentSettings();
   return NextResponse.json({ settings });
@@ -36,6 +39,9 @@ export async function PATCH(request: Request) {
   const session = await verifySessionToken(token);
   if (!session) {
     return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
+  }
+  if (session.role !== "superadmin") {
+    return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
   }
 
   const body = (await request.json().catch(() => ({}))) as Partial<PaymentSettings>;

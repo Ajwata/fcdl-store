@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import type { AdminRole } from "@/lib/admin-users";
+
 type PaymentWindowRule = {
   minDaysBeforeStart: number;
   maxDaysBeforeStart: number | null;
@@ -24,6 +26,7 @@ const defaultPaymentSettings: PaymentSettings = {
 };
 
 export default function AdminSettingsPage() {
+  const [role, setRole] = useState<AdminRole | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,6 +37,27 @@ export default function AdminSettingsPage() {
   const [paymentLoading, setPaymentLoading] = useState(true);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadRole = async () => {
+      try {
+        const response = await fetch("/api/admin/referrals", { cache: "no-store" });
+        const data = (await response.json()) as { role?: AdminRole };
+        if (cancelled) return;
+        setRole(data.role ?? null);
+      } catch {
+        if (cancelled) return;
+        setRole(null);
+      }
+    };
+
+    void loadRole();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -228,6 +252,7 @@ export default function AdminSettingsPage() {
         </form>
       </div>
 
+      {role === "superadmin" && (
       <div className="mt-6 max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-base font-semibold text-[var(--blue-950)]">Правила дедлайнів і оплати</h2>
         <p className="mb-5 text-sm text-slate-500">
@@ -334,6 +359,7 @@ export default function AdminSettingsPage() {
           </form>
         )}
       </div>
+      )}
     </main>
   );
 }
