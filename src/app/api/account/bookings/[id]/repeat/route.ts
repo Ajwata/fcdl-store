@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { autoCompleteExpiredPaidBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings, getNextBookingNumber, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts";
 import { addClientNotification } from "@/lib/client-engagement";
@@ -123,7 +123,7 @@ export async function POST(
 
   const repeated = {
     ...source,
-    id: `booking-${Date.now()}`,
+    id: String(await getNextBookingNumber()),
     clientUserId: payload.uid,
     clientPhone: user.phone,
     date: targetDate,

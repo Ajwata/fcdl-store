@@ -186,6 +186,16 @@ export async function getBookings(): Promise<Booking[]> {
   }
 }
 
+export async function getNextBookingNumber(): Promise<number> {
+  const bookings = await getBookings();
+  let max = 0;
+  for (const b of bookings) {
+    const num = parseInt(b.id, 10);
+    if (!isNaN(num) && num > max) max = num;
+  }
+  return max + 1;
+}
+
 function toBookingEndTimestamp(booking: Booking): number {
   return new Date(`${booking.date}T${booking.endTime}:00`).getTime();
 }

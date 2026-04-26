@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { autoCompleteExpiredPaidBookings, filterBookingsForUser, getBookings, saveBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings, filterBookingsForUser, getBookings, getNextBookingNumber, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts";
 import { addClientNotification } from "@/lib/client-engagement";
@@ -159,13 +159,15 @@ export async function POST(request: Request) {
   const createdAt = new Date().toISOString();
   const adminDecisionDueAt = new Date(Date.now() + paymentSettings.adminDecisionHours * 60 * 60 * 1000).toISOString();
   
+  const baseBookingNumber = await getNextBookingNumber();
+
   // Calculate paymentDueAt for each booking based on game date
-  const createdBookings = preparedItems.map((item) => {
+  const createdBookings = preparedItems.map((item, index) => {
     const paymentWindowHours = getPaymentWindowHours(item.date, paymentSettings);
     const paymentDueAt = new Date(Date.now() + paymentWindowHours * 60 * 60 * 1000).toISOString();
     
     return {
-      id: `booking-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: String(baseBookingNumber + index),
       clientUserId: payload.uid,
       clientName: user.name,
       clientPhone: user.phone,
