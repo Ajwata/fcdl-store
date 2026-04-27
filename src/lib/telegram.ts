@@ -1,10 +1,12 @@
 /**
  * Telegram notifications for admin chat
- * Requires: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars
+ * Requires: TELEGRAM_BOT_TOKEN env var
+ * Chat is fixed to -5172233799
  */
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+// Safety guard: all notifications must go only to this chat.
+const TELEGRAM_CHAT_ID = "-5172233799";
 
 function isTelegramConfigured(): boolean {
   return Boolean(TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID);

@@ -24,6 +24,36 @@ function toIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function buildCalendarDays(monthDate: Date): Array<{ iso: string; dayNumber: number; inCurrentMonth: boolean }> {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const firstWeekday = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const days: Array<{ iso: string; dayNumber: number; inCurrentMonth: boolean }> = [];
+
+  for (let index = 0; index < firstWeekday; index++) {
+    const dayNumber = daysInPrevMonth - firstWeekday + index + 1;
+    const d = new Date(year, month - 1, dayNumber);
+    days.push({ iso: toIsoDate(d), dayNumber, inCurrentMonth: false });
+  }
+
+  for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) {
+    const d = new Date(year, month, dayNumber);
+    days.push({ iso: toIsoDate(d), dayNumber, inCurrentMonth: true });
+  }
+
+  const trailing = days.length % 7 === 0 ? 0 : 7 - (days.length % 7);
+  for (let index = 1; index <= trailing; index++) {
+    const d = new Date(year, month + 1, index);
+    days.push({ iso: toIsoDate(d), dayNumber: index, inCurrentMonth: false });
+  }
+
+  return days;
+}
+
 function formatDateUk(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const [year, month, day] = value.split("-");
@@ -73,6 +103,14 @@ export function ScheduleManager() {
   // ── Range state ──────────────────────────────────────────────────────────
   const [rangeFrom, setRangeFrom] = useState(toDateInputDefault);
   const [rangeTo, setRangeTo] = useState(toDateInputDefault);
+  const [rangeFromCalendarMonth, setRangeFromCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [rangeToCalendarMonth, setRangeToCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [rangeSectors, setRangeSectors] = useState<string[]>([...SECTORS]);
   const [rangeHours, setRangeHours] = useState<Set<number>>(new Set());
   const [rangeSaving, setRangeSaving] = useState(false);
@@ -136,34 +174,52 @@ export function ScheduleManager() {
   }, [calendarMonth]);
 
   const inlineCalendarDays = useMemo(() => {
-    const year = calendarMonth.getFullYear();
-    const month = calendarMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const firstWeekday = (firstDay.getDay() + 6) % 7;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-    const days: Array<{ iso: string; dayNumber: number; inCurrentMonth: boolean }> = [];
-
-    for (let index = 0; index < firstWeekday; index++) {
-      const dayNumber = daysInPrevMonth - firstWeekday + index + 1;
-      const d = new Date(year, month - 1, dayNumber);
-      days.push({ iso: toIsoDate(d), dayNumber, inCurrentMonth: false });
-    }
-
-    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) {
-      const d = new Date(year, month, dayNumber);
-      days.push({ iso: toIsoDate(d), dayNumber, inCurrentMonth: true });
-    }
-
-    const trailing = days.length % 7 === 0 ? 0 : 7 - (days.length % 7);
-    for (let index = 1; index <= trailing; index++) {
-      const d = new Date(year, month + 1, index);
-      days.push({ iso: toIsoDate(d), dayNumber: index, inCurrentMonth: false });
-    }
-
-    return days;
+    return buildCalendarDays(calendarMonth);
   }, [calendarMonth]);
+
+  useEffect(() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rangeFrom)) return;
+    const [yearRaw, monthRaw] = rangeFrom.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    if (!Number.isFinite(year) || !Number.isFinite(month)) return;
+    setRangeFromCalendarMonth((prev) => {
+      if (prev.getFullYear() === year && prev.getMonth() === month - 1) {
+        return prev;
+      }
+      return new Date(year, month - 1, 1);
+    });
+  }, [rangeFrom]);
+
+  useEffect(() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rangeTo)) return;
+    const [yearRaw, monthRaw] = rangeTo.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    if (!Number.isFinite(year) || !Number.isFinite(month)) return;
+    setRangeToCalendarMonth((prev) => {
+      if (prev.getFullYear() === year && prev.getMonth() === month - 1) {
+        return prev;
+      }
+      return new Date(year, month - 1, 1);
+    });
+  }, [rangeTo]);
+
+  const rangeFromMonthLabel = useMemo(() => {
+    return new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(rangeFromCalendarMonth);
+  }, [rangeFromCalendarMonth]);
+
+  const rangeToMonthLabel = useMemo(() => {
+    return new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(rangeToCalendarMonth);
+  }, [rangeToCalendarMonth]);
+
+  const rangeFromCalendarDays = useMemo(() => {
+    return buildCalendarDays(rangeFromCalendarMonth);
+  }, [rangeFromCalendarMonth]);
+
+  const rangeToCalendarDays = useMemo(() => {
+    return buildCalendarDays(rangeToCalendarMonth);
+  }, [rangeToCalendarMonth]);
 
   function toggleHour(hour: number) {
     const current = slots[hour];
@@ -477,24 +533,121 @@ export function ScheduleManager() {
 
           <div className="space-y-6 p-6">
             {/* Date range */}
-            <div className="flex flex-wrap items-end gap-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-500">З дати</label>
-                <input
-                  type="date"
-                  value={rangeFrom}
-                  onChange={(e) => setRangeFrom(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                />
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">З дати</p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRangeFromCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700"
+                    aria-label="Попередній місяць"
+                  >
+                    ←
+                  </button>
+                  <p className="text-sm font-semibold capitalize text-slate-800">{rangeFromMonthLabel}</p>
+                  <button
+                    type="button"
+                    onClick={() => setRangeFromCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700"
+                    aria-label="Наступний місяць"
+                  >
+                    →
+                  </button>
+                </div>
+
+                <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"].map((dayLabel) => (
+                    <span key={dayLabel}>{dayLabel}</span>
+                  ))}
+                </div>
+
+                <div className="mt-1 grid grid-cols-7 gap-1">
+                  {rangeFromCalendarDays.map((day) => {
+                    const isSelected = day.iso === rangeFrom;
+                    return (
+                      <button
+                        key={day.iso}
+                        type="button"
+                        onClick={() => {
+                          setRangeFrom(day.iso);
+                          if (!day.inCurrentMonth) {
+                            const d = new Date(`${day.iso}T00:00:00`);
+                            setRangeFromCalendarMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                          }
+                        }}
+                        className={`h-9 rounded-md text-sm font-semibold transition ${
+                          isSelected
+                            ? "bg-[#10243a] text-white"
+                            : day.inCurrentMonth
+                              ? "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                              : "bg-slate-50/70 text-slate-400 hover:bg-slate-100"
+                        }`}
+                      >
+                        {day.dayNumber}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs font-medium text-slate-500">Обрано: {formatDateUk(rangeFrom)}</p>
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-500">По дату</label>
-                <input
-                  type="date"
-                  value={rangeTo}
-                  onChange={(e) => setRangeTo(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                />
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">По дату</p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRangeToCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700"
+                    aria-label="Попередній місяць"
+                  >
+                    ←
+                  </button>
+                  <p className="text-sm font-semibold capitalize text-slate-800">{rangeToMonthLabel}</p>
+                  <button
+                    type="button"
+                    onClick={() => setRangeToCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700"
+                    aria-label="Наступний місяць"
+                  >
+                    →
+                  </button>
+                </div>
+
+                <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"].map((dayLabel) => (
+                    <span key={dayLabel}>{dayLabel}</span>
+                  ))}
+                </div>
+
+                <div className="mt-1 grid grid-cols-7 gap-1">
+                  {rangeToCalendarDays.map((day) => {
+                    const isSelected = day.iso === rangeTo;
+                    return (
+                      <button
+                        key={day.iso}
+                        type="button"
+                        onClick={() => {
+                          setRangeTo(day.iso);
+                          if (!day.inCurrentMonth) {
+                            const d = new Date(`${day.iso}T00:00:00`);
+                            setRangeToCalendarMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                          }
+                        }}
+                        className={`h-9 rounded-md text-sm font-semibold transition ${
+                          isSelected
+                            ? "bg-[#10243a] text-white"
+                            : day.inCurrentMonth
+                              ? "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                              : "bg-slate-50/70 text-slate-400 hover:bg-slate-100"
+                        }`}
+                      >
+                        {day.dayNumber}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs font-medium text-slate-500">Обрано: {formatDateUk(rangeTo)}</p>
               </div>
             </div>
 
