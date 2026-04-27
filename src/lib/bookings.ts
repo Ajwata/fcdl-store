@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { getPaymentSettings } from "@/lib/payment-settings";
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 export type PaymentStatus = "unpaid" | "verification" | "paid" | "refunded";
@@ -33,6 +33,12 @@ export type Booking = {
 };
 
 const dataPath = path.join(process.cwd(), "src", "data", "bookings.json");
+
+function assertJsonFallbackAllowed(): void {
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for bookings in strict database mode");
+  }
+}
 
 function phoneKey(value: string): string {
   return value.replace(/\D/g, "");
@@ -151,6 +157,8 @@ export async function rebindBookingsToUser(userId: string, oldPhone: string, new
     return;
   }
 
+  assertJsonFallbackAllowed();
+
   const bookings = await getBookings();
   let changed = false;
 
@@ -177,6 +185,8 @@ export async function getBookings(): Promise<Booking[]> {
     const rows = await prisma.booking.findMany({ orderBy: [{ createdAt: "asc" }] });
     return rows.map(bookingFromDb);
   }
+
+  assertJsonFallbackAllowed();
 
   try {
     const raw = await fs.readFile(dataPath, "utf-8");
@@ -252,6 +262,8 @@ export async function reserveBookingNumbers(count: number): Promise<number> {
       `;
     }
   }
+
+  assertJsonFallbackAllowed();
 
   const bookings = await getBookings();
   let max = 0;
@@ -408,6 +420,8 @@ export async function saveBookings(bookings: Booking[]): Promise<void> {
     return;
   }
 
+  assertJsonFallbackAllowed();
+
   await fs.writeFile(dataPath, JSON.stringify(bookings, null, 2) + "\n", "utf-8");
 }
 
@@ -433,6 +447,8 @@ export async function updateBooking(
     });
     return bookingFromDb(updated);
   }
+
+  assertJsonFallbackAllowed();
 
   const bookings = await getBookings();
   const index = bookings.findIndex((b) => b.id === id);
