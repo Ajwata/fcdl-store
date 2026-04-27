@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "node scripts/prepare-standalone.mjs",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "prisma generate",
