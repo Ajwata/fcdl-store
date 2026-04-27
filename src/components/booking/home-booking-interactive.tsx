@@ -203,6 +203,11 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
     return applyDiscount(base, effectiveDiscountPercent);
   }, [pricing, discountPercent, selectedSector, selectedSlot, selectedDuration]);
 
+  const baseTotalPrice = useMemo(() => {
+    if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
+    return calcTotalPrice(pricing, selectedSector, toHour(selectedSlot), selectedDuration);
+  }, [pricing, selectedSector, selectedSlot, selectedDuration]);
+
   const durationDiscountPercent = useMemo(() => {
     if (!selectedDuration) return 0;
     return getDurationDiscountPercent(pricing, selectedDuration);
@@ -211,6 +216,24 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const effectiveDiscountPercent = useMemo(() => {
     return Math.max(discountPercent, durationDiscountPercent);
   }, [discountPercent, durationDiscountPercent]);
+
+  const appliedDiscountLabel = useMemo(() => {
+    if (effectiveDiscountPercent <= 0) return "";
+    if (discountPercent > 0 && durationDiscountPercent > 0 && discountPercent === durationDiscountPercent) {
+      return `Застосовано знижку ${effectiveDiscountPercent}% (персональна та за тривалість)`;
+    }
+    if (durationDiscountPercent > discountPercent) {
+      return `Застосовано знижку за тривалість ${effectiveDiscountPercent}%`;
+    }
+    if (discountPercent > 0) {
+      return `Застосовано персональну знижку ${effectiveDiscountPercent}%`;
+    }
+    return `Застосовано знижку ${effectiveDiscountPercent}%`;
+  }, [discountPercent, durationDiscountPercent, effectiveDiscountPercent]);
+
+  const discountAmount = useMemo(() => {
+    return Math.max(0, baseTotalPrice - totalPrice);
+  }, [baseTotalPrice, totalPrice]);
 
   const popupOpen = bookingPopupOpen;
 
@@ -1146,14 +1169,12 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   <p className="mt-3 border-t border-[var(--blue-100)] pt-3 text-xs text-[var(--blue-700)]">
                     Тариф: День {pricing.sectors[selectedSector ?? ""]?.dayPrice ?? "—"} грн/год · Вечір {pricing.sectors[selectedSector ?? ""]?.eveningPrice ?? "—"} грн/год
                   </p>
-                  {discountPercent > 0 && (
-                    <p className="mt-1 text-xs font-semibold text-emerald-700">Персональна знижка: {discountPercent}%</p>
-                  )}
-                  {durationDiscountPercent > 0 && (
-                    <p className="mt-1 text-xs font-semibold text-emerald-700">Знижка за тривалість: {durationDiscountPercent}%</p>
-                  )}
+                  <p className="mt-2 text-xs text-[var(--blue-700)]">Базова ціна: <span className="font-semibold text-[var(--blue-950)]">{baseTotalPrice} грн</span></p>
                   {effectiveDiscountPercent > 0 && (
-                    <p className="mt-1 text-xs font-semibold text-emerald-800">Застосована знижка: {effectiveDiscountPercent}%</p>
+                    <>
+                      <p className="mt-1 text-xs font-semibold text-emerald-800">{appliedDiscountLabel}</p>
+                      <p className="mt-1 text-xs text-emerald-700">Економія: {discountAmount} грн</p>
+                    </>
                   )}
                   <p className="mt-2 text-lg font-bold text-[var(--green-700)]">Ціна: {totalPrice} грн</p>
                 </div>
