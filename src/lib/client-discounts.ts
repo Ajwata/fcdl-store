@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 const discountsPath = path.join(process.cwd(), "src", "data", "client-discounts.json");
 
@@ -51,6 +51,10 @@ export async function getClientDiscounts(): Promise<ClientDiscount[]> {
     const prisma = getPrismaClient();
     const rows = await prisma.clientDiscount.findMany({ orderBy: [{ updatedAt: "desc" }] });
     return rows.map(discountFromDb);
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for client discounts in strict database mode");
   }
 
   const rows = await readJsonFile<Array<Omit<ClientDiscount, "clientPhoneKey">>>(discountsPath, []);
@@ -120,6 +124,10 @@ export async function upsertClientDiscount(input: {
       await prisma.clientDiscount.deleteMany({ where: { clientPhoneKey: key } });
     }
     return payload;
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for client discounts in strict database mode");
   }
 
   await writeJsonFile(

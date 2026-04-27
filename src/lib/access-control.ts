@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 export type ClientAccessRecord = {
   clientPhone: string;
@@ -57,6 +57,10 @@ async function readClientAccessPayload(): Promise<ClientAccessPayload> {
     return { clients: Array.isArray(parsed.clients) ? parsed.clients : [] };
   }
 
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for access-control in strict database mode");
+  }
+
   const parsed = await readJsonFile<Partial<ClientAccessPayload>>(clientAccessFilePath, {});
   return { clients: Array.isArray(parsed.clients) ? parsed.clients : [] };
 }
@@ -79,6 +83,10 @@ async function saveClientAccessPayload(payload: ClientAccessPayload): Promise<vo
     return;
   }
 
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for access-control in strict database mode");
+  }
+
   await writeJsonFile(clientAccessFilePath, payload);
 }
 
@@ -88,6 +96,10 @@ async function readManagerAccessPayload(): Promise<ManagerAccessPayload> {
     const row = await prisma.appConfig.findUnique({ where: { key: MANAGER_ACCESS_CONFIG_KEY } });
     const parsed = (row?.value ?? {}) as Partial<ManagerAccessPayload>;
     return { managers: Array.isArray(parsed.managers) ? parsed.managers : [] };
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for access-control in strict database mode");
   }
 
   const parsed = await readJsonFile<Partial<ManagerAccessPayload>>(managerAccessFilePath, {});
@@ -110,6 +122,10 @@ async function saveManagerAccessPayload(payload: ManagerAccessPayload): Promise<
       },
     });
     return;
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for access-control in strict database mode");
   }
 
   await writeJsonFile(managerAccessFilePath, payload);

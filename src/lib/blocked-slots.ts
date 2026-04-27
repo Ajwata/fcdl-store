@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 const dataPath = path.join(process.cwd(), "src", "data", "blocked-slots.json");
 
@@ -57,6 +57,10 @@ export async function getBlockedSlots(date: string, sector?: string): Promise<Bl
     return rows.map(fromDb);
   }
 
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for blocked slots in strict database mode");
+  }
+
   const all = await readJson();
   return all.filter((s) => s.date === date && (sector ? s.sector === sector : true));
 }
@@ -100,6 +104,10 @@ export async function setBlockedSlots(
       ),
     ]);
     return newSlots;
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for blocked slots in strict database mode");
   }
 
   const all = await readJson();
@@ -174,6 +182,10 @@ export async function addBlockedSlotsRange(
       await prisma.blockedSlot.createMany({ data: toCreate });
     }
     return toCreate.length;
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for blocked slots in strict database mode");
   }
 
   const all = await readJson();

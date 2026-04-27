@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import type { Booking } from "@/lib/bookings";
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 export const REFERRAL_COMMISSION_RATE = 0.05;
 
@@ -94,6 +94,10 @@ export async function getReferralAssignments(): Promise<ReferralAssignment[]> {
     }));
   }
 
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for referrals in strict database mode");
+  }
+
   const rows = await readJsonFile<ReferralFileRecord[]>(referralsPath, []);
   return rows.map((row) => ({
     ...row,
@@ -152,6 +156,10 @@ export async function upsertReferralAssignment(input: {
       },
     });
     return payload;
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for referrals in strict database mode");
   }
 
   await writeJsonFile(
@@ -217,6 +225,10 @@ export async function assignReferralByClientChoice(input: {
       },
       created: true,
     };
+  }
+
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for referrals in strict database mode");
   }
 
   const current = await getReferralAssignments();
