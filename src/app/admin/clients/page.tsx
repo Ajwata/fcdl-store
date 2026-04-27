@@ -1,77 +1,10 @@
 import { getBookings } from "@/lib/bookings";
 import { getClientAccessRecords } from "@/lib/access-control";
 import { getAllClientUsers } from "@/lib/client-auth";
+import { buildClientSummaries } from "@/lib/client-summary";
 import { getClientDiscounts } from "@/lib/client-discounts";
 
 import { ClientsTable } from "@/components/admin/clients-table";
-
-type ClientSummary = {
-  name: string;
-  phone: string;
-  email: string;
-  totalBookings: number;
-  totalSpent: number;
-  lastBookingDate: string;
-  sectors: string[];
-  registeredAt: string | null;
-  isBlocked: boolean;
-};
-
-function phoneKey(phone: string): string {
-  return phone.replace(/\D/g, "");
-}
-
-function buildClients(
-  bookings: Awaited<ReturnType<typeof getBookings>>,
-  registeredUsers: Awaited<ReturnType<typeof getAllClientUsers>>,
-  blockedClientKeys: Set<string>,
-): ClientSummary[] {
-  const map = new Map<string, ClientSummary>();
-
-  // Seed map with all registered users first (0 bookings by default)
-  for (const u of registeredUsers) {
-    map.set(u.phone, {
-      name: u.name,
-      phone: u.phone,
-      email: u.email ?? "",
-      totalBookings: 0,
-      totalSpent: 0,
-      lastBookingDate: "",
-      sectors: [],
-      registeredAt: u.createdAt,
-      isBlocked: blockedClientKeys.has(phoneKey(u.phone)),
-    });
-  }
-
-  // Enrich with bookings (also adds unregistered clients who booked)
-  for (const b of bookings) {
-    if (b.status === "cancelled") {
-      continue;
-    }
-
-    const existing = map.get(b.clientPhone);
-    if (existing) {
-      existing.totalBookings += 1;
-      if (b.paymentStatus === "paid") existing.totalSpent += b.totalPrice;
-      if (!existing.lastBookingDate || b.date > existing.lastBookingDate) existing.lastBookingDate = b.date;
-      if (!existing.sectors.includes(b.sector)) existing.sectors.push(b.sector);
-    } else {
-      map.set(b.clientPhone, {
-        name: b.clientName,
-        phone: b.clientPhone,
-        email: b.clientEmail,
-        totalBookings: 1,
-        totalSpent: b.paymentStatus === "paid" ? b.totalPrice : 0,
-        lastBookingDate: b.date,
-        sectors: [b.sector],
-        registeredAt: null,
-        isBlocked: blockedClientKeys.has(phoneKey(b.clientPhone)),
-      });
-    }
-  }
-
-  return Array.from(map.values()).sort((a, b) => b.totalBookings - a.totalBookings);
-}
 
 export default async function ClientsPage() {
   const [bookings, registeredUsers, discounts, clientAccess] = await Promise.all([
@@ -83,7 +16,7 @@ export default async function ClientsPage() {
   const blockedClientKeys = new Set(
     clientAccess.filter((item) => item.isBlocked).map((item) => item.clientPhoneKey),
   );
-  const clients = buildClients(bookings, registeredUsers, blockedClientKeys);
+  const clients = buildClientSummaries(bookings, registeredUsers, blockedClientKeys);
   const nonCancelledBookings = bookings.filter((b) => b.status !== "cancelled");
 
   const totalRevenue = nonCancelledBookings

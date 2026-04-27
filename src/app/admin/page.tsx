@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { getAllClientUsers } from "@/lib/client-auth";
+import { buildClientSummaries } from "@/lib/client-summary";
 import { formatDateUk } from "@/lib/date-format";
 
 const statusColors: Record<string, string> = {
@@ -52,7 +54,7 @@ export default async function AdminDashboard() {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   const session = await verifySessionToken(token);
 
-  const bookings = await getBookings();
+  const [bookings, registeredUsers] = await Promise.all([getBookings(), getAllClientUsers()]);
   const today = new Date();
   const nonCancelledBookings = bookings.filter((b) => b.status !== "cancelled");
 
@@ -61,7 +63,7 @@ export default async function AdminDashboard() {
     .filter((b) => isThisWeek(b.date) && b.paymentStatus === "paid")
     .reduce((sum, b) => sum + b.totalPrice, 0);
   const pendingCount = bookings.filter((b) => b.status === "pending").length;
-  const uniqueClients = new Set(nonCancelledBookings.map((b) => b.clientPhone)).size;
+  const uniqueClients = buildClientSummaries(bookings, registeredUsers, new Set()).length;
 
   const recentBookings = [...bookings]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

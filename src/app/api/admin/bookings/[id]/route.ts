@@ -58,6 +58,18 @@ export async function PATCH(
     current.paymentStatus !== "verification" && next.paymentStatus === "verification";
   const paymentChangedToPaid = current.paymentStatus !== "paid" && next.paymentStatus === "paid";
   const paymentChangedToUnpaid = current.paymentStatus !== "unpaid" && next.paymentStatus === "unpaid";
+  const attemptingPaymentConfirmation = paymentChangedToVerification || paymentChangedToPaid;
+
+  if (
+    attemptingPaymentConfirmation &&
+    next.totalPrice > 0 &&
+    (!current.paymentProofUrl || !current.paymentProofUploadedAt)
+  ) {
+    return NextResponse.json(
+      { error: "Неможливо підтвердити оплату без квитанції від клієнта" },
+      { status: 400 },
+    );
+  }
 
   if (statusChangedToConfirmed && !next.confirmedAt) {
     next.confirmedAt = nowIso;
