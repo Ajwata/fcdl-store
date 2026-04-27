@@ -8,7 +8,7 @@ import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts"
 import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { getPaymentSettings } from "@/lib/payment-settings";
-import { calcSlotPrice, getPricing } from "@/lib/pricing";
+import { calcSlotPrice, getDurationDiscountPercent, getEffectiveDiscountPercent, getPricing } from "@/lib/pricing";
 import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 
 function toDate(date: string): Date {
@@ -102,10 +102,12 @@ export async function POST(
   const targetEndTime = toTime(endMinutes);
 
   const pricing = await getPricing();
-  const discountPercent = await getClientDiscountPercent(user.phone);
+  const personalDiscountPercent = await getClientDiscountPercent(user.phone);
   const startHour = Number(targetStartTime.split(":")[0]);
   const basePrice = calcSlotPrice(pricing, source.sector, startHour, targetDurationHours);
-  const discountedTotalPrice = applyDiscount(basePrice, discountPercent);
+  const durationDiscountPercent = getDurationDiscountPercent(pricing, targetDurationHours);
+  const effectiveDiscountPercent = getEffectiveDiscountPercent(personalDiscountPercent, durationDiscountPercent);
+  const discountedTotalPrice = applyDiscount(basePrice, effectiveDiscountPercent);
   if (discountedTotalPrice <= 0) {
     return NextResponse.json({ error: "Не вдалося розрахувати вартість бронювання" }, { status: 400 });
   }

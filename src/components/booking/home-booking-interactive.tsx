@@ -20,6 +20,7 @@ type CartItem = {
 type PricingConfig = {
   eveningStartHour: number;
   sectors: Record<string, { dayPrice: number; eveningPrice: number }>;
+  durationDiscountRules: Array<{ minHours: number; maxHours: number | null; discountPercent: number }>;
 };
 
 type AvailabilitySlot = {
@@ -52,6 +53,10 @@ const pricingFallback: PricingConfig = {
     "№3": { dayPrice: 900, eveningPrice: 1100 },
     "№4": { dayPrice: 2500, eveningPrice: 3000 },
   },
+  durationDiscountRules: [
+    { minHours: 2, maxHours: 4, discountPercent: 10 },
+    { minHours: 5, maxHours: 8, discountPercent: 18 },
+  ],
 };
 
 function calcTotalPrice(pricing: PricingConfig, sector: string, startHour: number, durationHours: number): number {
@@ -67,6 +72,20 @@ function calcTotalPrice(pricing: PricingConfig, sector: string, startHour: numbe
 
 function applyDiscount(amount: number, discountPercent: number): number {
   return Math.round((amount * (100 - discountPercent)) / 100);
+}
+
+function getDurationDiscountPercent(pricing: PricingConfig, durationHours: number): number {
+  const safeHours = Math.max(1, Math.round(durationHours));
+
+  let best = 0;
+  for (const rule of pricing.durationDiscountRules ?? []) {
+    const inLowerBound = safeHours >= rule.minHours;
+    const inUpperBound = rule.maxHours === null || safeHours <= rule.maxHours;
+    if (!inLowerBound || !inUpperBound) continue;
+    best = Math.max(best, Math.max(0, Math.min(100, Math.round(rule.discountPercent))));
+  }
+
+  return best;
 }
 
 const fallbackSectorCards: BookingSection["sectorCards"] = [
@@ -179,8 +198,19 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const totalPrice = useMemo(() => {
     if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
     const base = calcTotalPrice(pricing, selectedSector, toHour(selectedSlot), selectedDuration);
-    return applyDiscount(base, discountPercent);
+    const durationDiscountPercent = getDurationDiscountPercent(pricing, selectedDuration);
+    const effectiveDiscountPercent = Math.max(discountPercent, durationDiscountPercent);
+    return applyDiscount(base, effectiveDiscountPercent);
   }, [pricing, discountPercent, selectedSector, selectedSlot, selectedDuration]);
+
+  const durationDiscountPercent = useMemo(() => {
+    if (!selectedDuration) return 0;
+    return getDurationDiscountPercent(pricing, selectedDuration);
+  }, [pricing, selectedDuration]);
+
+  const effectiveDiscountPercent = useMemo(() => {
+    return Math.max(discountPercent, durationDiscountPercent);
+  }, [discountPercent, durationDiscountPercent]);
 
   const popupOpen = bookingPopupOpen;
 
@@ -1118,6 +1148,12 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   </p>
                   {discountPercent > 0 && (
                     <p className="mt-1 text-xs font-semibold text-emerald-700">Персональна знижка: {discountPercent}%</p>
+                  )}
+                  {durationDiscountPercent > 0 && (
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">Знижка за тривалість: {durationDiscountPercent}%</p>
+                  )}
+                  {effectiveDiscountPercent > 0 && (
+                    <p className="mt-1 text-xs font-semibold text-emerald-800">Застосована знижка: {effectiveDiscountPercent}%</p>
                   )}
                   <p className="mt-2 text-lg font-bold text-[var(--green-700)]">Ціна: {totalPrice} грн</p>
                 </div>

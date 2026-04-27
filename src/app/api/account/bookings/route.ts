@@ -8,7 +8,7 @@ import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts"
 import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { getPaymentSettings, getPaymentWindowHours } from "@/lib/payment-settings";
-import { getPricing, calcSlotPrice } from "@/lib/pricing";
+import { getEffectiveDiscountPercent, getDurationDiscountPercent, getPricing, calcSlotPrice } from "@/lib/pricing";
 import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { listAdminUsers } from "@/lib/admin-users";
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
   const paymentSettings = await getPaymentSettings();
   const pricing = await getPricing();
-  const discountPercent = await getClientDiscountPercent(user.phone);
+  const personalDiscountPercent = await getClientDiscountPercent(user.phone);
   const preparedItems: Array<CreateBookingItem & { canonicalTotalPrice: number; canonicalPricePerHour: number }> = [];
   let selectedManager: { id: string; login: string; name: string } | null = null;
 
@@ -119,7 +119,9 @@ export async function POST(request: Request) {
     // Server-side canonical price calculation (with personal discount if any)
     const startHour = Number(item.startTime.split(":")[0]);
     const basePrice = calcSlotPrice(pricing, item.sector, startHour, item.durationHours);
-    const expectedPrice = applyDiscount(basePrice, discountPercent);
+    const durationDiscountPercent = getDurationDiscountPercent(pricing, item.durationHours);
+    const effectiveDiscountPercent = getEffectiveDiscountPercent(personalDiscountPercent, durationDiscountPercent);
+    const expectedPrice = applyDiscount(basePrice, effectiveDiscountPercent);
     if (expectedPrice <= 0) {
       return NextResponse.json(
         { error: `Не вдалося визначити ціну для ${item.sector} ${item.startTime}. Оновіть сторінку.` },

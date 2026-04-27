@@ -54,9 +54,47 @@ export async function PATCH(request: Request) {
     }
   }
 
+  let durationDiscountRules = current.durationDiscountRules;
+  if (body.durationDiscountRules !== undefined) {
+    if (!Array.isArray(body.durationDiscountRules)) {
+      return NextResponse.json({ error: "Невалідні правила знижок за тривалість" }, { status: 400 });
+    }
+
+    const parsed = body.durationDiscountRules.map((rule) => {
+      const minHours = Math.round(Number(rule?.minHours));
+      const rawMax = rule?.maxHours;
+      const maxHours = rawMax === null || rawMax === undefined
+        ? null
+        : Math.round(Number(rawMax));
+      const discountPercent = Math.round(Number(rule?.discountPercent));
+
+      return { minHours, maxHours, discountPercent };
+    });
+
+    const hasInvalid = parsed.some((rule) => {
+      if (!Number.isFinite(rule.minHours) || rule.minHours < 1) return true;
+      if (!Number.isFinite(rule.discountPercent) || rule.discountPercent < 0 || rule.discountPercent > 100) return true;
+      if (rule.maxHours !== null && (!Number.isFinite(rule.maxHours) || rule.maxHours < rule.minHours)) return true;
+      return false;
+    });
+
+    if (hasInvalid) {
+      return NextResponse.json({ error: "Перевірте правила знижок: години або відсоток вказані некоректно" }, { status: 400 });
+    }
+
+    durationDiscountRules = parsed
+      .map((rule) => ({
+        minHours: rule.minHours,
+        maxHours: rule.maxHours,
+        discountPercent: rule.discountPercent,
+      }))
+      .sort((a, b) => a.minHours - b.minHours);
+  }
+
   const updated: PricingConfig = {
     eveningStartHour,
     sectors: updatedSectors,
+    durationDiscountRules,
   };
 
   await savePricing(updated);

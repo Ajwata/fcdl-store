@@ -13,6 +13,7 @@ const SECTOR_LABELS: Record<string, string> = {
 };
 
 type SectorDraft = { dayPrice: string; eveningPrice: string };
+type DurationDiscountDraft = { minHours: string; maxHours: string; discountPercent: string };
 
 export default function AdminPricingPage() {
   const [eveningStartHour, setEveningStartHour] = useState<number>(18);
@@ -26,6 +27,7 @@ export default function AdminPricingPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [durationDiscountRules, setDurationDiscountRules] = useState<DurationDiscountDraft[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -45,6 +47,13 @@ export default function AdminPricingPage() {
               ]),
             ),
           );
+          setDurationDiscountRules(
+            (data.durationDiscountRules ?? []).map((rule) => ({
+              minHours: String(rule.minHours),
+              maxHours: rule.maxHours === null ? "" : String(rule.maxHours),
+              discountPercent: String(rule.discountPercent),
+            })),
+          );
         }
       } catch {
         // keep defaults
@@ -58,6 +67,12 @@ export default function AdminPricingPage() {
   const handleSectorChange = (sector: string, field: "dayPrice" | "eveningPrice", value: string) => {
     if (/^\d*$/.test(value)) {
       setSectors((prev) => ({ ...prev, [sector]: { ...prev[sector], [field]: value } }));
+    }
+  };
+
+  const handleRuleChange = (index: number, field: keyof DurationDiscountDraft, value: string) => {
+    if (/^\d*$/.test(value)) {
+      setDurationDiscountRules((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
     }
   };
 
@@ -78,11 +93,44 @@ export default function AdminPricingPage() {
       sectorPayload[s] = { dayPrice: day, eveningPrice: eve };
     }
 
+    const durationRulesPayload: PricingConfig["durationDiscountRules"] = [];
+    for (const rule of durationDiscountRules) {
+      if (!rule.minHours.trim() || !rule.discountPercent.trim()) {
+        setError("Заповніть мінімальні години та % знижки в усіх правилах");
+        setSaving(false);
+        return;
+      }
+
+      const minHours = parseInt(rule.minHours, 10);
+      const maxHours = rule.maxHours.trim() ? parseInt(rule.maxHours, 10) : null;
+      const discountPercent = parseInt(rule.discountPercent, 10);
+
+      if (isNaN(minHours) || minHours < 1) {
+        setError("Мінімальна тривалість має бути не менше 1 години");
+        setSaving(false);
+        return;
+      }
+      if (maxHours !== null && (isNaN(maxHours) || maxHours < minHours)) {
+        setError("Максимальна тривалість має бути не меншою за мінімальну");
+        setSaving(false);
+        return;
+      }
+      if (isNaN(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+        setError("Відсоток знижки має бути від 0 до 100");
+        setSaving(false);
+        return;
+      }
+
+      durationRulesPayload.push({ minHours, maxHours, discountPercent });
+    }
+
+    durationRulesPayload.sort((a, b) => a.minHours - b.minHours);
+
     try {
       const res = await fetch("/api/admin/pricing", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eveningStartHour, sectors: sectorPayload }),
+        body: JSON.stringify({ eveningStartHour, sectors: sectorPayload, durationDiscountRules: durationRulesPayload }),
       });
       if (res.ok) {
         setSaved(true);
@@ -199,6 +247,78 @@ export default function AdminPricingPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--blue-950)]">Знижки за тривалість</h2>
+            <p className="mt-1 text-sm text-slate-500">Налаштуйте правила: від N до M годин = X% знижки. Якщо "до" порожнє — без верхньої межі.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDurationDiscountRules((prev) => [...prev, { minHours: "", maxHours: "", discountPercent: "" }])}
+            className="rounded-lg border border-[var(--green-700)] px-3 py-2 text-sm font-semibold text-[var(--green-700)] transition hover:bg-[var(--green-50)]"
+          >
+            + Додати правило
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {durationDiscountRules.length === 0 && (
+            <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Немає правил. Додайте правило, щоб увімкнути знижки за тривалість.
+            </p>
+          )}
+
+          {durationDiscountRules.map((rule, index) => (
+            <div key={`duration-rule-${index}`} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">Від годин</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={rule.minHours}
+                  onChange={(e) => handleRuleChange(index, "minHours", e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[var(--blue-950)] focus:border-[var(--green-700)] focus:outline-none"
+                  placeholder="2"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">До годин</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={rule.maxHours}
+                  onChange={(e) => handleRuleChange(index, "maxHours", e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[var(--blue-950)] focus:border-[var(--green-700)] focus:outline-none"
+                  placeholder="4"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">Знижка, %</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={rule.discountPercent}
+                  onChange={(e) => handleRuleChange(index, "discountPercent", e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[var(--blue-950)] focus:border-[var(--green-700)] focus:outline-none"
+                  placeholder="10"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDurationDiscountRules((prev) => prev.filter((_, i) => i !== index))}
+                className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+              >
+                Видалити
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Save bar */}
