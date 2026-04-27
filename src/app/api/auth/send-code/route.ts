@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   const ip = getRequestIp(request);
   const phoneKey = body.phone?.replace(/\D/g, "") || "_";
 
-  const rateLimit = checkRateLimit(`auth-send-code:${ip}:${phoneKey}:${mode}`, {
+  const rateLimit = await checkRateLimit(`auth-send-code:${ip}:${phoneKey}:${mode}`, {
     windowMs: 10 * 60 * 1000,
     maxAttempts: 5,
     blockMs: 20 * 60 * 1000,

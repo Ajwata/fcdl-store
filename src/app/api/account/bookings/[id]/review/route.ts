@@ -29,7 +29,7 @@ export async function POST(
     return NextResponse.json({ error: "Користувач не знайдений" }, { status: 404 });
   }
 
-  const rateLimit = checkRateLimit(`account-review:${payload.uid}:${ip}`, {
+  const rateLimit = await checkRateLimit(`account-review:${payload.uid}:${ip}`, {
     windowMs: 10 * 60 * 1000,
     maxAttempts: 12,
     blockMs: 10 * 60 * 1000,

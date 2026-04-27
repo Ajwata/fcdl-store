@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { phone?: string };
     const newPhone = normalizePhone(body.phone ?? "");
 
-    const rateLimit = checkRateLimit(`account-phone-change-request:${payload.uid}:${ip}`, {
+    const rateLimit = await checkRateLimit(`account-phone-change-request:${payload.uid}:${ip}`, {
       windowMs: 10 * 60 * 1000,
       maxAttempts: 3,
       blockMs: 20 * 60 * 1000,

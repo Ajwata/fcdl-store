@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
   }
 
-  const rateLimit = checkRateLimit(`admin-client-discounts:${session.uid}:${ip}`, {
+  const rateLimit = await checkRateLimit(`admin-client-discounts:${session.uid}:${ip}`, {
     windowMs: 10 * 60 * 1000,
     maxAttempts: 30,
     blockMs: 10 * 60 * 1000,

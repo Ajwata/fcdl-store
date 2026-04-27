@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const password = body.password?.trim() ?? "";
   const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
-  const rateLimit = checkRateLimit(`admin-login:${forwardedFor}:${login || "_"}`);
+  const rateLimit = await checkRateLimit(`admin-login:${forwardedFor}:${login || "_"}`);
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: `Забагато спроб входу. Спробуйте через ${rateLimit.retryAfterSeconds} с.` },

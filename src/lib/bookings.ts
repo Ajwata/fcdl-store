@@ -187,6 +187,72 @@ export async function getBookings(): Promise<Booking[]> {
 }
 
 export async function getNextBookingNumber(): Promise<number> {
+  const start = await reserveBookingNumbers(1);
+  return start;
+}
+
+export async function reserveBookingNumbers(count: number): Promise<number> {
+  const safeCount = Number.isInteger(count) && count > 0 ? count : 1;
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const lockName = "booking_counter_lock";
+    const counterKey = "booking_counter";
+
+    const lockRows = await prisma.$queryRaw<Array<{ acquired: number | null }>>`
+      SELECT GET_LOCK(${lockName}, 10) AS acquired
+    `;
+    const acquired = lockRows[0]?.acquired === 1;
+    if (!acquired) {
+      throw new Error("Не вдалося отримати блокування лічильника бронювань");
+    }
+
+    try {
+      const existing = await prisma.appConfig.findUnique({ where: { key: counterKey } });
+      let nextNumber = 1;
+
+      if (existing?.value && typeof existing.value === "object") {
+        const value = existing.value as { next?: unknown };
+        const parsed = Number(value.next);
+        if (Number.isFinite(parsed) && parsed >= 1) {
+          nextNumber = Math.floor(parsed);
+        }
+      }
+
+      if (!existing) {
+        const maxRows = await prisma.$queryRaw<Array<{ maxId: number | null }>>`
+          SELECT MAX(CAST(id AS UNSIGNED)) AS maxId FROM Booking
+        `;
+        const maxId = Number(maxRows[0]?.maxId ?? 0);
+        if (Number.isFinite(maxId) && maxId >= 1) {
+          nextNumber = Math.max(nextNumber, Math.floor(maxId) + 1);
+        }
+      }
+
+      const startNumber = nextNumber;
+      const updatedNext = startNumber + safeCount;
+
+      await prisma.appConfig.upsert({
+        where: { key: counterKey },
+        create: {
+          key: counterKey,
+          value: { next: updatedNext },
+          updatedAt: new Date(),
+        },
+        update: {
+          value: { next: updatedNext },
+          updatedAt: new Date(),
+        },
+      });
+
+      return startNumber;
+    } finally {
+      await prisma.$queryRaw<Array<{ released: number | null }>>`
+        SELECT RELEASE_LOCK(${lockName}) AS released
+      `;
+    }
+  }
+
   const bookings = await getBookings();
   let max = 0;
   for (const b of bookings) {

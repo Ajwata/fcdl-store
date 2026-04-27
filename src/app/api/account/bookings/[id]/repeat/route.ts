@@ -2,13 +2,14 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { autoCompleteExpiredPaidBookings, getNextBookingNumber, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings, isBookingOwnedByUser, reserveBookingNumbers, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts";
 import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { getPaymentSettings } from "@/lib/payment-settings";
 import { calcSlotPrice, getPricing } from "@/lib/pricing";
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 
 function toDate(date: string): Date {
   return new Date(`${date}T00:00:00`);
@@ -123,7 +124,7 @@ export async function POST(
 
   const repeated = {
     ...source,
-    id: String(await getNextBookingNumber()),
+    id: String(await reserveBookingNumbers(1)),
     clientUserId: payload.uid,
     clientPhone: user.phone,
     date: targetDate,
@@ -140,8 +141,63 @@ export async function POST(
     notes: `Повтор бронювання з ${source.date}`,
   };
 
-  bookings.push(repeated);
-  await saveBookings(bookings);
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    try {
+      await prisma.$transaction(async (tx) => {
+        const conflict = await tx.booking.findFirst({
+          where: {
+            status: { not: "cancelled" },
+            paymentStatus: { in: ["paid", "verification"] },
+            date: repeated.date,
+            sector: repeated.sector,
+            startTime: { lt: repeated.endTime },
+            endTime: { gt: repeated.startTime },
+          },
+          select: { id: true },
+        });
+
+        if (conflict) {
+          throw new Error("Обраний слот уже зайнятий");
+        }
+
+        await tx.booking.create({
+          data: {
+            id: repeated.id,
+            clientUserId: repeated.clientUserId ?? null,
+            clientName: repeated.clientName,
+            clientPhone: repeated.clientPhone,
+            clientPhoneKey: repeated.clientPhone.replace(/\D/g, ""),
+            clientEmail: repeated.clientEmail,
+            sector: repeated.sector,
+            date: repeated.date,
+            startTime: repeated.startTime,
+            endTime: repeated.endTime,
+            durationHours: repeated.durationHours,
+            pricePerHour: repeated.pricePerHour,
+            totalPrice: repeated.totalPrice,
+            status: repeated.status,
+            paymentStatus: repeated.paymentStatus,
+            paymentMethod: repeated.paymentMethod ?? null,
+            paymentProofUrl: null,
+            paymentProofUploadedAt: null,
+            adminDecisionDueAt: repeated.adminDecisionDueAt ? new Date(repeated.adminDecisionDueAt) : null,
+            confirmedAt: null,
+            paymentDueAt: repeated.paymentDueAt ? new Date(repeated.paymentDueAt) : null,
+            createdAt: new Date(repeated.createdAt),
+            notes: repeated.notes,
+          },
+        });
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не вдалося повторити бронювання";
+      const status = message.includes("зайнятий") ? 409 : 400;
+      return NextResponse.json({ error: message }, { status });
+    }
+  } else {
+    bookings.push(repeated);
+    await saveBookings(bookings);
+  }
   revalidatePath("/");
   revalidatePath("/account");
   revalidatePath("/account/bookings");

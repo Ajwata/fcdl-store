@@ -15,7 +15,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
   }
 
-  const rateLimit = checkRateLimit(`account-change-password:${payload.uid}:${ip}`, {
+  const rateLimit = await checkRateLimit(`account-change-password:${payload.uid}:${ip}`, {
     windowMs: 10 * 60 * 1000,
     maxAttempts: 5,
     blockMs: 30 * 60 * 1000,

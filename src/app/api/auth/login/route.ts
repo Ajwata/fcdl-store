@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const ip = getRequestIp(request);
   const phoneKey = body.phone?.replace(/\D/g, "") || "_";
 
-  const rateLimit = checkRateLimit(`auth-login-password:${ip}:${phoneKey}`, {
+  const rateLimit = await checkRateLimit(`auth-login-password:${ip}:${phoneKey}`, {
     windowMs: 10 * 60 * 1000,
     maxAttempts: 10,
     blockMs: 20 * 60 * 1000,

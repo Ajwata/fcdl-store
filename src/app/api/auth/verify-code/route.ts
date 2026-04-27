@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const ip = getRequestIp(request);
   const phoneKey = body.phone?.replace(/\D/g, "") || "_";
 
-  const rateLimit = checkRateLimit(`auth-verify-code:${ip}:${phoneKey}:${mode}`, {
+  const rateLimit = await checkRateLimit(`auth-verify-code:${ip}:${phoneKey}:${mode}`, {
     windowMs: 10 * 60 * 1000,
     maxAttempts: 12,
     blockMs: 15 * 60 * 1000,

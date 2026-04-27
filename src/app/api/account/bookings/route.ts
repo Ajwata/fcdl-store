@@ -2,13 +2,14 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { autoCompleteExpiredPaidBookings, filterBookingsForUser, getBookings, getNextBookingNumber, saveBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings, filterBookingsForUser, getBookings, reserveBookingNumbers, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
 import { applyDiscount, getClientDiscountPercent } from "@/lib/client-discounts";
 import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { getPaymentSettings, getPaymentWindowHours } from "@/lib/payment-settings";
 import { getPricing, calcSlotPrice } from "@/lib/pricing";
+import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { listAdminUsers } from "@/lib/admin-users";
 import { assignReferralByClientChoice } from "@/lib/referrals";
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Користувач не знайдений" }, { status: 404 });
   }
 
-  const rateLimit = checkRateLimit(`account-create-bookings:${payload.uid}:${ip}`, {
+  const rateLimit = await checkRateLimit(`account-create-bookings:${payload.uid}:${ip}`, {
     windowMs: 10 * 60 * 1000,
     maxAttempts: 10,
     blockMs: 10 * 60 * 1000,
@@ -93,7 +94,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Кошик порожній" }, { status: 400 });
   }
 
-  const bookings = await getBookings();
   const paymentSettings = await getPaymentSettings();
   const pricing = await getPricing();
   const discountPercent = await getClientDiscountPercent(user.phone);
@@ -133,21 +133,6 @@ export async function POST(request: Request) {
       canonicalPricePerHour: Math.max(1, Math.round(expectedPrice / item.durationHours)),
     });
 
-    const conflictExisting = bookings.find((booking) =>
-      booking.status !== "cancelled" &&
-      (booking.paymentStatus === "paid" || booking.paymentStatus === "verification") &&
-      booking.date === item.date &&
-      booking.sector === item.sector &&
-      overlaps(item.startTime, item.endTime, booking.startTime, booking.endTime),
-    );
-
-    if (conflictExisting) {
-      return NextResponse.json(
-        { error: `Слот ${item.date} ${item.startTime}-${item.endTime} на полі ${item.sector} вже зайнятий` },
-        { status: 409 },
-      );
-    }
-
     for (let j = i + 1; j < items.length; j += 1) {
       const other = items[j];
       if (item.date === other.date && item.sector === other.sector && overlaps(item.startTime, item.endTime, other.startTime, other.endTime)) {
@@ -159,7 +144,7 @@ export async function POST(request: Request) {
   const createdAt = new Date().toISOString();
   const adminDecisionDueAt = new Date(Date.now() + paymentSettings.adminDecisionHours * 60 * 60 * 1000).toISOString();
   
-  const baseBookingNumber = await getNextBookingNumber();
+  const baseBookingNumber = await reserveBookingNumbers(preparedItems.length);
 
   // Calculate paymentDueAt for each booking based on game date
   const createdBookings = preparedItems.map((item, index) => {
@@ -189,8 +174,87 @@ export async function POST(request: Request) {
     };
   });
 
-  bookings.push(...createdBookings);
-  await saveBookings(bookings);
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const booking of createdBookings) {
+          const conflict = await tx.booking.findFirst({
+            where: {
+              status: { not: "cancelled" },
+              paymentStatus: { in: ["paid", "verification"] },
+              date: booking.date,
+              sector: booking.sector,
+              startTime: { lt: booking.endTime },
+              endTime: { gt: booking.startTime },
+            },
+            select: { id: true },
+          });
+
+          if (conflict) {
+            throw new Error(`Слот ${booking.date} ${booking.startTime}-${booking.endTime} на полі ${booking.sector} вже зайнятий`);
+          }
+        }
+
+        for (const booking of createdBookings) {
+          await tx.booking.create({
+            data: {
+              id: booking.id,
+              clientUserId: booking.clientUserId ?? null,
+              clientName: booking.clientName,
+              clientPhone: booking.clientPhone,
+              clientPhoneKey: booking.clientPhone.replace(/\D/g, ""),
+              clientEmail: booking.clientEmail,
+              sector: booking.sector,
+              date: booking.date,
+              startTime: booking.startTime,
+              endTime: booking.endTime,
+              durationHours: booking.durationHours,
+              pricePerHour: booking.pricePerHour,
+              totalPrice: booking.totalPrice,
+              status: booking.status,
+              paymentStatus: booking.paymentStatus,
+              paymentMethod: booking.paymentMethod ?? null,
+              paymentProofUrl: null,
+              paymentProofUploadedAt: null,
+              adminDecisionDueAt: booking.adminDecisionDueAt ? new Date(booking.adminDecisionDueAt) : null,
+              confirmedAt: null,
+              paymentDueAt: booking.paymentDueAt ? new Date(booking.paymentDueAt) : null,
+              createdAt: new Date(booking.createdAt),
+              notes: booking.notes,
+            },
+          });
+        }
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не вдалося створити бронювання";
+      const status = message.includes("вже зайнятий") ? 409 : 400;
+      return NextResponse.json({ error: message }, { status });
+    }
+  } else {
+    const bookings = await getBookings();
+
+    for (const booking of createdBookings) {
+      const conflictExisting = bookings.find((existing) =>
+        existing.status !== "cancelled" &&
+        (existing.paymentStatus === "paid" || existing.paymentStatus === "verification") &&
+        existing.date === booking.date &&
+        existing.sector === booking.sector &&
+        overlaps(booking.startTime, booking.endTime, existing.startTime, existing.endTime),
+      );
+
+      if (conflictExisting) {
+        return NextResponse.json(
+          { error: `Слот ${booking.date} ${booking.startTime}-${booking.endTime} на полі ${booking.sector} вже зайнятий` },
+          { status: 409 },
+        );
+      }
+    }
+
+    bookings.push(...createdBookings);
+    await saveBookings(bookings);
+  }
 
   if (selectedManager) {
     await assignReferralByClientChoice({
