@@ -34,6 +34,11 @@ const paymentLabels: Record<string, string> = {
   refunded: "Повернено",
 };
 
+const paymentMethodLabels: Record<string, string> = {
+  cash: "Готівка",
+  iban: "IBAN",
+};
+
 type SortKey = "id" | "clientName" | "createdAt" | "eventDateTime" | "sector" | "totalPrice" | "status" | "paymentStatus";
 type SortDirection = "asc" | "desc";
 
@@ -63,6 +68,28 @@ function cleanSystemNotes(note: string): string {
     .join("\n");
 }
 
+function formatRemainingTime(targetIso?: string, nowMs?: number): string | null {
+  if (!targetIso || !nowMs) return null;
+  const targetMs = new Date(targetIso).getTime();
+  if (!Number.isFinite(targetMs)) return null;
+
+  const diff = targetMs - nowMs;
+  if (diff <= 0) return "Час вичерпано";
+
+  const totalMinutes = Math.floor(diff / (60 * 1000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return `${days} д ${hours} год`;
+  }
+  if (hours > 0) {
+    return `${hours} год ${minutes} хв`;
+  }
+  return `${minutes} хв`;
+}
+
 export default function BookingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -77,6 +104,7 @@ export default function BookingsPage() {
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelError, setCancelError] = useState("");
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const statusFilter = searchParams.get("status") ?? "all";
   const bookingIdFilter = searchParams.get("bookingId")?.trim() ?? "";
@@ -110,6 +138,16 @@ export default function BookingsPage() {
       window.clearInterval(intervalId);
     };
   }, [fetchBookings]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const updateBooking = async (
     id: string,
@@ -324,6 +362,11 @@ export default function BookingsPage() {
               <tbody>
                 {sorted.map((b) => {
                   const visibleNotes = cleanSystemNotes(b.notes ?? "");
+                  const pendingDeadline = b.status === "pending" ? b.adminDecisionDueAt : undefined;
+                  const paymentDeadline = b.status === "confirmed" && b.paymentStatus === "unpaid" ? b.paymentDueAt : undefined;
+                  const activeDeadline = pendingDeadline ?? paymentDeadline;
+                  const deadlineLabel = pendingDeadline ? "До рішення" : paymentDeadline ? "До оплати" : "";
+                  const remaining = formatRemainingTime(activeDeadline, nowMs);
 
                   return (
                     <tr
@@ -370,6 +413,21 @@ export default function BookingsPage() {
                         <p className={`text-xs font-semibold ${paymentColors[b.paymentStatus] ?? "text-slate-600"}`}>
                           {paymentLabels[b.paymentStatus] ?? b.paymentStatus}
                         </p>
+                        <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                          Спосіб: {paymentMethodLabels[b.paymentMethod ?? "cash"] ?? "Готівка"}
+                        </p>
+                        {activeDeadline && (
+                          <div className="mt-1 space-y-0.5">
+                            <p className="text-[10px] font-semibold text-slate-500">
+                              {deadlineLabel}: {formatDateTimeUk(activeDeadline)}
+                            </p>
+                            {remaining && (
+                              <p className={`text-[10px] font-semibold ${remaining === "Час вичерпано" ? "text-rose-600" : "text-amber-700"}`}>
+                                Залишилось: {remaining}
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {b.paymentProofUrl && (
                           <div className="mt-1 space-y-1">
                             <a

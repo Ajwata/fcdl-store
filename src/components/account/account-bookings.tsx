@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { Booking } from "@/lib/bookings";
 import type { ClientReview } from "@/lib/client-engagement";
@@ -111,6 +111,7 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
   const [requisitesReceiptUrl, setRequisitesReceiptUrl] = useState("");
   const [requisitesStatus, setRequisitesStatus] = useState("");
   const [requisitesError, setRequisitesError] = useState("");
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const requisitesBooking = requisitesBookingId
     ? bookings.find((item) => item.id === requisitesBookingId) ?? null
     : null;
@@ -128,6 +129,38 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
       setRequisitesStatus("");
       setRequisitesError("Не вдалося скопіювати");
     }
+  };
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const paymentMethodLabel = (method?: Booking["paymentMethod"]): string => {
+    if (method === "iban") return "IBAN переказ";
+    return "Готівка";
+  };
+
+  const getRemainingTime = (targetIso?: string): string | null => {
+    if (!targetIso) return null;
+    const targetMs = new Date(targetIso).getTime();
+    if (!Number.isFinite(targetMs)) return null;
+    const diff = targetMs - nowMs;
+    if (diff <= 0) return "Час вичерпано";
+
+    const totalMinutes = Math.floor(diff / (60 * 1000));
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+
+    if (days > 0) return `${days} д ${hours} год`;
+    if (hours > 0) return `${hours} год ${minutes} хв`;
+    return `${minutes} хв`;
   };
 
   const uploadPaymentReceipt = async (bookingId: string, receiptUrl: string) => {
@@ -379,6 +412,11 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
                 booking.status !== "cancelled" &&
                 booking.paymentStatus === "paid" &&
                 hasEndedByTime(booking);
+              const activeDeadline = booking.paymentDueAt ?? booking.adminDecisionDueAt;
+              const remaining =
+                booking.paymentStatus === "unpaid" || booking.paymentStatus === "verification"
+                  ? getRemainingTime(activeDeadline)
+                  : null;
 
               return (
                 <article key={booking.id} className="rounded-2xl border border-[var(--blue-100)] bg-[var(--blue-50)] p-4">
@@ -395,7 +433,20 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-lg font-bold text-[var(--blue-950)]">{booking.totalPrice.toLocaleString("uk-UA")} грн</p>
+                    <div>
+                      <p className="text-lg font-bold text-[var(--blue-950)]">{booking.totalPrice.toLocaleString("uk-UA")} грн</p>
+                      <p className="mt-1 text-xs font-semibold text-[var(--blue-800)]">Спосіб оплати: {paymentMethodLabel(booking.paymentMethod)}</p>
+                      {activeDeadline && (booking.paymentStatus === "unpaid" || booking.paymentStatus === "verification") && (
+                        <>
+                          <p className="mt-1 text-xs font-semibold text-amber-700">Дедлайн: {formatDateUk(activeDeadline.slice(0, 10))} {activeDeadline.slice(11, 16)}</p>
+                          {remaining && (
+                            <p className={`mt-1 text-xs font-semibold ${remaining === "Час вичерпано" ? "text-rose-700" : "text-amber-700"}`}>
+                              Залишилось: {remaining}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {canOpenRequisites && (
                         <button

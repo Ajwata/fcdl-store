@@ -137,7 +137,7 @@ export async function POST(
     totalPrice: discountedTotalPrice,
     status: "pending" as const,
     paymentStatus: discountedTotalPrice === 0 ? ("paid" as const) : ("unpaid" as const),
-    paymentMethod: "cash" as const,
+    paymentMethod: source.paymentMethod ?? ("cash" as const),
     adminDecisionDueAt: new Date(Date.now() + paymentSettings.adminDecisionHours * 60 * 60 * 1000).toISOString(),
     createdAt: new Date().toISOString(),
     notes: `Повтор бронювання з ${source.date}`,

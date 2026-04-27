@@ -25,6 +25,11 @@ const paymentClass = {
   refunded: "text-slate-700 bg-slate-200",
 } as const;
 
+const paymentMethodLabel = {
+  cash: "Готівка",
+  iban: "IBAN",
+} as const;
+
 function normalizeReceiptUrl(url?: string): string {
   if (!url) return "";
   const uploadsMatch = url.match(/(?:^|\/)uploads\/receipts\/([^/?#]+)$/i);
@@ -120,6 +125,7 @@ export default async function AccountPaymentsPage() {
                     <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--blue-700)]">Поле {booking.sector}</p>
                     <p className="mt-1 text-base font-semibold text-[var(--blue-950)]">{formatDateUk(booking.date)} · {booking.startTime}-{booking.endTime}</p>
                     <p className="mt-1 text-sm text-slate-600">Статус броні: {booking.status}</p>
+                    <p className="mt-1 text-sm text-slate-600">Спосіб оплати: {paymentMethodLabel[booking.paymentMethod ?? "cash"]}</p>
                     {(booking.paymentStatus === "unpaid" || booking.paymentStatus === "verification") && (booking.paymentDueAt || booking.adminDecisionDueAt) && (
                       <p className="mt-1 text-xs font-semibold text-amber-700">
                         Час на оплату: {formatDateTimeUk(booking.paymentDueAt ?? booking.adminDecisionDueAt!)}

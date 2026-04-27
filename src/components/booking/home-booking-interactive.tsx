@@ -17,6 +17,8 @@ type CartItem = {
   totalPrice: number;
 };
 
+type PaymentMethod = "cash" | "iban";
+
 type PricingConfig = {
   eveningStartHour: number;
   sectors: Record<string, { dayPrice: number; eveningPrice: number }>;
@@ -172,6 +174,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const [discountPercent, setDiscountPercent] = useState(0);
   const [referralManagers, setReferralManagers] = useState<ReferralManager[]>([]);
   const [selectedReferralManagerId, setSelectedReferralManagerId] = useState<string>("none");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("cash");
   const [availabilityByDate, setAvailabilityByDate] = useState<Record<string, AvailabilitySlot[]>>({});
   const [paymentInfo, setPaymentInfo] = useState<{
     adminDecisionHours: number;
@@ -596,6 +599,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
             durationHours: item.durationHours,
             totalPrice: item.totalPrice,
           })),
+          paymentMethod: selectedPaymentMethod,
           referredByManagerId: selectedReferralManagerId !== "none" ? selectedReferralManagerId : undefined,
         }),
       });
@@ -664,6 +668,17 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, [calendarDate]);
 
   const totalCartPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const paymentWindowRulesForDisplay = useMemo(() => {
+    const fallback = [
+      { minDaysBeforeStart: 1, maxDaysBeforeStart: 2, paymentHours: 12 },
+      { minDaysBeforeStart: 3, maxDaysBeforeStart: 5, paymentHours: 24 },
+      { minDaysBeforeStart: 6, maxDaysBeforeStart: 9, paymentHours: 48 },
+      { minDaysBeforeStart: 10, maxDaysBeforeStart: null, paymentHours: 72 },
+    ];
+    const rules = paymentInfo?.paymentWindowRules ?? fallback;
+    return [...rules].sort((a, b) => a.minDaysBeforeStart - b.minDaysBeforeStart);
+  }, [paymentInfo]);
+  const adminDecisionHoursForDisplay = paymentInfo?.adminDecisionHours ?? 12;
   const todayIso = clientNowMs > 0 ? toIsoDate(new Date(clientNowMs)) : "";
 
   const calendarMonthLabel = useMemo(() => {
@@ -1239,18 +1254,49 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
 
             {/* Payment info */}
             <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.15em] text-blue-700">Умови оплати</p>
-              <div className="mt-3 space-y-2 text-xs text-slate-700">
-                <p>
-                  <span className="font-bold">Час на оплату залежить від дати гри:</span>
-                </p>
-                <ul className="ml-3 list-inside space-y-1">
-                  <li>• За 1–2 дні: 12 годин</li>
-                  <li>• За 3–5 днів: 24 години</li>
-                  <li>• За 6–9 днів: 48 годин</li>
-                  <li>• За 10+ днів: 72 години</li>
-                </ul>
-                <p className="mt-2">Готівка і переводи IBAN приймаються однаково.</p>
+              <p className="font-semibold text-orange-900">⏰ Строки оплати</p>
+              <ul className="mt-2 space-y-1 text-sm text-orange-800">
+                {paymentWindowRulesForDisplay.map((rule) => {
+                  const daysLabel = rule.maxDaysBeforeStart === null
+                    ? `${rule.minDaysBeforeStart}+`
+                    : `${rule.minDaysBeforeStart}-${rule.maxDaysBeforeStart}`;
+                  return (
+                    <li key={`${rule.minDaysBeforeStart}-${rule.maxDaysBeforeStart ?? "plus"}`}>
+                      • За {daysLabel} дні до гри: <span className="font-bold">{rule.paymentHours} годин</span> на оплату
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2 text-xs text-orange-700">
+                Адміністратор переглядає рішення {adminDecisionHoursForDisplay} годин. Готівка і IBAN приймаються однаково.
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[var(--blue-100)] bg-white p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--blue-700)]">Спосіб оплати</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <label className={`cursor-pointer rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${selectedPaymentMethod === "cash" ? "border-[var(--green-700)] bg-[var(--green-50)] text-[var(--green-800)]" : "border-[var(--blue-200)] bg-white text-[var(--blue-900)]"}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cash"
+                    checked={selectedPaymentMethod === "cash"}
+                    onChange={() => setSelectedPaymentMethod("cash")}
+                    className="mr-2"
+                  />
+                  Готівка на локації
+                </label>
+                <label className={`cursor-pointer rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${selectedPaymentMethod === "iban" ? "border-[var(--green-700)] bg-[var(--green-50)] text-[var(--green-800)]" : "border-[var(--blue-200)] bg-white text-[var(--blue-900)]"}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="iban"
+                    checked={selectedPaymentMethod === "iban"}
+                    onChange={() => setSelectedPaymentMethod("iban")}
+                    className="mr-2"
+                  />
+                  Переказ на IBAN
+                </label>
               </div>
             </div>
 

@@ -86,9 +86,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as { items?: CreateBookingItem[]; referredByManagerId?: string };
+  const body = (await request.json()) as {
+    items?: CreateBookingItem[];
+    referredByManagerId?: string;
+    paymentMethod?: "cash" | "iban";
+  };
   const items = body.items ?? [];
   const referredByManagerId = body.referredByManagerId?.trim() ?? "";
+  const paymentMethod: "cash" | "iban" = body.paymentMethod === "iban" ? "iban" : "cash";
 
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "Кошик порожній" }, { status: 400 });
@@ -177,7 +182,7 @@ export async function POST(request: Request) {
       totalPrice: item.canonicalTotalPrice,
       status: "pending" as const,
       paymentStatus: item.canonicalTotalPrice === 0 ? ("paid" as const) : ("unpaid" as const),
-      paymentMethod: "cash" as const,
+      paymentMethod,
       paymentDueAt: item.canonicalTotalPrice === 0 ? undefined : paymentDueAt,
       adminDecisionDueAt,
       createdAt,
