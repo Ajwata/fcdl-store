@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import type { AdminRole } from "@/lib/admin-users";
 import type { Booking } from "@/lib/bookings";
 import { formatDateTimeUk, formatDateUk } from "@/lib/date-format";
 
@@ -94,6 +95,7 @@ export default function BookingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const [role, setRole] = useState<AdminRole | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -113,6 +115,21 @@ export default function BookingsPage() {
   useEffect(() => {
     setSearch(bookingIdFilter);
   }, [bookingIdFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadRole = async () => {
+      try {
+        const res = await fetch("/api/admin/referrals", { cache: "no-store" });
+        const data = (await res.json()) as { role?: AdminRole };
+        if (!cancelled) setRole(data.role ?? null);
+      } catch {
+        if (!cancelled) setRole(null);
+      }
+    };
+    void loadRole();
+    return () => { cancelled = true; };
+  }, []);
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -446,7 +463,7 @@ export default function BookingsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1.5">
-                          {b.status === "pending" && (
+                          {b.status === "pending" && role === "superadmin" && (
                             <button
                               disabled={saving === b.id}
                               onClick={() => void updateBooking(b.id, { status: "confirmed" })}

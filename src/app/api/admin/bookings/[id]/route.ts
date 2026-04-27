@@ -50,6 +50,13 @@ export async function PATCH(
     );
   }
 
+  if (body.status === "confirmed" && session.role === "manager") {
+    return NextResponse.json(
+      { error: "Менеджер не може підтверджувати бронювання" },
+      { status: 403 },
+    );
+  }
+
   const next: Booking = { ...current, ...body };
   const cancelReason = body.cancelReason?.trim() ?? "";
 
