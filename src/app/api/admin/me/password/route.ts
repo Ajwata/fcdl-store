@@ -30,10 +30,20 @@ export async function PATCH(request: Request) {
   const body = (await request.json()) as { currentPassword?: string; newPassword?: string };
   const { currentPassword = "", newPassword = "" } = body;
 
-  const result = await updateAdminPassword(session.login, currentPassword, newPassword);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
-  }
+  try {
+    const result = await updateAdminPassword(session.login, currentPassword, newPassword);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося змінити пароль",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

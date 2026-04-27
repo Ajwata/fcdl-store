@@ -32,11 +32,13 @@ export async function PATCH(
     cancelReason?: string;
   };
 
-  const bookings = await autoCompleteExpiredPaidBookings();
-  const index = bookings.findIndex((booking) => booking.id === id);
-  if (index === -1) {
-    return NextResponse.json({ error: "Бронювання не знайдено" }, { status: 404 });
-  }
+  try {
+
+    const bookings = await autoCompleteExpiredPaidBookings();
+    const index = bookings.findIndex((booking) => booking.id === id);
+    if (index === -1) {
+      return NextResponse.json({ error: "Бронювання не знайдено" }, { status: 404 });
+    }
 
   const settings = await getPaymentSettings();
   const nowTs = Date.now();
@@ -217,5 +219,14 @@ export async function PATCH(
     });
   }
 
-  return NextResponse.json({ booking: bookings[index] });
+    return NextResponse.json({ booking: bookings[index] });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося оновити бронювання",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

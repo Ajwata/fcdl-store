@@ -12,6 +12,16 @@ export async function GET() {
     return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
   }
 
-  const bookings = await autoCompleteExpiredPaidBookings();
-  return NextResponse.json({ bookings });
+  try {
+    const bookings = await autoCompleteExpiredPaidBookings();
+    return NextResponse.json({ bookings });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити бронювання",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

@@ -16,19 +16,29 @@ export async function GET() {
     return NextResponse.json({ error: "Недостатньо прав" }, { status: 403 });
   }
 
-  const users = await listAdminUsers();
-  const assignments = await getReferralAssignments();
-  const referredByManagerId = new Map<string, number>();
-  for (const item of assignments) {
-    referredByManagerId.set(item.managerId, (referredByManagerId.get(item.managerId) ?? 0) + 1);
-  }
+  try {
+    const users = await listAdminUsers();
+    const assignments = await getReferralAssignments();
+    const referredByManagerId = new Map<string, number>();
+    for (const item of assignments) {
+      referredByManagerId.set(item.managerId, (referredByManagerId.get(item.managerId) ?? 0) + 1);
+    }
 
-  return NextResponse.json({
-    users: users.map((user) => ({
-      ...user,
-      referredClients: user.role === "manager" ? referredByManagerId.get(user.id) ?? 0 : 0,
-    })),
-  });
+    return NextResponse.json({
+      users: users.map((user) => ({
+        ...user,
+        referredClients: user.role === "manager" ? referredByManagerId.get(user.id) ?? 0 : 0,
+      })),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити користувачів",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -71,12 +81,22 @@ export async function DELETE(request: Request) {
   const body = (await request.json()) as { userId?: string };
   const userId = body.userId ?? "";
 
-  const result = await deleteManagerUser(userId);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error ?? "Не вдалося видалити менеджера" }, { status: 400 });
-  }
+  try {
+    const result = await deleteManagerUser(userId);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error ?? "Не вдалося видалити менеджера" }, { status: 400 });
+    }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося видалити менеджера",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -96,16 +116,26 @@ export async function PATCH(request: Request) {
     bonusPercent?: number;
   };
 
-  const result = await updateManagerUserAccess({
-    userId: body.userId ?? "",
-    isBlocked: typeof body.isBlocked === "boolean" ? body.isBlocked : undefined,
-    bonusPercent: typeof body.bonusPercent === "number" ? body.bonusPercent : undefined,
-    updatedById: session.uid,
-  });
+  try {
+    const result = await updateManagerUserAccess({
+      userId: body.userId ?? "",
+      isBlocked: typeof body.isBlocked === "boolean" ? body.isBlocked : undefined,
+      bonusPercent: typeof body.bonusPercent === "number" ? body.bonusPercent : undefined,
+      updatedById: session.uid,
+    });
 
-  if (!result.ok || !result.user) {
-    return NextResponse.json({ error: result.error ?? "Не вдалося оновити менеджера" }, { status: 400 });
+    if (!result.ok || !result.user) {
+      return NextResponse.json({ error: result.error ?? "Не вдалося оновити менеджера" }, { status: 400 });
+    }
+
+    return NextResponse.json({ user: result.user });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося оновити менеджера",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
   }
-
-  return NextResponse.json({ user: result.user });
 }
