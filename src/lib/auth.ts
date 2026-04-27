@@ -22,7 +22,7 @@ export function getAdminAuthSecret(): string {
     throw new Error("ADMIN_AUTH_SECRET is required in production");
   }
 
-  return (process.env.ADMIN_PASSWORD ?? "dev-admin-auth-secret-change-me").trim();
+  return "dev-admin-auth-secret-change-me";
 }
 
 async function hmacSHA256(data: string, key: string): Promise<string> {

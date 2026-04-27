@@ -18,7 +18,7 @@ function getClientAuthSecret(): string {
     throw new Error("CLIENT_AUTH_SECRET is required in production");
   }
 
-  return (process.env.ADMIN_PASSWORD ?? "dev-client-auth-secret-change-me").trim();
+  return "dev-client-auth-secret-change-me";
 }
 
 async function hmacSHA256(data: string, key: string): Promise<string> {

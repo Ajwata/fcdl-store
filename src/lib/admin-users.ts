@@ -28,18 +28,6 @@ function normalizeLogin(login: string): string {
   return login.trim().toLowerCase();
 }
 
-function defaultSuperadminLogin(): string {
-  return normalizeLogin(process.env.ADMIN_LOGIN ?? "admin");
-}
-
-function defaultSuperadminName(): string {
-  return (process.env.ADMIN_NAME ?? "Головний адміністратор").trim();
-}
-
-function defaultSuperadminPassword(): string {
-  return (process.env.ADMIN_PASSWORD ?? "admin12345").trim();
-}
-
 function createPasswordHash(password: string, salt?: string): string {
   const actualSalt = salt ?? randomUUID().replace(/-/g, "");
   const key = scryptSync(password, actualSalt, 32);
@@ -60,18 +48,6 @@ function verifyPasswordHash(password: string, passwordHash: string): boolean {
   return timingSafeEqual(actual, expected);
 }
 
-function buildDefaultSuperadmin(): AdminUserRecord {
-  const login = defaultSuperadminLogin();
-  return {
-    id: "admin-root",
-    login,
-    name: defaultSuperadminName(),
-    role: "superadmin",
-    passwordHash: createPasswordHash(defaultSuperadminPassword(), `root-${login}`),
-    createdAt: new Date(0).toISOString(),
-  };
-}
-
 async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
   try {
     const raw = await fs.readFile(filePath, "utf-8");
@@ -85,45 +61,9 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
   await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 
-function ensureSuperadmin(users: AdminUserRecord[]): AdminUserRecord[] {
-  const normalized = users.map((user) => ({
-    ...user,
-    login: normalizeLogin(user.login),
-  }));
-
-  if (normalized.some((user) => user.role === "superadmin")) {
-    return normalized;
-  }
-
-  return [buildDefaultSuperadmin(), ...normalized];
-}
-
 async function readAdminUsers(): Promise<AdminUserRecord[]> {
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
-    const existing = await prisma.adminUser.findMany({ orderBy: [{ createdAt: "asc" }] });
-
-    if (!existing.some((user: { role: string }) => user.role === "superadmin")) {
-      const superadmin = buildDefaultSuperadmin();
-      await prisma.adminUser.upsert({
-        where: { id: superadmin.id },
-        create: {
-          id: superadmin.id,
-          login: superadmin.login,
-          name: superadmin.name,
-          role: superadmin.role,
-          passwordHash: superadmin.passwordHash,
-          createdAt: new Date(superadmin.createdAt),
-        },
-        update: {
-          login: superadmin.login,
-          name: superadmin.name,
-          role: superadmin.role,
-          passwordHash: superadmin.passwordHash,
-        },
-      });
-    }
-
     const rows = await prisma.adminUser.findMany({ orderBy: [{ createdAt: "asc" }] });
     return rows.map((user: {
       id: string;
@@ -143,7 +83,10 @@ async function readAdminUsers(): Promise<AdminUserRecord[]> {
   }
 
   const users = await readJsonFile<AdminUserRecord[]>(adminUsersFilePath, []);
-  return ensureSuperadmin(users);
+  return users.map((user) => ({
+    ...user,
+    login: normalizeLogin(user.login),
+  }));
 }
 
 async function saveAdminUsers(users: AdminUserRecord[]): Promise<void> {
