@@ -451,12 +451,12 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, [availabilityByDate, selectedDate, selectedSector]);
 
   const selectedPaidSlots = useMemo(
-    () => selectedDateSectorSlots.filter((item) => item.paymentStatus === "paid" || item.paymentStatus === "verification"),
+    () => selectedDateSectorSlots.filter((item) => item.paymentStatus === "paid" || item.paymentStatus === "verification" || item.status === "confirmed"),
     [selectedDateSectorSlots],
   );
 
   const selectedUnpaidSlots = useMemo(
-    () => selectedDateSectorSlots.filter((item) => item.paymentStatus === "unpaid"),
+    () => selectedDateSectorSlots.filter((item) => item.paymentStatus === "unpaid" && item.status !== "confirmed"),
     [selectedDateSectorSlots],
   );
 
@@ -730,8 +730,8 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
       return {
         sector: sectorName,
         slots,
-        paidCount: slots.filter((slot) => slot.paymentStatus === "paid" || slot.paymentStatus === "verification").length,
-        claimCount: slots.filter((slot) => slot.paymentStatus === "unpaid").length,
+        paidCount: slots.filter((slot) => slot.paymentStatus === "paid" || slot.paymentStatus === "verification" || slot.status === "confirmed").length,
+        claimCount: slots.filter((slot) => slot.paymentStatus === "unpaid" && slot.status !== "confirmed").length,
       };
     });
   }, [availabilityByDate, calendarDate, sectorCards]);
@@ -969,12 +969,13 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
               <div className="mt-4 grid grid-cols-4 gap-1.5 sm:grid-cols-8">
                 {calendarHours.map((hour) => {
                   const blocked = row.slots.some((slot) =>
-                    (slot.paymentStatus === "paid" || slot.paymentStatus === "verification") &&
+                    (slot.paymentStatus === "paid" || slot.paymentStatus === "verification" || slot.status === "confirmed") &&
                     rangesOverlap(hour, hour + 1, slot.startHour, slot.startHour + slot.durationHours),
                   );
                   const claimants = row.slots.filter((slot) =>
                     slot.paymentStatus !== "paid" &&
                     slot.paymentStatus !== "verification" &&
+                    slot.status !== "confirmed" &&
                     rangesOverlap(hour, hour + 1, slot.startHour, slot.startHour + slot.durationHours),
                   ).length;
                   const past = clientNowMs <= 0 || isPastDate(calendarDate, clientNowMs) || isPastHour(calendarDate, hour, clientNowMs);
