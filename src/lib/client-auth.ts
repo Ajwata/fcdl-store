@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { isAlphaSmsConfigured, createVerifyCode, checkVerifyCode } from "@/lib/alphasms";
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 const usersFilePath = path.join(process.cwd(), "src", "data", "client-users.json");
 const codesFilePath = path.join(process.cwd(), "src", "data", "client-sms-codes.json");
@@ -69,6 +69,10 @@ export function normalizePhone(phone: string): string {
 
 
 async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for client-auth in strict database mode");
+  }
+
   try {
     const raw = await fs.readFile(filePath, "utf-8");
     return JSON.parse(raw) as T;
@@ -78,6 +82,10 @@ async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
 }
 
 async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for client-auth in strict database mode");
+  }
+
   await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 

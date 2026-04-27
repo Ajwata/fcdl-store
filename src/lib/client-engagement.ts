@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { getBookings } from "@/lib/bookings";
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 const notificationsPath = path.join(process.cwd(), "src", "data", "client-notifications.json");
 const reviewsPath = path.join(process.cwd(), "src", "data", "client-reviews.json");
@@ -89,6 +89,10 @@ function reviewFromDb(row: {
 }
 
 async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for client-engagement in strict database mode");
+  }
+
   try {
     const raw = await fs.readFile(filePath, "utf-8");
     return JSON.parse(raw) as T;
@@ -98,6 +102,10 @@ async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
 }
 
 async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
+  if (isStrictDatabaseMode()) {
+    throw new Error("JSON fallback is disabled for client-engagement in strict database mode");
+  }
+
   await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 
