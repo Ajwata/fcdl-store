@@ -1,20 +1,13 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { getBlockedSlots, setBlockedSlots } from "@/lib/blocked-slots";
-import { verifySessionToken } from "@/lib/auth";
 import { serviceUnavailable } from "@/lib/api-errors";
-
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_session")?.value;
-  return verifySessionToken(token);
-}
 
 /** GET /api/admin/blocked-slots?date=YYYY-MM-DD&sector=... */
 export async function GET(request: Request) {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminSession({ unauthorizedMessage: "Unauthorized" });
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const date = (searchParams.get("date") ?? "").trim();
@@ -38,8 +31,9 @@ export async function GET(request: Request) {
  * Replaces all blocked slots for that date+sector.
  */
 export async function POST(request: Request) {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminSession({ unauthorizedMessage: "Unauthorized" });
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
 
   const body = (await request.json()) as {
     date?: string;

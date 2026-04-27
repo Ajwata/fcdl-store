@@ -1,20 +1,16 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { updateAdminPassword } from "@/lib/admin-users";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function PATCH(request: Request) {
   const ip = getRequestIp(request);
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
 
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
 
   const rateLimit = await checkRateLimit(`admin-change-password:${session.uid}:${ip}`, {
     windowMs: 10 * 60 * 1000,

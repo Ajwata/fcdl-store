@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { listAdminUsers } from "@/lib/admin-users";
 import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
 import { buildReferralReport, getReferralAssignments } from "@/lib/referrals";
@@ -60,12 +59,9 @@ function buildMonthlyStats(deals: ReturnType<typeof buildReferralReport>["deals"
 }
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
 
   const { searchParams } = new URL(request.url);
 
@@ -214,12 +210,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   void request;
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
   return NextResponse.json(
     { error: "Ручна прив'язка вимкнена. Клієнт сам обирає, хто його привів." },
     { status: 403 },

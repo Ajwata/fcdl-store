@@ -1,22 +1,13 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { getPricing, savePricing } from "@/lib/pricing";
 import type { PricingConfig } from "@/lib/pricing";
 import { serviceUnavailable } from "@/lib/api-errors";
 
-async function getAdminSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  return verifySessionToken(token);
-}
-
 export async function GET() {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
 
   try {
     const pricing = await getPricing();
@@ -27,10 +18,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
 
   const body = (await request.json()) as Partial<PricingConfig>;
 

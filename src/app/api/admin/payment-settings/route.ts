@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { serviceUnavailable } from "@/lib/api-errors";
 import {
   type PaymentSettings,
@@ -20,15 +19,8 @@ function normalizeRule(rule: PaymentWindowRule): PaymentWindowRule {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
-  if (session.role !== "superadmin") {
-    return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
-  }
+  const auth = await requireAdminSession({ role: "superadmin", forbiddenMessage: "Доступ заборонено" });
+  if (!auth.ok) return auth.response;
 
   try {
     const settings = await getPaymentSettings();
@@ -39,15 +31,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
-  if (session.role !== "superadmin") {
-    return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
-  }
+  const auth = await requireAdminSession({ role: "superadmin", forbiddenMessage: "Доступ заборонено" });
+  if (!auth.ok) return auth.response;
 
   const body = (await request.json().catch(() => ({}))) as Partial<PaymentSettings>;
   if (!Array.isArray(body.paymentWindowRules) || body.paymentWindowRules.length === 0) {

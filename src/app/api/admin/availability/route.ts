@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
 import { getBlockedSlots } from "@/lib/blocked-slots";
 import { getReferralAssignments } from "@/lib/referrals";
@@ -16,12 +15,9 @@ function phoneKey(phone: string): string {
 }
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
 
   const { searchParams } = new URL(request.url);
   const date = (searchParams.get("date") ?? "").trim();

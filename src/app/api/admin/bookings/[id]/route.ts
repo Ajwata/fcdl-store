@@ -1,8 +1,7 @@
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { autoCompleteExpiredPaidBookings, type Booking, saveBookings } from "@/lib/bookings";
 import { daysBeforeStart, getPaymentSettings, resolvePaymentWindowHours } from "@/lib/payment-settings";
 import { notifyBookingCancelled, notifyPaymentReceived } from "@/lib/telegram";
@@ -21,12 +20,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
 
   const { id } = await params;
   const body = (await request.json()) as Partial<Omit<Booking, "id" | "createdAt">> & {

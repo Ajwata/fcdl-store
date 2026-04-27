@@ -1,18 +1,13 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { getClientDiscounts, upsertClientDiscount } from "@/lib/client-discounts";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
 
   try {
     const discounts = await getClientDiscounts();
@@ -24,12 +19,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ip = getRequestIp(request);
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
+  const auth = await requireAdminSession();
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
 
   const rateLimit = await checkRateLimit(`admin-client-discounts:${session.uid}:${ip}`, {
     windowMs: 10 * 60 * 1000,

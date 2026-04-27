@@ -1,10 +1,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { getUploadsRootDirs } from "@/lib/uploads-paths";
 
 const IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -78,15 +77,8 @@ function detectFileType(buffer: Buffer): DetectedType | null {
 }
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
-  if (session.role !== "superadmin") {
-    return NextResponse.json({ error: "Недостатньо прав" }, { status: 403 });
-  }
+  const auth = await requireAdminSession({ role: "superadmin" });
+  if (!auth.ok) return auth.response;
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;

@@ -1,19 +1,12 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { addBlockedSlotsRange } from "@/lib/blocked-slots";
-import { verifySessionToken } from "@/lib/auth";
 import { serviceUnavailable } from "@/lib/api-errors";
 
 const SECTORS = ["№1", "№2", "№3", "№4"];
 const TIME_RE = /^\d{2}:\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_session")?.value;
-  return verifySessionToken(token);
-}
 
 /**
  * POST /api/admin/blocked-slots/range
@@ -21,8 +14,9 @@ async function requireAdmin() {
  * Adds (merges) blocked slots across the date range for all listed sectors.
  */
 export async function POST(request: Request) {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminSession({ unauthorizedMessage: "Unauthorized" });
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
 
   const body = (await request.json()) as {
     dateFrom?: string;

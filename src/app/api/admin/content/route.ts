@@ -1,22 +1,14 @@
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { CmsContent } from "@/data/cms-defaults";
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-admin-auth";
 import { getCmsContent, saveCmsContent } from "@/lib/cms-content";
 import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
-  if (session.role !== "superadmin") {
-    return NextResponse.json({ error: "Недостатньо прав" }, { status: 403 });
-  }
+  const auth = await requireAdminSession({ role: "superadmin" });
+  if (!auth.ok) return auth.response;
 
   try {
     const content = await getCmsContent();
@@ -27,15 +19,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
-    return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
-  }
-  if (session.role !== "superadmin") {
-    return NextResponse.json({ error: "Недостатньо прав" }, { status: 403 });
-  }
+  const auth = await requireAdminSession({ role: "superadmin" });
+  if (!auth.ok) return auth.response;
 
   const body = (await request.json()) as { content?: CmsContent };
 
