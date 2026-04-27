@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
+import { getUploadsSubDirs } from "@/lib/uploads-paths";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -16,22 +17,6 @@ async function pathExists(targetPath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function resolveProjectRoot(): string {
-  const cwd = process.cwd();
-  const standaloneSuffix = `${path.sep}.next${path.sep}standalone`;
-  if (cwd.endsWith(standaloneSuffix)) {
-    return path.resolve(cwd, "..", "..");
-  }
-  return cwd;
-}
-
-function getAvatarDirs(projectRoot: string): string[] {
-  return [
-    path.join(projectRoot, "public", "uploads", "avatars"),
-    path.join(projectRoot, ".next", "standalone", "public", "uploads", "avatars"),
-  ];
 }
 
 function getMimeType(filename: string): string {
@@ -50,8 +35,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Файл не вказано" }, { status: 400 });
   }
 
-  const projectRoot = resolveProjectRoot();
-  const avatarDirs = getAvatarDirs(projectRoot);
+  const avatarDirs = getUploadsSubDirs("avatars");
 
   for (const dir of avatarDirs) {
     const filePath = path.join(dir, filename);
@@ -97,18 +81,12 @@ export async function POST(request: Request) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const safeUserId = payload.uid.replace(/[^a-zA-Z0-9_-]/g, "");
   const filename = `avatar-${safeUserId}-${Date.now()}.${ext}`;
-  const projectRoot = resolveProjectRoot();
-  const [rootUploadsDir, standaloneUploadsDir] = getAvatarDirs(projectRoot);
+  const avatarDirs = getUploadsSubDirs("avatars");
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  const targetDirs = [rootUploadsDir];
-  if (await pathExists(path.join(projectRoot, ".next", "standalone", "public"))) {
-    targetDirs.push(standaloneUploadsDir);
-  }
-
   await Promise.all(
-    targetDirs.map(async (dir) => {
+    avatarDirs.map(async (dir) => {
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(path.join(dir, filename), buffer);
     }),

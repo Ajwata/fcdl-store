@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { NextResponse } from "next/server";
+import { getUploadsRootDirs } from "@/lib/uploads-paths";
 
 async function pathExists(targetPath: string): Promise<boolean> {
   try {
@@ -10,22 +11,6 @@ async function pathExists(targetPath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function resolveProjectRoot(): string {
-  const cwd = process.cwd();
-  const standaloneSuffix = `${path.sep}.next${path.sep}standalone`;
-  if (cwd.endsWith(standaloneSuffix)) {
-    return path.resolve(cwd, "..", "..");
-  }
-  return cwd;
-}
-
-function getUploadDirs(projectRoot: string): string[] {
-  return [
-    path.join(projectRoot, "public", "uploads"),
-    path.join(projectRoot, ".next", "standalone", "public", "uploads"),
-  ];
 }
 
 function getMimeType(filename: string): string {
@@ -50,8 +35,7 @@ export async function GET(_request: Request, context: { params: Promise<{ file: 
     return NextResponse.json({ error: "Файл не вказано" }, { status: 400 });
   }
 
-  const projectRoot = resolveProjectRoot();
-  const uploadDirs = getUploadDirs(projectRoot);
+  const uploadDirs = getUploadsRootDirs();
 
   for (const dir of uploadDirs) {
     const filePath = path.join(dir, filename);

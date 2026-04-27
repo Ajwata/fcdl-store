@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { getUploadsRootDirs } from "@/lib/uploads-paths";
 
 const IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const VIDEO_MIME = new Set(["video/mp4", "video/webm", "video/quicktime", "video/ogg"]);
@@ -16,22 +17,6 @@ type DetectedType = {
   ext: string;
   kind: "image" | "video";
 };
-
-function resolveProjectRoot(): string {
-  const cwd = process.cwd();
-  const standaloneSuffix = `${path.sep}.next${path.sep}standalone`;
-  if (cwd.endsWith(standaloneSuffix)) {
-    return path.resolve(cwd, "..", "..");
-  }
-  return cwd;
-}
-
-function getUploadsDirs(projectRoot: string): [string, string] {
-  return [
-    path.join(projectRoot, "public", "uploads"),
-    path.join(projectRoot, ".next", "standalone", "public", "uploads"),
-  ];
-}
 
 function detectFileType(buffer: Buffer): DetectedType | null {
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
@@ -154,12 +139,7 @@ export async function POST(request: Request) {
   }
 
   const filename = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${detected.ext}`;
-  const projectRoot = resolveProjectRoot();
-  const [rootUploadsDir, standaloneUploadsDir] = getUploadsDirs(projectRoot);
-  const targetDirs = [rootUploadsDir];
-  if (standaloneUploadsDir !== rootUploadsDir) {
-    targetDirs.push(standaloneUploadsDir);
-  }
+  const targetDirs = getUploadsRootDirs();
 
   await Promise.all(
     targetDirs.map(async (uploadsDir) => {
