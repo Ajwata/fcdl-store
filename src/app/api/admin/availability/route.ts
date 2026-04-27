@@ -30,11 +30,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Некоректна дата" }, { status: 400 });
   }
 
-  const [bookings, blockedSlots, assignments] = await Promise.all([
-    autoCompleteExpiredPaidBookings(),
-    getBlockedSlots(date, sector || undefined),
-    session.role === "superadmin" ? getReferralAssignments() : Promise.resolve([]),
-  ]);
+  try {
+    const [bookings, blockedSlots, assignments] = await Promise.all([
+      autoCompleteExpiredPaidBookings(),
+      getBlockedSlots(date, sector || undefined),
+      session.role === "superadmin" ? getReferralAssignments() : Promise.resolve([]),
+    ]);
 
   const assignmentByPhoneKey = new Map(assignments.map((item) => [item.clientPhoneKey, item]));
 
@@ -79,5 +80,14 @@ export async function GET(request: Request) {
     return a.startTime.localeCompare(b.startTime);
   });
 
-  return NextResponse.json({ slots });
+    return NextResponse.json({ slots });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити доступність для адміністратора",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

@@ -23,8 +23,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Некоректна дата" }, { status: 400 });
   }
 
-  const slots = await getBlockedSlots(date, sector);
-  return NextResponse.json({ slots });
+  try {
+    const slots = await getBlockedSlots(date, sector);
+    return NextResponse.json({ slots });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити заблоковані слоти",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 /**
@@ -68,6 +78,16 @@ export async function POST(request: Request) {
     reason: slot.reason?.trim() ? `${actorReason}. ${slot.reason.trim()}` : actorReason,
   }));
 
-  const saved = await setBlockedSlots(date, sector, normalizedSlots);
-  return NextResponse.json({ slots: saved });
+  try {
+    const saved = await setBlockedSlots(date, sector, normalizedSlots);
+    return NextResponse.json({ slots: saved });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося зберегти заблоковані слоти",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

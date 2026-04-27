@@ -17,8 +17,18 @@ export async function GET() {
     return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
   }
 
-  const pricing = await getPricing();
-  return NextResponse.json(pricing);
+  try {
+    const pricing = await getPricing();
+    return NextResponse.json(pricing);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити тарифи",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -29,7 +39,8 @@ export async function PATCH(request: Request) {
 
   const body = (await request.json()) as Partial<PricingConfig>;
 
-  const current = await getPricing();
+  try {
+    const current = await getPricing();
 
   const eveningStartHour = typeof body.eveningStartHour === "number"
     ? body.eveningStartHour
@@ -91,12 +102,21 @@ export async function PATCH(request: Request) {
       .sort((a, b) => a.minHours - b.minHours);
   }
 
-  const updated: PricingConfig = {
-    eveningStartHour,
-    sectors: updatedSectors,
-    durationDiscountRules,
-  };
+    const updated: PricingConfig = {
+      eveningStartHour,
+      sectors: updatedSectors,
+      durationDiscountRules,
+    };
 
-  await savePricing(updated);
-  return NextResponse.json(updated);
+    await savePricing(updated);
+    return NextResponse.json(updated);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося зберегти тарифи",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

@@ -17,8 +17,18 @@ export async function GET() {
     return NextResponse.json({ error: "Недостатньо прав" }, { status: 403 });
   }
 
-  const content = await getCmsContent();
-  return NextResponse.json({ content });
+  try {
+    const content = await getCmsContent();
+    return NextResponse.json({ content });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити контент",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -38,15 +48,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Відсутній контент для збереження" }, { status: 400 });
   }
 
-  await saveCmsContent(body.content);
+  try {
+    await saveCmsContent(body.content);
 
-  revalidatePath("/");
-  revalidatePath("/gallery");
-  revalidatePath("/news");
-  revalidatePath("/reviews");
-  revalidatePath("/payment-terms");
-  revalidatePath("/privacy-policy");
-  revalidatePath("/rules");
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/news");
+    revalidatePath("/reviews");
+    revalidatePath("/payment-terms");
+    revalidatePath("/privacy-policy");
+    revalidatePath("/rules");
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося зберегти контент",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

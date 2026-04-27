@@ -13,8 +13,18 @@ export async function GET() {
     return NextResponse.json({ error: "Не авторизовано" }, { status: 401 });
   }
 
-  const discounts = await getClientDiscounts();
-  return NextResponse.json({ discounts });
+  try {
+    const discounts = await getClientDiscounts();
+    return NextResponse.json({ discounts });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити знижки клієнтів",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: Request) {

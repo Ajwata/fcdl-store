@@ -29,8 +29,18 @@ export async function GET() {
     return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
   }
 
-  const settings = await getPaymentSettings();
-  return NextResponse.json({ settings });
+  try {
+    const settings = await getPaymentSettings();
+    return NextResponse.json({ settings });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити правила оплати",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -52,10 +62,20 @@ export async function PATCH(request: Request) {
   const adminDecisionHours = Math.max(1, Math.floor(Number(body.adminDecisionHours ?? 12)));
   const paymentWindowRules = body.paymentWindowRules.map(normalizeRule);
 
-  const saved = await savePaymentSettings({
-    adminDecisionHours,
-    paymentWindowRules,
-  });
+  try {
+    const saved = await savePaymentSettings({
+      adminDecisionHours,
+      paymentWindowRules,
+    });
 
-  return NextResponse.json({ settings: saved });
+    return NextResponse.json({ settings: saved });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося зберегти правила оплати",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

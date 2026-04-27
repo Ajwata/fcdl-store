@@ -72,6 +72,16 @@ export async function POST(request: Request) {
     reason: slot.reason?.trim() ? `${actorReason}. ${slot.reason.trim()}` : actorReason,
   }));
 
-  const added = await addBlockedSlotsRange(dateFrom, dateTo, sectors, normalizedSlots);
-  return NextResponse.json({ added });
+  try {
+    const added = await addBlockedSlotsRange(dateFrom, dateTo, sectors, normalizedSlots);
+    return NextResponse.json({ added });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося зберегти блокування у діапазоні",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }

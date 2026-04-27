@@ -83,11 +83,12 @@ export async function GET(request: Request) {
   const assignmentsSortKey = normalizeString(searchParams.get("assignmentsSortKey")) || "assignedAt";
   const assignmentsSortDir = normalizeString(searchParams.get("assignmentsSortDir")) === "asc" ? "asc" : "desc";
 
-  const [bookings, assignments, admins] = await Promise.all([
-    autoCompleteExpiredPaidBookings(),
-    getReferralAssignments(),
-    listAdminUsers(),
-  ]);
+  try {
+    const [bookings, assignments, admins] = await Promise.all([
+      autoCompleteExpiredPaidBookings(),
+      getReferralAssignments(),
+      listAdminUsers(),
+    ]);
 
   const managers = admins.filter((item) => item.role === "manager");
   const report = buildReferralReport(bookings, assignments);
@@ -180,31 +181,40 @@ export async function GET(request: Request) {
   const normalizedAssignmentsPage = Math.min(assignmentsPage, assignmentsPageCount);
   const assignmentsStart = (normalizedAssignmentsPage - 1) * assignmentsLimit;
 
-  return NextResponse.json({
-    role: session.role,
-    managers: scopedManagers,
-    report: {
-      managerStats: scopedStats,
-      totals: scopedTotals,
-      monthlyStats: buildMonthlyStats(scopedDeals),
-    },
-    tables: {
-      deals: {
-        items: filteredDeals.slice(dealsStart, dealsStart + dealsLimit),
-        total: dealsTotal,
-        page: normalizedDealsPage,
-        limit: dealsLimit,
-        pageCount: dealsPageCount,
+    return NextResponse.json({
+      role: session.role,
+      managers: scopedManagers,
+      report: {
+        managerStats: scopedStats,
+        totals: scopedTotals,
+        monthlyStats: buildMonthlyStats(scopedDeals),
       },
-      assignments: {
-        items: filteredAssignments.slice(assignmentsStart, assignmentsStart + assignmentsLimit),
-        total: assignmentsTotal,
-        page: normalizedAssignmentsPage,
-        limit: assignmentsLimit,
-        pageCount: assignmentsPageCount,
+      tables: {
+        deals: {
+          items: filteredDeals.slice(dealsStart, dealsStart + dealsLimit),
+          total: dealsTotal,
+          page: normalizedDealsPage,
+          limit: dealsLimit,
+          pageCount: dealsPageCount,
+        },
+        assignments: {
+          items: filteredAssignments.slice(assignmentsStart, assignmentsStart + assignmentsLimit),
+          total: assignmentsTotal,
+          page: normalizedAssignmentsPage,
+          limit: assignmentsLimit,
+          pageCount: assignmentsPageCount,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Не вдалося завантажити дані реферальної системи",
+        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
