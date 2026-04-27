@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 export function isDatabaseEnabled(): boolean {
-  const strictDatabaseMode = process.env.STRICT_DATABASE_MODE === "true";
+  const strictDatabaseMode = isStrictDatabaseMode();
   if (strictDatabaseMode) {
     // Strict mode disables JSON fallback completely.
     return true;
@@ -14,8 +14,12 @@ export function isDatabaseEnabled(): boolean {
   return process.env.USE_DATABASE === "true" && Boolean(process.env.DATABASE_URL?.trim());
 }
 
+export function isStrictDatabaseMode(): boolean {
+  return process.env.STRICT_DATABASE_MODE === "true";
+}
+
 export function getPrismaClient(): PrismaClient {
-  const strictDatabaseMode = process.env.STRICT_DATABASE_MODE === "true";
+  const strictDatabaseMode = isStrictDatabaseMode();
 
   if (!process.env.DATABASE_URL?.trim()) {
     const hint = strictDatabaseMode

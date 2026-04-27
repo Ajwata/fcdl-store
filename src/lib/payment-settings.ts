@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 export type PaymentWindowRule = {
   minDaysBeforeStart: number;
@@ -57,6 +57,10 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     const prisma = getPrismaClient();
     const row = await prisma.paymentSettings.findUnique({ where: { id: "default" } });
     if (!row) {
+      if (isStrictDatabaseMode()) {
+        throw new Error("Missing required payment settings row 'default' in strict database mode");
+      }
+
       const created = await prisma.paymentSettings.create({
         data: {
           id: "default",

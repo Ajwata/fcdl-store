@@ -4,36 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 import type { StatItem } from "@/data/cms-defaults";
 
-const DEFAULT_STATS: StatItem[] = [
-  {
-    targetValue: 1280,
-    decimals: 0,
-    suffix: "+",
-    outOf: "",
-    label: "бронювань",
-    description: "Успішних бронювань з моменту запуску сервісу",
-    isThousands: true,
-  },
-  {
-    targetValue: 740,
-    decimals: 0,
-    suffix: "+",
-    outOf: "",
-    label: "клієнтів",
-    description: "Команд і гравців що обрали наш майданчик",
-    isThousands: false,
-  },
-  {
-    targetValue: 4.9,
-    decimals: 1,
-    suffix: "",
-    outOf: "/ 5",
-    label: "рейтинг",
-    description: "Середня оцінка за якість поля та сервіс",
-    isThousands: false,
-  },
-];
-
 function formatCountValue(n: number, decimals: number, isThousands?: boolean): string {
   if (decimals > 0) return n.toFixed(decimals);
   const integer = Math.round(n);
@@ -98,9 +68,9 @@ function CountUp({
 }
 
 export function StatsSection({ items, badge, title, description }: { items?: StatItem[]; badge?: string; title?: string; description?: string }) {
-  const stats = items && items.length > 0 ? items : DEFAULT_STATS;
-  const eyebrow = badge || "Цифри говорять";
-  const heading = title || "Успіх у деталях";
+  const stats = items ?? [];
+  const eyebrow = badge ?? "";
+  const heading = title ?? "";
   const sectionDescription = description || "";
   const sectionRef = useRef<HTMLElement>(null);
   const [triggered, setTriggered] = useState(false);

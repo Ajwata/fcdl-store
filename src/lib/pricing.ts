@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 export type SectorPricingEntry = {
   dayPrice: number;
@@ -81,6 +81,9 @@ export async function getPricing(): Promise<PricingConfig> {
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
     const row = await prisma.appConfig.findUnique({ where: { key: "pricing" } });
+    if (isStrictDatabaseMode() && !row) {
+      throw new Error("Missing required app config key 'pricing' in strict database mode");
+    }
     const parsed = (row?.value ?? {}) as Partial<PricingConfig>;
     return {
       eveningStartHour: parsed.eveningStartHour ?? pricingDefaults.eveningStartHour,

@@ -669,16 +669,10 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
 
   const totalCartPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const paymentWindowRulesForDisplay = useMemo(() => {
-    const fallback = [
-      { minDaysBeforeStart: 1, maxDaysBeforeStart: 2, paymentHours: 12 },
-      { minDaysBeforeStart: 3, maxDaysBeforeStart: 5, paymentHours: 24 },
-      { minDaysBeforeStart: 6, maxDaysBeforeStart: 9, paymentHours: 48 },
-      { minDaysBeforeStart: 10, maxDaysBeforeStart: null, paymentHours: 72 },
-    ];
-    const rules = paymentInfo?.paymentWindowRules ?? fallback;
+    const rules = paymentInfo?.paymentWindowRules ?? [];
     return [...rules].sort((a, b) => a.minDaysBeforeStart - b.minDaysBeforeStart);
   }, [paymentInfo]);
-  const adminDecisionHoursForDisplay = paymentInfo?.adminDecisionHours ?? 12;
+  const adminDecisionHoursForDisplay = paymentInfo?.adminDecisionHours;
   const todayIso = clientNowMs > 0 ? toIsoDate(new Date(clientNowMs)) : "";
 
   const calendarMonthLabel = useMemo(() => {
@@ -1256,21 +1250,27 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
             {/* Payment info */}
             <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
               <p className="font-semibold text-orange-900">⏰ Строки оплати</p>
-              <ul className="mt-2 space-y-1 text-sm text-orange-800">
-                {paymentWindowRulesForDisplay.map((rule) => {
-                  const daysLabel = rule.maxDaysBeforeStart === null
-                    ? `${rule.minDaysBeforeStart}+`
-                    : `${rule.minDaysBeforeStart}-${rule.maxDaysBeforeStart}`;
-                  return (
-                    <li key={`${rule.minDaysBeforeStart}-${rule.maxDaysBeforeStart ?? "plus"}`}>
-                      • За {daysLabel} дні до гри: <span className="font-bold">{rule.paymentHours} годин</span> на оплату
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="mt-2 text-xs text-orange-700">
-                Адміністратор переглядає рішення {adminDecisionHoursForDisplay} годин. Готівка і IBAN приймаються однаково.
-              </p>
+              {paymentWindowRulesForDisplay.length > 0 && adminDecisionHoursForDisplay ? (
+                <>
+                  <ul className="mt-2 space-y-1 text-sm text-orange-800">
+                    {paymentWindowRulesForDisplay.map((rule) => {
+                      const daysLabel = rule.maxDaysBeforeStart === null
+                        ? `${rule.minDaysBeforeStart}+`
+                        : `${rule.minDaysBeforeStart}-${rule.maxDaysBeforeStart}`;
+                      return (
+                        <li key={`${rule.minDaysBeforeStart}-${rule.maxDaysBeforeStart ?? "plus"}`}>
+                          • За {daysLabel} дні до гри: <span className="font-bold">{rule.paymentHours} годин</span> на оплату
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="mt-2 text-xs text-orange-700">
+                    Адміністратор переглядає рішення {adminDecisionHoursForDisplay} годин. Готівка і IBAN приймаються однаково.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-orange-700">Налаштування строків оплати тимчасово недоступні.</p>
+              )}
             </div>
 
             <div className="mt-4 rounded-xl border border-[var(--blue-100)] bg-white p-4">

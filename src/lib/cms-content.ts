@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { CmsContent, cmsDefaults } from "@/data/cms-defaults";
-import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
+import { getPrismaClient, isDatabaseEnabled, isStrictDatabaseMode } from "@/lib/prisma";
 
 const cmsFilePath = path.join(process.cwd(), "src", "data", "cms-content.json");
 
@@ -100,6 +100,9 @@ export async function getCmsContent(): Promise<CmsContent> {
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
     const row = await prisma.appConfig.findUnique({ where: { key: "cms-content" } });
+    if (isStrictDatabaseMode() && !row) {
+      throw new Error("Missing required app config key 'cms-content' in strict database mode");
+    }
     return mergeCmsContent((row?.value ?? {}) as Partial<CmsContent>);
   }
 

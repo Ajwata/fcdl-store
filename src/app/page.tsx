@@ -22,7 +22,7 @@ function resolveLiveStatValue(item: StatItem, stats: { bookingsCount: number; cl
   if (label.includes("брон")) return stats.bookingsCount;
   if (label.includes("клієн") || label.includes("грав")) return stats.clientsCount;
   if (label.includes("рейтинг") || label.includes("оцін")) return stats.averageRating;
-  return item.targetValue;
+  return 0;
 }
 
 export default async function Home() {
