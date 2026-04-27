@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-admin-auth";
 import { autoCompleteExpiredPaidBookings, type Booking, saveBookings } from "@/lib/bookings";
+import { addClientNotification } from "@/lib/client-engagement";
 import { daysBeforeStart, getPaymentSettings, resolvePaymentWindowHours } from "@/lib/payment-settings";
 import { notifyBookingCancelled, notifyPaymentReceived } from "@/lib/telegram";
 import { serviceUnavailable } from "@/lib/api-errors";
@@ -65,6 +66,14 @@ export async function PATCH(
   const paymentChangedToPaid = current.paymentStatus !== "paid" && next.paymentStatus === "paid";
   const paymentChangedToUnpaid = current.paymentStatus !== "unpaid" && next.paymentStatus === "unpaid";
   const attemptingPaymentConfirmation = paymentChangedToVerification || paymentChangedToPaid;
+  const cancelledByPaymentConflict: Array<{
+    id: string;
+    clientUserId?: string;
+    clientPhone: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+  }> = [];
 
   if (
     attemptingPaymentConfirmation &&
@@ -183,6 +192,14 @@ export async function PATCH(
           ? `${contender.notes}\nСкасовано: інший клієнт раніше зафіксував бронювання квитанцією/оплатою.`
           : "Скасовано: інший клієнт раніше зафіксував бронювання квитанцією/оплатою.",
       };
+      cancelledByPaymentConflict.push({
+        id: contender.id,
+        clientUserId: contender.clientUserId,
+        clientPhone: contender.clientPhone,
+        date: contender.date,
+        startTime: contender.startTime,
+        endTime: contender.endTime,
+      });
     }
   }
 
@@ -192,6 +209,46 @@ export async function PATCH(
   revalidatePath("/account/bookings");
   revalidatePath("/account/payments");
   revalidatePath("/admin/bookings");
+
+  if (statusChangedToConfirmed) {
+    await addClientNotification(
+      next.clientUserId,
+      next.clientPhone,
+      "Бронювання підтверджено",
+      `Бронювання #${next.id} на ${next.date} ${next.startTime}-${next.endTime} підтверджено адміністратором.`,
+      "success",
+    );
+  }
+
+  if (paymentChangedToPaid) {
+    await addClientNotification(
+      next.clientUserId,
+      next.clientPhone,
+      "Оплату підтверджено",
+      `Оплату для бронювання #${next.id} успішно підтверджено.`,
+      "success",
+    );
+  }
+
+  if (paymentChangedToVerification) {
+    await addClientNotification(
+      next.clientUserId,
+      next.clientPhone,
+      "Оплата перевіряється",
+      `Оплата для бронювання #${next.id} перевіряється адміністратором.`,
+      "info",
+    );
+  }
+
+  if (paymentChangedToUnpaid) {
+    await addClientNotification(
+      next.clientUserId,
+      next.clientPhone,
+      "Потрібна оплата",
+      `Для бронювання #${next.id} знову очікується оплата. Перевірте термін оплати в особистому кабінеті.`,
+      "warning",
+    );
+  }
 
   if (paymentChangedToPaid) {
     void notifyPaymentReceived({
@@ -207,6 +264,14 @@ export async function PATCH(
 
   const cancelledByAdmin = current.status !== "cancelled" && bookings[index].status === "cancelled";
   if (cancelledByAdmin) {
+    await addClientNotification(
+      bookings[index].clientUserId,
+      bookings[index].clientPhone,
+      "Бронювання скасовано",
+      `Бронювання #${bookings[index].id} на ${bookings[index].date} ${bookings[index].startTime}-${bookings[index].endTime} скасовано.`,
+      "warning",
+    );
+
     void notifyBookingCancelled({
       bookingId: bookings[index].id,
       clientName: bookings[index].clientName,
@@ -214,6 +279,16 @@ export async function PATCH(
       startTime: bookings[index].startTime,
       sector: bookings[index].sector,
     });
+  }
+
+  for (const cancelled of cancelledByPaymentConflict) {
+    await addClientNotification(
+      cancelled.clientUserId,
+      cancelled.clientPhone,
+      "Бронювання скасовано",
+      `Бронювання #${cancelled.id} на ${cancelled.date} ${cancelled.startTime}-${cancelled.endTime} скасовано, бо інший клієнт зафіксував оплату раніше.`,
+      "warning",
+    );
   }
 
     return NextResponse.json({ booking: bookings[index] });

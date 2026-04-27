@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { getBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
+import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { notifyPaymentVerification } from "@/lib/telegram";
 
@@ -105,6 +106,7 @@ export async function POST(
   };
 
   const winner = bookings[index];
+  const cancelledContenders: Array<{ id: string; clientUserId?: string; clientPhone: string; date: string; startTime: string; endTime: string }> = [];
   for (let i = 0; i < bookings.length; i += 1) {
     if (i === index) continue;
     const contender = bookings[i];
@@ -129,6 +131,14 @@ export async function POST(
         ? `${contender.notes}\nСкасовано: інший клієнт надіслав квитанцію раніше.`
         : "Скасовано: інший клієнт надіслав квитанцію раніше.",
     };
+    cancelledContenders.push({
+      id: contender.id,
+      clientUserId: contender.clientUserId,
+      clientPhone: contender.clientPhone,
+      date: contender.date,
+      startTime: contender.startTime,
+      endTime: contender.endTime,
+    });
   }
 
   await saveBookings(bookings);
@@ -137,6 +147,24 @@ export async function POST(
   revalidatePath("/account/bookings");
   revalidatePath("/account/payments");
   revalidatePath("/admin/bookings");
+
+  await addClientNotification(
+    payload.uid,
+    user.phone,
+    "Квитанцію надіслано",
+    `Оплату для бронювання #${winner.id} передано на перевірку адміністратору.`,
+    "info",
+  );
+
+  for (const cancelled of cancelledContenders) {
+    await addClientNotification(
+      cancelled.clientUserId,
+      cancelled.clientPhone,
+      "Бронювання скасовано",
+      `Бронювання #${cancelled.id} на ${cancelled.date} ${cancelled.startTime}-${cancelled.endTime} скасовано, бо інший клієнт зафіксував оплату раніше.`,
+      "warning",
+    );
+  }
 
   void notifyPaymentVerification({
     bookingId: winner.id,

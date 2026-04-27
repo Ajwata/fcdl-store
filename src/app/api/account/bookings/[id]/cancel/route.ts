@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { getBookings, isBookingOwnedByUser, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
+import { addClientNotification } from "@/lib/client-engagement";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { notifyBookingCancelled } from "@/lib/telegram";
 
@@ -65,6 +66,14 @@ export async function POST(
   revalidatePath("/account/bookings");
   revalidatePath("/account/payments");
   revalidatePath("/admin/bookings");
+
+  await addClientNotification(
+    payload.uid,
+    user.phone,
+    "Бронювання скасовано",
+    `Ваше бронювання #${bookings[index].id} на ${bookings[index].date} ${bookings[index].startTime}-${bookings[index].endTime} скасовано.`,
+    "warning",
+  );
 
   void notifyBookingCancelled({
     bookingId: bookings[index].id,

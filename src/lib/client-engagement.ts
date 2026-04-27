@@ -131,7 +131,7 @@ export async function getClientNotifications(userId: string, phone: string): Pro
 }
 
 export async function addClientNotification(
-  userId: string,
+  userId: string | undefined,
   phone: string,
   title: string,
   message: string,
@@ -142,7 +142,7 @@ export async function addClientNotification(
     const created = await prisma.clientNotification.create({
       data: {
         id: `ntf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        clientUserId: userId,
+        clientUserId: userId ?? null,
         phone,
         phoneKey: phoneKey(phone),
         title,
