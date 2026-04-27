@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { createManagerUser, deleteManagerUser, listAdminUsers, updateManagerUserAccess } from "@/lib/admin-users";
 import { getReferralAssignments } from "@/lib/referrals";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -31,13 +32,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити користувачів",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити користувачів", error);
   }
 }
 
@@ -89,13 +84,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося видалити менеджера",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося видалити менеджера", error);
   }
 }
 
@@ -130,12 +119,6 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ user: result.user });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося оновити менеджера",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося оновити менеджера", error);
   }
 }

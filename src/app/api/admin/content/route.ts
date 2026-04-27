@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { CmsContent } from "@/data/cms-defaults";
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { getCmsContent, saveCmsContent } from "@/lib/cms-content";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -21,13 +22,7 @@ export async function GET() {
     const content = await getCmsContent();
     return NextResponse.json({ content });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити контент",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити контент", error);
   }
 }
 
@@ -61,12 +56,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося зберегти контент",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося зберегти контент", error);
   }
 }

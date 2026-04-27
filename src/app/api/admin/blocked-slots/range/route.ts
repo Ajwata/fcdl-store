@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { addBlockedSlotsRange } from "@/lib/blocked-slots";
 import { verifySessionToken } from "@/lib/auth";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 const SECTORS = ["№1", "№2", "№3", "№4"];
 const TIME_RE = /^\d{2}:\d{2}$/;
@@ -76,12 +77,6 @@ export async function POST(request: Request) {
     const added = await addBlockedSlotsRange(dateFrom, dateTo, sectors, normalizedSlots);
     return NextResponse.json({ added });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося зберегти блокування у діапазоні",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося зберегти блокування у діапазоні", error);
   }
 }

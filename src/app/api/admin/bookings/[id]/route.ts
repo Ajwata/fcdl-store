@@ -6,6 +6,7 @@ import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { autoCompleteExpiredPaidBookings, type Booking, saveBookings } from "@/lib/bookings";
 import { daysBeforeStart, getPaymentSettings, resolvePaymentWindowHours } from "@/lib/payment-settings";
 import { notifyBookingCancelled, notifyPaymentReceived } from "@/lib/telegram";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 function overlaps(startA: string, endA: string, startB: string, endB: string): boolean {
   return startA < endB && startB < endA;
@@ -221,12 +222,6 @@ export async function PATCH(
 
     return NextResponse.json({ booking: bookings[index] });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося оновити бронювання",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося оновити бронювання", error);
   }
 }

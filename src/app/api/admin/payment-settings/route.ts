@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { serviceUnavailable } from "@/lib/api-errors";
 import {
   type PaymentSettings,
   type PaymentWindowRule,
@@ -33,13 +34,7 @@ export async function GET() {
     const settings = await getPaymentSettings();
     return NextResponse.json({ settings });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити правила оплати",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити правила оплати", error);
   }
 }
 
@@ -70,12 +65,6 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ settings: saved });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося зберегти правила оплати",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося зберегти правила оплати", error);
   }
 }

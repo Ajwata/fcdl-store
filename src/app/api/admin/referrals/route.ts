@@ -5,6 +5,7 @@ import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { listAdminUsers } from "@/lib/admin-users";
 import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
 import { buildReferralReport, getReferralAssignments } from "@/lib/referrals";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 type MonthlyStat = {
   monthKey: string;
@@ -207,13 +208,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити дані реферальної системи",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити дані реферальної системи", error);
   }
 }
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getBlockedSlots, setBlockedSlots } from "@/lib/blocked-slots";
 import { verifySessionToken } from "@/lib/auth";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 async function requireAdmin() {
   const cookieStore = await cookies();
@@ -27,13 +28,7 @@ export async function GET(request: Request) {
     const slots = await getBlockedSlots(date, sector);
     return NextResponse.json({ slots });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити заблоковані слоти",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити заблоковані слоти", error);
   }
 }
 
@@ -82,12 +77,6 @@ export async function POST(request: Request) {
     const saved = await setBlockedSlots(date, sector, normalizedSlots);
     return NextResponse.json({ slots: saved });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося зберегти заблоковані слоти",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося зберегти заблоковані слоти", error);
   }
 }

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { getClientDiscounts, upsertClientDiscount } from "@/lib/client-discounts";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -17,13 +18,7 @@ export async function GET() {
     const discounts = await getClientDiscounts();
     return NextResponse.json({ discounts });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити знижки клієнтів",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити знижки клієнтів", error);
   }
 }
 

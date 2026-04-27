@@ -5,6 +5,7 @@ import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
 import { getBlockedSlots } from "@/lib/blocked-slots";
 import { getReferralAssignments } from "@/lib/referrals";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 function hasNotEnded(date: string, endTime: string): boolean {
   return new Date(`${date}T${endTime}:00`).getTime() > Date.now();
@@ -82,12 +83,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ slots });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити доступність для адміністратора",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити доступність для адміністратора", error);
   }
 }

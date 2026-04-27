@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { updateAdminPassword } from "@/lib/admin-users";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function PATCH(request: Request) {
   const ip = getRequestIp(request);
@@ -38,12 +39,6 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося змінити пароль",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося змінити пароль", error);
   }
 }

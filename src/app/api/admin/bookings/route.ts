@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -16,12 +17,6 @@ export async function GET() {
     const bookings = await autoCompleteExpiredPaidBookings();
     return NextResponse.json({ bookings });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити бронювання",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити бронювання", error);
   }
 }

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { getPricing, savePricing } from "@/lib/pricing";
 import type { PricingConfig } from "@/lib/pricing";
+import { serviceUnavailable } from "@/lib/api-errors";
 
 async function getAdminSession() {
   const cookieStore = await cookies();
@@ -21,13 +22,7 @@ export async function GET() {
     const pricing = await getPricing();
     return NextResponse.json(pricing);
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося завантажити тарифи",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося завантажити тарифи", error);
   }
 }
 
@@ -111,12 +106,6 @@ export async function PATCH(request: Request) {
     await savePricing(updated);
     return NextResponse.json(updated);
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Не вдалося зберегти тарифи",
-        details: process.env.NODE_ENV === "production" ? undefined : (error instanceof Error ? error.message : String(error)),
-      },
-      { status: 503 },
-    );
+    return serviceUnavailable("Не вдалося зберегти тарифи", error);
   }
 }
