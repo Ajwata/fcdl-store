@@ -8,6 +8,7 @@ import { getClientUserById } from "@/lib/client-auth";
 import { CLIENT_COOKIE_NAME, verifyClientSessionToken } from "@/lib/client-session";
 import { getCmsContent } from "@/lib/cms-content";
 import { formatDateTimeUk, formatDateUk } from "@/lib/date-format";
+import { getPaymentSettings } from "@/lib/payment-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,7 @@ export default async function AccountPaymentsPage() {
 
   const user = await getClientUserById(payload.uid);
   const cms = await getCmsContent();
+  const paymentSettings = await getPaymentSettings();
   const bookings = filterBookingsForUser(await getBookings(), payload.uid, user?.phone ?? payload.phone).sort((a, b) =>
     `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`),
   );
@@ -105,12 +107,21 @@ export default async function AccountPaymentsPage() {
           <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4">
             <p className="font-semibold text-orange-900">⏰ Строки оплати</p>
             <ul className="mt-2 space-y-1 text-sm text-orange-800">
-              <li>• За 1–2 дні до гри: <span className="font-bold">12 годин</span> на оплату</li>
-              <li>• За 3–5 днів до гри: <span className="font-bold">24 години</span> на оплату</li>
-              <li>• За 6–9 днів до гри: <span className="font-bold">48 годин</span> на оплату</li>
-              <li>• За 10+ днів до гри: <span className="font-bold">72 години</span> на оплату</li>
+              {paymentSettings.paymentWindowRules.map((rule) => {
+                const daysLabel = rule.maxDaysBeforeStart === null
+                  ? `${rule.minDaysBeforeStart}+`
+                  : `${rule.minDaysBeforeStart}–${rule.maxDaysBeforeStart}`;
+
+                return (
+                  <li key={`${rule.minDaysBeforeStart}-${rule.maxDaysBeforeStart ?? "plus"}`}>
+                    • За {daysLabel} дні до гри: <span className="font-bold">{rule.paymentHours} годин</span> на оплату
+                  </li>
+                );
+              })}
             </ul>
-            <p className="mt-2 text-xs text-orange-700">Адміністратор переглядає рішення 12 годин. Готівка і IBAN приймаються однаково.</p>
+            <p className="mt-2 text-xs text-orange-700">
+              Адміністратор переглядає рішення {paymentSettings.adminDecisionHours} годин. Готівка і IBAN приймаються однаково.
+            </p>
           </div>
         </div>
 
