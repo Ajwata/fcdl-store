@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
-import { getBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
 import { getAllClientUsers } from "@/lib/client-auth";
 import { buildClientSummaries } from "@/lib/client-summary";
 import { formatDateUk } from "@/lib/date-format";
@@ -54,7 +54,7 @@ export default async function AdminDashboard() {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   const session = await verifySessionToken(token);
 
-  const [bookings, registeredUsers] = await Promise.all([getBookings(), getAllClientUsers()]);
+  const [bookings, registeredUsers] = await Promise.all([autoCompleteExpiredPaidBookings(), getAllClientUsers()]);
   const today = new Date();
   const nonCancelledBookings = bookings.filter((b) => b.status !== "cancelled");
 

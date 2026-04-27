@@ -9,7 +9,7 @@ import { SiteHeader } from "@/components/site-header";
 import { StatsSection } from "@/components/stats-section";
 import { HashScrollLink } from "@/components/ui/hash-scroll-link";
 import type { StatItem } from "@/data/cms-defaults";
-import { getBookings } from "@/lib/bookings";
+import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
 import { getAllClientUsers } from "@/lib/client-auth";
 import { getCmsContent } from "@/lib/cms-content";
 import { getPublicClientReviews } from "@/lib/client-engagement";
@@ -28,7 +28,7 @@ function resolveLiveStatValue(item: StatItem, stats: { bookingsCount: number; cl
 export default async function Home() {
   const [cms, bookings, users, allReviews] = await Promise.all([
     getCmsContent(),
-    getBookings(),
+    autoCompleteExpiredPaidBookings(),
     getAllClientUsers(),
     getPublicClientReviews(),
   ]);
