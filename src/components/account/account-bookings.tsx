@@ -459,7 +459,7 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
                           }}
                           className="rounded-full border border-[var(--green-200)] bg-[var(--green-100)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.1em] text-[var(--green-800)]"
                         >
-                          Отримати реквізити
+                          Реквізити / квитанція
                         </button>
                       )}
                       <button
@@ -482,6 +482,19 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
                       )}
                     </div>
                   </div>
+
+                  {booking.paymentProofUrl && (
+                    <div className="mt-3">
+                      <a
+                        href={booking.paymentProofUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-[var(--blue-800)] underline"
+                      >
+                        Переглянути відправлену квитанцію
+                      </a>
+                    </div>
+                  )}
 
                   {repeatDrafts[booking.id] && (
                     <div className="mt-3 space-y-2 rounded-xl border border-[var(--blue-100)] bg-white p-3">
@@ -645,7 +658,7 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--green-700)]">Оплата</p>
-                <h3 className="mt-1 text-xl font-bold text-[var(--blue-950)]">Реквізити для переказу</h3>
+                <h3 className="mt-1 text-xl font-bold text-[var(--blue-950)]">Реквізити та квитанція</h3>
               </div>
               <button
                 type="button"

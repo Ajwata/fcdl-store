@@ -80,7 +80,7 @@ export function PaymentProofButton({ bookingId, paymentRequisites, disabled = fa
           }}
           className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] ${disabled ? "cursor-not-allowed bg-slate-200 text-slate-400" : "bg-[var(--green-700)] text-white hover:bg-[var(--green-800)]"}`}
         >
-          Отримати реквізити
+          Реквізити / квитанція
         </button>
         {status && <p className="text-xs font-semibold text-emerald-700">{status}</p>}
         {error && <p className="text-xs font-semibold text-rose-700">{error}</p>}
@@ -92,7 +92,7 @@ export function PaymentProofButton({ bookingId, paymentRequisites, disabled = fa
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--green-700)]">Оплата</p>
-                <h3 className="mt-1 text-xl font-bold text-[var(--blue-950)]">Реквізити для переказу</h3>
+                <h3 className="mt-1 text-xl font-bold text-[var(--blue-950)]">Реквізити та квитанція</h3>
               </div>
               <button
                 type="button"
