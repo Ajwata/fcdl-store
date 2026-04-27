@@ -63,6 +63,69 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+type TelegramField = {
+  label: string;
+  value: string;
+  asCode?: boolean;
+  boldValue?: boolean;
+};
+
+type TelegramLink = {
+  text: string;
+  href: string;
+};
+
+type TelegramBookingEvent = {
+  title: string;
+  fields: TelegramField[];
+  links?: TelegramLink[];
+  footer?: string;
+};
+
+function formatTelegramField(field: TelegramField): string {
+  const safeLabel = escapeHtml(field.label);
+  const safeValue = escapeHtml(field.value);
+  let rendered = safeValue;
+
+  if (field.asCode) {
+    rendered = `<code>${safeValue}</code>`;
+  } else if (field.boldValue) {
+    rendered = `<b>${safeValue}</b>`;
+  }
+
+  return `<b>${safeLabel}:</b> ${rendered}`;
+}
+
+function buildTelegramBookingMessage(event: TelegramBookingEvent): string {
+  const parts: string[] = [];
+  parts.push(`<b>${escapeHtml(event.title)}</b>`);
+  parts.push("");
+
+  for (const field of event.fields) {
+    parts.push(formatTelegramField(field));
+  }
+
+  if (event.links && event.links.length > 0) {
+    parts.push("");
+    for (const link of event.links) {
+      parts.push(`<a href="${escapeHtml(link.href)}">${escapeHtml(link.text)}</a>`);
+    }
+  }
+
+  if (event.footer) {
+    parts.push("");
+    parts.push(`<i>${escapeHtml(event.footer)}</i>`);
+  }
+
+  return parts.join("\n");
+}
+
+async function notifyBookingEvent(event: TelegramBookingEvent): Promise<void> {
+  if (!isTelegramConfigured()) return;
+  const message = buildTelegramBookingMessage(event);
+  await sendTelegramMessage(message);
+}
+
 /**
  * Notify admin about new booking
  */
@@ -76,22 +139,18 @@ export async function notifyNewBooking(input: {
   sector: string;
   totalPrice: number;
 }): Promise<void> {
-  if (!isTelegramConfigured()) return;
-
-  const message = `
-<b>🎫 Нова бронь</b>
-
-<b>ID:</b> <code>${escapeHtml(input.bookingId)}</code>
-<b>Клієнт:</b> ${escapeHtml(input.clientName)} (${escapeHtml(input.clientPhone)})
-<b>Дата:</b> ${escapeHtml(input.date)}
-<b>Час:</b> ${escapeHtml(input.startTime)} - ${escapeHtml(input.endTime)}
-<b>Поле:</b> ${escapeHtml(input.sector)}
-<b>Ціна:</b> <b>${input.totalPrice} грн</b>
-
-<i>Статус: Очікує підтвердження</i>
-  `.trim();
-
-  await sendTelegramMessage(message);
+  await notifyBookingEvent({
+    title: "🎫 Нова бронь",
+    fields: [
+      { label: "ID", value: input.bookingId, asCode: true },
+      { label: "Клієнт", value: `${input.clientName} (${input.clientPhone})` },
+      { label: "Дата", value: input.date },
+      { label: "Час", value: `${input.startTime} - ${input.endTime}` },
+      { label: "Поле", value: input.sector },
+      { label: "Ціна", value: `${input.totalPrice} грн`, boldValue: true },
+    ],
+    footer: "Статус: Очікує підтвердження",
+  });
 }
 
 /**
@@ -106,20 +165,17 @@ export async function notifyPaymentReceived(input: {
   sector: string;
   totalPrice: number;
 }): Promise<void> {
-  if (!isTelegramConfigured()) return;
-
-  const message = `
-<b>✅ Оплата отримана</b>
-
-<b>ID:</b> <code>${escapeHtml(input.bookingId)}</code>
-<b>Клієнт:</b> ${escapeHtml(input.clientName)} (${escapeHtml(input.clientPhone)})
-<b>Дата:</b> ${escapeHtml(input.date)}
-<b>Час:</b> ${escapeHtml(input.startTime)}
-<b>Поле:</b> ${escapeHtml(input.sector)}
-<b>Сума:</b> <b>${input.totalPrice} грн</b>
-  `.trim();
-
-  await sendTelegramMessage(message);
+  await notifyBookingEvent({
+    title: "✅ Оплата отримана",
+    fields: [
+      { label: "ID", value: input.bookingId, asCode: true },
+      { label: "Клієнт", value: `${input.clientName} (${input.clientPhone})` },
+      { label: "Дата", value: input.date },
+      { label: "Час", value: input.startTime },
+      { label: "Поле", value: input.sector },
+      { label: "Сума", value: `${input.totalPrice} грн`, boldValue: true },
+    ],
+  });
 }
 
 /**
@@ -132,19 +188,16 @@ export async function notifyBookingCancelled(input: {
   startTime: string;
   sector: string;
 }): Promise<void> {
-  if (!isTelegramConfigured()) return;
-
-  const message = `
-<b>❌ Бронь скасована</b>
-
-<b>ID:</b> <code>${escapeHtml(input.bookingId)}</code>
-<b>Клієнт:</b> ${escapeHtml(input.clientName)}
-<b>Дата:</b> ${escapeHtml(input.date)}
-<b>Час:</b> ${escapeHtml(input.startTime)}
-<b>Поле:</b> ${escapeHtml(input.sector)}
-  `.trim();
-
-  await sendTelegramMessage(message);
+  await notifyBookingEvent({
+    title: "❌ Бронь скасована",
+    fields: [
+      { label: "ID", value: input.bookingId, asCode: true },
+      { label: "Клієнт", value: input.clientName },
+      { label: "Дата", value: input.date },
+      { label: "Час", value: input.startTime },
+      { label: "Поле", value: input.sector },
+    ],
+  });
 }
 
 /**
@@ -160,24 +213,20 @@ export async function notifyPaymentVerification(input: {
   proofUrl: string;
   adminBookingUrl?: string;
 }): Promise<void> {
-  if (!isTelegramConfigured()) return;
+  const links: TelegramLink[] = [{ text: "Переглянути квитанцію", href: input.proofUrl }];
+  if (input.adminBookingUrl) {
+    links.push({ text: "Відкрити бронювання в адмінці", href: input.adminBookingUrl });
+  }
 
-  const adminLinkPart = input.adminBookingUrl
-    ? `\n<a href="${escapeHtml(input.adminBookingUrl)}">Відкрити бронювання в адмінці</a>`
-    : "";
-
-  const message = `
-<b>⏳ Оплата на перевірці</b>
-
-<b>№ бронювання:</b> <code>${escapeHtml(input.bookingId)}</code>
-<b>Клієнт:</b> ${escapeHtml(input.clientName)} (${escapeHtml(input.clientPhone)})
-<b>Дата:</b> ${escapeHtml(input.date)}
-<b>Поле:</b> ${escapeHtml(input.sector)}
-<b>Сума:</b> <b>${input.totalPrice} грн</b>
-
-<a href="${escapeHtml(input.proofUrl)}">Переглянути квитанцію</a>
-${adminLinkPart}
-  `.trim();
-
-  await sendTelegramMessage(message);
+  await notifyBookingEvent({
+    title: "⏳ Оплата на перевірці",
+    fields: [
+      { label: "№ бронювання", value: input.bookingId, asCode: true },
+      { label: "Клієнт", value: `${input.clientName} (${input.clientPhone})` },
+      { label: "Дата", value: input.date },
+      { label: "Поле", value: input.sector },
+      { label: "Сума", value: `${input.totalPrice} грн`, boldValue: true },
+    ],
+    links,
+  });
 }
