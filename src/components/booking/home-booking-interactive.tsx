@@ -47,20 +47,6 @@ type HomeBookingInteractiveProps = {
 const BOOKING_CART_STORAGE_KEY = "booking_cart_v1";
 const BOOKING_REFERRAL_STORAGE_KEY = "booking_referral_manager_v1";
 
-const pricingFallback: PricingConfig = {
-  eveningStartHour: 18,
-  sectors: {
-    "№1": { dayPrice: 900, eveningPrice: 1100 },
-    "№2": { dayPrice: 800, eveningPrice: 1000 },
-    "№3": { dayPrice: 900, eveningPrice: 1100 },
-    "№4": { dayPrice: 2500, eveningPrice: 3000 },
-  },
-  durationDiscountRules: [
-    { minHours: 2, maxHours: 4, discountPercent: 10 },
-    { minHours: 5, maxHours: 8, discountPercent: 18 },
-  ],
-};
-
 function calcTotalPrice(pricing: PricingConfig, sector: string, startHour: number, durationHours: number): number {
   const entry = pricing.sectors[sector];
   if (!entry) return 0;
@@ -89,13 +75,6 @@ function getDurationDiscountPercent(pricing: PricingConfig, durationHours: numbe
 
   return best;
 }
-
-const fallbackSectorCards: BookingSection["sectorCards"] = [
-  { key: "№1", title: "Поле №1", note: "До 30 гравців • Парні матчі та тренування", imageUrl: "", widthMeters: 20, heightMeters: 40 },
-  { key: "№2", title: "Поле №2", note: "Вузьке поле • Функціональне тренування", imageUrl: "", widthMeters: 17, heightMeters: 40 },
-  { key: "№3", title: "Поле №3", note: "Стандартне • Офіційні матчі та турніри", imageUrl: "", widthMeters: 20, heightMeters: 40 },
-  { key: "№4", title: "Поле №4", note: "Повнорозмірне • Професійні матчі та чемпіонати", imageUrl: "", widthMeters: 40, heightMeters: 60 },
-];
 
 function formatSectorDimensions(widthMeters: number, heightMeters: number): string {
   return `Ширина ${widthMeters}м • Довжина ${heightMeters}м`;
@@ -167,7 +146,8 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const [authResolved, setAuthResolved] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [pricing, setPricing] = useState<PricingConfig>(pricingFallback);
+  const [pricing, setPricing] = useState<PricingConfig | null>(null);
+  const [pricingUnavailable, setPricingUnavailable] = useState(false);
   const [cartHydrated, setCartHydrated] = useState(false);
   const autoCheckoutTriggeredRef = useRef(false);
   const [clientNowMs, setClientNowMs] = useState(0);
@@ -181,12 +161,8 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
     paymentWindowRules: Array<{ minDaysBeforeStart: number; maxDaysBeforeStart: number | null; paymentHours: number }>;
   } | null>(null);
 
-  const sectorCards = bookingSection.sectorCards.length > 0 ? bookingSection.sectorCards : fallbackSectorCards;
-  const bookingSteps = bookingSection.steps.length > 0 ? bookingSection.steps : [
-    { label: "Крок 1", title: "Сектор" },
-    { label: "Крок 2", title: "Дата і час" },
-    { label: "Крок 3", title: "Оплата" },
-  ];
+  const sectorCards = bookingSection.sectorCards;
+  const bookingSteps = bookingSection.steps;
 
   const getSectorDisplay = (sector: Sector): { label: string; dimensions: string; note: string; imageUrl: string } => {
     const match = sectorCards.find((item) => item.key === sector);
@@ -199,7 +175,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   };
 
   const totalPrice = useMemo(() => {
-    if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
+    if (!pricing || !selectedSector || !selectedSlot || !selectedDuration) return 0;
     const base = calcTotalPrice(pricing, selectedSector, toHour(selectedSlot), selectedDuration);
     const durationDiscountPercent = getDurationDiscountPercent(pricing, selectedDuration);
     const effectiveDiscountPercent = Math.max(discountPercent, durationDiscountPercent);
@@ -207,12 +183,12 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, [pricing, discountPercent, selectedSector, selectedSlot, selectedDuration]);
 
   const baseTotalPrice = useMemo(() => {
-    if (!selectedSector || !selectedSlot || !selectedDuration) return 0;
+    if (!pricing || !selectedSector || !selectedSlot || !selectedDuration) return 0;
     return calcTotalPrice(pricing, selectedSector, toHour(selectedSlot), selectedDuration);
   }, [pricing, selectedSector, selectedSlot, selectedDuration]);
 
   const durationDiscountPercent = useMemo(() => {
-    if (!selectedDuration) return 0;
+    if (!pricing || !selectedDuration) return 0;
     return getDurationDiscountPercent(pricing, selectedDuration);
   }, [pricing, selectedDuration]);
 
@@ -273,9 +249,12 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
         if (res.ok) {
           const data = (await res.json()) as PricingConfig;
           setPricing(data);
+          setPricingUnavailable(false);
+          return;
         }
+        setPricingUnavailable(true);
       } catch {
-        // keep fallback
+        setPricingUnavailable(true);
       }
     };
     void loadPricing();
@@ -554,6 +533,11 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   };
 
   const addCurrentSelectionToCart = () => {
+    if (!pricing) {
+      setSubmitError("Тарифи тимчасово недоступні");
+      return;
+    }
+
     if (!selectedSector || !selectedDate || !selectedSlot || !selectedDuration) {
       return;
     }
@@ -743,6 +727,18 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
         </div>
       </div>
 
+      {pricingUnavailable && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Тарифи тимчасово недоступні. Спробуйте оновити сторінку пізніше.
+        </div>
+      )}
+
+      {sectorCards.length === 0 && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Дані про поля тимчасово недоступні.
+        </div>
+      )}
+
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
         {bookingSteps.slice(0, 3).map((step, index) => (
           <div key={`${step.label}-${index}`} className="rounded-2xl border border-[var(--blue-100)] bg-white/82 px-4 py-3">
@@ -854,7 +850,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   <p className="text-base font-bold text-[var(--blue-950)]">{sectorCard.title}</p>
                   <p className="mt-1 text-[11px] font-semibold leading-snug text-[var(--blue-700)]">{dimensions}</p>
                   <p className="mt-1.5 text-sm font-normal leading-snug text-[var(--blue-800)]">{note}</p>
-                  <p className="mt-auto pt-3 text-lg font-bold text-[var(--green-700)]">Від {pricing.sectors[key]?.dayPrice ?? "—"} грн/год</p>
+                  <p className="mt-auto pt-3 text-lg font-bold text-[var(--green-700)]">Від {pricing?.sectors[key]?.dayPrice ?? "—"} грн/год</p>
                 </div>
               </button>
             );
@@ -1098,7 +1094,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                       <p className="text-sm font-semibold text-[var(--blue-950)]">{title}</p>
                       <p className="mt-0.5 text-[11px] font-semibold text-[var(--blue-700)]">{formatSectorDimensions(widthMeters, heightMeters)}</p>
                       <p className="mt-0.5 text-xs text-[var(--blue-800)]">{note}</p>
-                      <p className="mt-2 text-xs font-bold text-[var(--green-700)]">День: {pricing.sectors[key]?.dayPrice ?? "—"} / Вечір: {pricing.sectors[key]?.eveningPrice ?? "—"} грн/год</p>
+                      <p className="mt-2 text-xs font-bold text-[var(--green-700)]">День: {pricing?.sectors[key]?.dayPrice ?? "—"} / Вечір: {pricing?.sectors[key]?.eveningPrice ?? "—"} грн/год</p>
                     </button>
                   ))}
                 </div>
@@ -1177,7 +1173,7 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   <p className="mt-1 text-xs text-[var(--blue-700)]">Hour: <span className="font-semibold text-[var(--blue-950)]">{selectedSlot}</span></p>
                   <p className="mt-1 text-xs text-[var(--blue-700)]">Duration: <span className="font-semibold text-[var(--blue-950)]">{selectedDuration} год</span></p>
                   <p className="mt-3 border-t border-[var(--blue-100)] pt-3 text-xs text-[var(--blue-700)]">
-                    Тариф: День {pricing.sectors[selectedSector ?? ""]?.dayPrice ?? "—"} грн/год · Вечір {pricing.sectors[selectedSector ?? ""]?.eveningPrice ?? "—"} грн/год
+                    Тариф: День {pricing?.sectors[selectedSector ?? ""]?.dayPrice ?? "—"} грн/год · Вечір {pricing?.sectors[selectedSector ?? ""]?.eveningPrice ?? "—"} грн/год
                   </p>
                   <p className="mt-2 text-xs text-[var(--blue-700)]">Базова ціна: <span className="font-semibold text-[var(--blue-950)]">{baseTotalPrice} грн</span></p>
                   {effectiveDiscountPercent > 0 && (
