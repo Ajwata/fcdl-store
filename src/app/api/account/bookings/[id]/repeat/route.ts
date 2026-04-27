@@ -108,7 +108,7 @@ export async function POST(
   const durationDiscountPercent = getDurationDiscountPercent(pricing, targetDurationHours);
   const effectiveDiscountPercent = getEffectiveDiscountPercent(personalDiscountPercent, durationDiscountPercent);
   const discountedTotalPrice = applyDiscount(basePrice, effectiveDiscountPercent);
-  if (discountedTotalPrice <= 0) {
+  if (discountedTotalPrice < 0) {
     return NextResponse.json({ error: "Не вдалося розрахувати вартість бронювання" }, { status: 400 });
   }
 
@@ -133,10 +133,10 @@ export async function POST(
     startTime: targetStartTime,
     endTime: targetEndTime,
     durationHours: targetDurationHours,
-    pricePerHour: Math.max(1, Math.round(discountedTotalPrice / targetDurationHours)),
+    pricePerHour: Math.max(0, Math.round(discountedTotalPrice / targetDurationHours)),
     totalPrice: discountedTotalPrice,
     status: "pending" as const,
-    paymentStatus: "unpaid" as const,
+    paymentStatus: discountedTotalPrice === 0 ? ("paid" as const) : ("unpaid" as const),
     paymentMethod: "cash" as const,
     adminDecisionDueAt: new Date(Date.now() + paymentSettings.adminDecisionHours * 60 * 60 * 1000).toISOString(),
     createdAt: new Date().toISOString(),

@@ -112,7 +112,16 @@ export async function POST(request: Request) {
   // Check conflicts both with existing bookings and within submitted cart.
   for (let i = 0; i < items.length; i += 1) {
     const item = items[i];
-    if (!item.sector || !item.date || !item.startTime || !item.endTime || !item.durationHours || !item.totalPrice) {
+    if (
+      !item.sector ||
+      !item.date ||
+      !item.startTime ||
+      !item.endTime ||
+      !Number.isFinite(item.durationHours) ||
+      item.durationHours <= 0 ||
+      !Number.isFinite(item.totalPrice) ||
+      item.totalPrice < 0
+    ) {
       return NextResponse.json({ error: "Некоректні дані бронювання" }, { status: 400 });
     }
 
@@ -122,7 +131,7 @@ export async function POST(request: Request) {
     const durationDiscountPercent = getDurationDiscountPercent(pricing, item.durationHours);
     const effectiveDiscountPercent = getEffectiveDiscountPercent(personalDiscountPercent, durationDiscountPercent);
     const expectedPrice = applyDiscount(basePrice, effectiveDiscountPercent);
-    if (expectedPrice <= 0) {
+    if (expectedPrice < 0) {
       return NextResponse.json(
         { error: `Не вдалося визначити ціну для ${item.sector} ${item.startTime}. Оновіть сторінку.` },
         { status: 400 },
@@ -132,7 +141,7 @@ export async function POST(request: Request) {
     preparedItems.push({
       ...item,
       canonicalTotalPrice: expectedPrice,
-      canonicalPricePerHour: Math.max(1, Math.round(expectedPrice / item.durationHours)),
+      canonicalPricePerHour: Math.max(0, Math.round(expectedPrice / item.durationHours)),
     });
 
     for (let j = i + 1; j < items.length; j += 1) {
@@ -167,9 +176,9 @@ export async function POST(request: Request) {
       pricePerHour: item.canonicalPricePerHour,
       totalPrice: item.canonicalTotalPrice,
       status: "pending" as const,
-      paymentStatus: "unpaid" as const,
+      paymentStatus: item.canonicalTotalPrice === 0 ? ("paid" as const) : ("unpaid" as const),
       paymentMethod: "cash" as const,
-      paymentDueAt,
+      paymentDueAt: item.canonicalTotalPrice === 0 ? undefined : paymentDueAt,
       adminDecisionDueAt,
       createdAt,
       notes: "",
