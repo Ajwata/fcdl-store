@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 import { autoCompleteExpiredPaidBookings, filterBookingsForUser, getBookings, reserveBookingNumbers, saveBookings } from "@/lib/bookings";
 import { getClientUserById } from "@/lib/client-auth";
@@ -194,7 +195,7 @@ export async function POST(request: Request) {
     const prisma = getPrismaClient();
 
     try {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         for (const booking of createdBookings) {
           const conflict = await tx.booking.findFirst({
             where: {
