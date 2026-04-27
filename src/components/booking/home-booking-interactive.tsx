@@ -35,17 +35,11 @@ type AvailabilitySlot = {
   paymentStatus: "unpaid" | "verification" | "paid" | "refunded";
 };
 
-type ReferralManager = {
-  id: string;
-  name: string;
-};
-
 type HomeBookingInteractiveProps = {
   bookingSection: BookingSection;
 };
 
 const BOOKING_CART_STORAGE_KEY = "booking_cart_v1";
-const BOOKING_REFERRAL_STORAGE_KEY = "booking_referral_manager_v1";
 
 function calcTotalPrice(pricing: PricingConfig, sector: string, startHour: number, durationHours: number): number {
   const entry = pricing.sectors[sector];
@@ -152,8 +146,6 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   const autoCheckoutTriggeredRef = useRef(false);
   const [clientNowMs, setClientNowMs] = useState(0);
   const [discountPercent, setDiscountPercent] = useState(0);
-  const [referralManagers, setReferralManagers] = useState<ReferralManager[]>([]);
-  const [selectedReferralManagerId, setSelectedReferralManagerId] = useState<string>("none");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("cash");
   const [availabilityByDate, setAvailabilityByDate] = useState<Record<string, AvailabilitySlot[]>>({});
   const [paymentInfo, setPaymentInfo] = useState<{
@@ -276,28 +268,8 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
   }, []);
 
   useEffect(() => {
-    const loadReferralManagers = async () => {
-      try {
-        const res = await fetch("/api/referral-managers", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { managers?: ReferralManager[] };
-        const managers = Array.isArray(data.managers) ? data.managers : [];
-        setReferralManagers(managers);
-      } catch {
-        // Keep empty list when request fails.
-      }
-    };
-
-    void loadReferralManagers();
-  }, []);
-
-  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(BOOKING_CART_STORAGE_KEY);
-      const rawReferralManager = window.localStorage.getItem(BOOKING_REFERRAL_STORAGE_KEY);
-      if (rawReferralManager && rawReferralManager.trim()) {
-        setSelectedReferralManagerId(rawReferralManager);
-      }
       if (!raw) {
         setCartHydrated(true);
         return;
@@ -343,11 +315,10 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
           JSON.stringify({ items: cartItems, nextId: nextCartItemId }),
         );
       }
-      window.localStorage.setItem(BOOKING_REFERRAL_STORAGE_KEY, selectedReferralManagerId);
     } catch {
       // localStorage can be unavailable in private mode.
     }
-  }, [cartHydrated, cartItems, nextCartItemId, selectedReferralManagerId]);
+  }, [cartHydrated, cartItems, nextCartItemId]);
 
   useEffect(() => {
     const dates = Array.from(new Set([calendarDate, selectedDate].filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))));
@@ -584,7 +555,6 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
             totalPrice: item.totalPrice,
           })),
           paymentMethod: selectedPaymentMethod,
-          referredByManagerId: selectedReferralManagerId !== "none" ? selectedReferralManagerId : undefined,
         }),
       });
 
@@ -1295,20 +1265,6 @@ export function HomeBookingInteractive({ bookingSection }: HomeBookingInteractiv
                   Переказ на IBAN
                 </label>
               </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-[var(--blue-100)] bg-white p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--blue-700)]">Хто вас привів?</p>
-              <select
-                value={selectedReferralManagerId}
-                onChange={(event) => setSelectedReferralManagerId(event.target.value)}
-                className="mt-3 w-full rounded-xl border border-[var(--blue-200)] bg-white px-3 py-2.5 text-sm text-[var(--blue-900)] outline-none focus:ring-2 focus:ring-[var(--green-700)]"
-              >
-                <option value="none">Ніхто / самостійно</option>
-                {referralManagers.map((manager) => (
-                  <option key={manager.id} value={manager.id}>{manager.name}</option>
-                ))}
-              </select>
             </div>
 
             {submitError && (

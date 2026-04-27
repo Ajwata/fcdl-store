@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 type Step = "phone" | "code";
 type AuthMode = "login" | "register";
 
+type ReferralManager = {
+  id: string;
+  name: string;
+};
+
 export default function AccountLoginPage() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [step, setStep] = useState<Step>("phone");
@@ -20,6 +25,8 @@ export default function AccountLoginPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [referralManagers, setReferralManagers] = useState<ReferralManager[]>([]);
+  const [selectedReferralManagerId, setSelectedReferralManagerId] = useState<string>("none");
 
   const [resendIn, setResendIn] = useState(0);
   const router = useRouter();
@@ -36,6 +43,27 @@ export default function AccountLoginPage() {
     }, 1000);
     return () => clearInterval(timer);
   }, [resendIn]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadReferralManagers = async () => {
+      try {
+        const response = await fetch("/api/referral-managers", { cache: "no-store" });
+        if (!response.ok) return;
+        const result = (await response.json()) as { managers?: ReferralManager[] };
+        if (cancelled) return;
+        setReferralManagers(Array.isArray(result.managers) ? result.managers : []);
+      } catch {
+        if (cancelled) return;
+      }
+    };
+
+    void loadReferralManagers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const phoneDigitsCount = useMemo(() => phone.replace(/\D/g, "").length, [phone]);
 
@@ -115,6 +143,7 @@ export default function AccountLoginPage() {
           mode: "register",
           password,
           acceptedTerms,
+          referredByManagerId: selectedReferralManagerId !== "none" ? selectedReferralManagerId : undefined,
         }),
       });
       const result = (await response.json()) as { error?: string };
@@ -188,6 +217,7 @@ export default function AccountLoginPage() {
               setPassword("");
               setConfirmPassword("");
               setAcceptedTerms(false);
+              setSelectedReferralManagerId("none");
             }}
             className={`rounded-xl px-3 py-2 text-center transition ${mode === "login" ? "bg-white text-[var(--blue-900)]" : "text-slate-500"}`}
           >
@@ -204,6 +234,7 @@ export default function AccountLoginPage() {
               setPassword("");
               setConfirmPassword("");
               setAcceptedTerms(false);
+              setSelectedReferralManagerId("none");
             }}
             className={`rounded-xl px-3 py-2 text-center transition ${mode === "register" ? "bg-white text-[var(--blue-900)]" : "text-slate-500"}`}
           >
@@ -240,6 +271,19 @@ export default function AccountLoginPage() {
                   />
                   <span>Погоджуюся з правилами користування та політикою конфіденційності</span>
                 </label>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Хто вас привів? (перший і єдиний вибір)</label>
+                  <select
+                    value={selectedReferralManagerId}
+                    onChange={(event) => setSelectedReferralManagerId(event.target.value)}
+                    className="w-full rounded-xl border border-[var(--blue-200)] px-3 py-2.5 text-sm outline-none ring-[var(--green-700)] focus:ring-2"
+                  >
+                    <option value="none">Ніхто / самостійно</option>
+                    {referralManagers.map((manager) => (
+                      <option key={manager.id} value={manager.id}>{manager.name}</option>
+                    ))}
+                  </select>
+                </div>
               </>
             )}
 

@@ -11,6 +11,8 @@ import { isClientBlocked } from "@/lib/access-control";
 import { CLIENT_COOKIE_NAME, createClientSessionToken } from "@/lib/client-session";
 import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { listAdminUsers } from "@/lib/admin-users";
+import { assignReferralByClientChoice } from "@/lib/referrals";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
     mode?: "login" | "register";
     password?: string;
     acceptedTerms?: boolean;
+    referredByManagerId?: string;
   };
 
   const mode = body.mode === "register" ? "register" : "login";
@@ -81,6 +84,24 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Не вдалося виконати вхід" }, { status: 500 });
+  }
+
+  if (mode === "register") {
+    const referredByManagerId = body.referredByManagerId?.trim() ?? "";
+    if (referredByManagerId) {
+      const admins = await listAdminUsers();
+      const manager = admins.find((item) => item.role === "manager" && item.id === referredByManagerId);
+      if (!manager) {
+        return NextResponse.json({ error: "Обраного менеджера не знайдено" }, { status: 400 });
+      }
+
+      await assignReferralByClientChoice({
+        clientPhone: user.phone,
+        managerId: manager.id,
+        managerLogin: manager.login,
+        managerName: manager.name,
+      });
+    }
   }
 
   const token = await createClientSessionToken(user.id, user.phone);

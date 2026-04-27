@@ -12,8 +12,6 @@ import { getPaymentSettings, getPaymentWindowHours } from "@/lib/payment-setting
 import { getEffectiveDiscountPercent, getDurationDiscountPercent, getPricing, calcSlotPrice } from "@/lib/pricing";
 import { getPrismaClient, isDatabaseEnabled } from "@/lib/prisma";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
-import { listAdminUsers } from "@/lib/admin-users";
-import { assignReferralByClientChoice } from "@/lib/referrals";
 import { notifyNewBooking } from "@/lib/telegram";
 
 export async function GET() {
@@ -89,11 +87,9 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     items?: CreateBookingItem[];
-    referredByManagerId?: string;
     paymentMethod?: "cash" | "iban";
   };
   const items = body.items ?? [];
-  const referredByManagerId = body.referredByManagerId?.trim() ?? "";
   const paymentMethod: "cash" | "iban" = body.paymentMethod === "iban" ? "iban" : "cash";
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -104,16 +100,6 @@ export async function POST(request: Request) {
   const pricing = await getPricing();
   const personalDiscountPercent = await getClientDiscountPercent(user.phone);
   const preparedItems: Array<CreateBookingItem & { canonicalTotalPrice: number; canonicalPricePerHour: number }> = [];
-  let selectedManager: { id: string; login: string; name: string } | null = null;
-
-  if (referredByManagerId) {
-    const admins = await listAdminUsers();
-    const manager = admins.find((item) => item.role === "manager" && item.id === referredByManagerId);
-    if (!manager) {
-      return NextResponse.json({ error: "Обраного менеджера не знайдено" }, { status: 400 });
-    }
-    selectedManager = { id: manager.id, login: manager.login, name: manager.name };
-  }
 
   // Check conflicts both with existing bookings and within submitted cart.
   for (let i = 0; i < items.length; i += 1) {
@@ -271,15 +257,6 @@ export async function POST(request: Request) {
 
     bookings.push(...createdBookings);
     await saveBookings(bookings);
-  }
-
-  if (selectedManager) {
-    await assignReferralByClientChoice({
-      clientPhone: user.phone,
-      managerId: selectedManager.id,
-      managerLogin: selectedManager.login,
-      managerName: selectedManager.name,
-    });
   }
 
   revalidatePath("/");
