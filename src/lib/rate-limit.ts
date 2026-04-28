@@ -19,18 +19,6 @@ function hashKey(input: string): string {
   return createHash("sha1").update(input).digest("hex");
 }
 
-function parseStoredEntry(value: unknown): Entry | null {
-  if (!value || typeof value !== "object") return null;
-  const obj = value as { count?: unknown; windowStart?: unknown; blockedUntil?: unknown };
-  const count = Number(obj.count);
-  const windowStart = Number(obj.windowStart);
-  const blockedUntil = Number(obj.blockedUntil);
-  if (!Number.isFinite(count) || !Number.isFinite(windowStart) || !Number.isFinite(blockedUntil)) {
-    return null;
-  }
-  return { count, windowStart, blockedUntil };
-}
-
 export function getRequestIp(request: Request): string {
   const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const realIp = request.headers.get("x-real-ip")?.trim();
@@ -60,8 +48,14 @@ export async function checkRateLimit(
     }
 
     try {
-      const existing = await prisma.appConfig.findUnique({ where: { key: dbKey } });
-      const current = parseStoredEntry(existing?.value) ?? { count: 0, windowStart: now, blockedUntil: 0 };
+      const existing = await prisma.rateLimitEntry.findUnique({ where: { key: dbKey } });
+      const current: Entry = existing
+        ? {
+            count: existing.count,
+            windowStart: Number(existing.windowStart),
+            blockedUntil: Number(existing.blockedUntil),
+          }
+        : { count: 0, windowStart: now, blockedUntil: 0 };
 
       if (current.blockedUntil > now) {
         return {
@@ -81,15 +75,19 @@ export async function checkRateLimit(
         next = { count, windowStart, blockedUntil: 0 };
       }
 
-      await prisma.appConfig.upsert({
+      await prisma.rateLimitEntry.upsert({
         where: { key: dbKey },
         create: {
           key: dbKey,
-          value: next,
+          count: next.count,
+          windowStart: BigInt(next.windowStart),
+          blockedUntil: BigInt(next.blockedUntil),
           updatedAt: new Date(now),
         },
         update: {
-          value: next,
+          count: next.count,
+          windowStart: BigInt(next.windowStart),
+          blockedUntil: BigInt(next.blockedUntil),
           updatedAt: new Date(now),
         },
       });

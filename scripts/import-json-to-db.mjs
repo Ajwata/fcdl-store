@@ -266,19 +266,34 @@ async function main() {
   }
 
   if (paymentSettings) {
-    await prisma.paymentSettings.upsert({
-      where: { id: "default" },
-      create: {
-        id: "default",
-        adminDecisionHours: Number(paymentSettings.adminDecisionHours ?? 12),
-        paymentWindowRules: paymentSettings.paymentWindowRules ?? [],
-        updatedAt: new Date(),
-      },
-      update: {
-        adminDecisionHours: Number(paymentSettings.adminDecisionHours ?? 12),
-        paymentWindowRules: paymentSettings.paymentWindowRules ?? [],
-        updatedAt: new Date(),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentSettings.upsert({
+        where: { id: "default" },
+        create: {
+          id: "default",
+          adminDecisionHours: Number(paymentSettings.adminDecisionHours ?? 12),
+          updatedAt: new Date(),
+        },
+        update: {
+          adminDecisionHours: Number(paymentSettings.adminDecisionHours ?? 12),
+          updatedAt: new Date(),
+        },
+      });
+
+      await tx.paymentWindowRule.deleteMany({ where: { settingsId: "default" } });
+
+      const rules = Array.isArray(paymentSettings.paymentWindowRules) ? paymentSettings.paymentWindowRules : [];
+      if (rules.length > 0) {
+        await tx.paymentWindowRule.createMany({
+          data: rules.map((rule, index) => ({
+            settingsId: "default",
+            minDaysBeforeStart: Number(rule.minDaysBeforeStart ?? 0),
+            maxDaysBeforeStart: rule.maxDaysBeforeStart == null ? null : Number(rule.maxDaysBeforeStart),
+            paymentHours: Number(rule.paymentHours ?? 1),
+            sortOrder: index,
+          })),
+        });
+      }
     });
   }
 
@@ -331,30 +346,60 @@ async function main() {
   }
 
   if (pricing) {
-    await prisma.appConfig.upsert({
-      where: { key: "pricing" },
-      create: {
-        key: "pricing",
-        value: pricing,
-        updatedAt: new Date(),
-      },
-      update: {
-        value: pricing,
-        updatedAt: new Date(),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.pricingSettings.upsert({
+        where: { id: "default" },
+        create: {
+          id: "default",
+          eveningStartHour: Number(pricing.eveningStartHour ?? 18),
+          updatedAt: new Date(),
+        },
+        update: {
+          eveningStartHour: Number(pricing.eveningStartHour ?? 18),
+          updatedAt: new Date(),
+        },
+      });
+
+      await tx.pricingSector.deleteMany({ where: { settingsId: "default" } });
+      const sectors = Object.entries(pricing.sectors ?? {});
+      if (sectors.length > 0) {
+        await tx.pricingSector.createMany({
+          data: sectors.map(([sector, prices]) => ({
+            settingsId: "default",
+            sector,
+            dayPrice: Number(prices.dayPrice ?? 0),
+            eveningPrice: Number(prices.eveningPrice ?? 0),
+            updatedAt: new Date(),
+          })),
+        });
+      }
+
+      await tx.pricingDurationRule.deleteMany({ where: { settingsId: "default" } });
+      const durationRules = Array.isArray(pricing.durationDiscountRules) ? pricing.durationDiscountRules : [];
+      if (durationRules.length > 0) {
+        await tx.pricingDurationRule.createMany({
+          data: durationRules.map((rule, index) => ({
+            settingsId: "default",
+            minHours: Number(rule.minHours ?? 1),
+            maxHours: rule.maxHours == null ? null : Number(rule.maxHours),
+            discountPercent: Number(rule.discountPercent ?? 0),
+            sortOrder: index,
+          })),
+        });
+      }
     });
   }
 
   if (cmsContent) {
-    await prisma.appConfig.upsert({
-      where: { key: "cms-content" },
+    await prisma.cmsConfig.upsert({
+      where: { id: "default" },
       create: {
-        key: "cms-content",
-        value: cmsContent,
+        id: "default",
+        content: cmsContent,
         updatedAt: new Date(),
       },
       update: {
-        value: cmsContent,
+        content: cmsContent,
         updatedAt: new Date(),
       },
     });

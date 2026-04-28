@@ -218,16 +218,8 @@ export async function reserveBookingNumbers(count: number): Promise<number> {
     }
 
     try {
-      const existing = await prisma.appConfig.findUnique({ where: { key: counterKey } });
-      let nextNumber = 1;
-
-      if (existing?.value && typeof existing.value === "object") {
-        const value = existing.value as { next?: unknown };
-        const parsed = Number(value.next);
-        if (Number.isFinite(parsed) && parsed >= 1) {
-          nextNumber = Math.floor(parsed);
-        }
-      }
+      const existing = await prisma.bookingCounter.findUnique({ where: { key: counterKey } });
+      let nextNumber = existing?.nextNumber ?? 1;
 
       if (!existing) {
         const maxRows = await prisma.$queryRaw<Array<{ maxId: number | null }>>`
@@ -242,15 +234,15 @@ export async function reserveBookingNumbers(count: number): Promise<number> {
       const startNumber = nextNumber;
       const updatedNext = startNumber + safeCount;
 
-      await prisma.appConfig.upsert({
+      await prisma.bookingCounter.upsert({
         where: { key: counterKey },
         create: {
           key: counterKey,
-          value: { next: updatedNext },
+          nextNumber: updatedNext,
           updatedAt: new Date(),
         },
         update: {
-          value: { next: updatedNext },
+          nextNumber: updatedNext,
           updatedAt: new Date(),
         },
       });

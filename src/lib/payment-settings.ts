@@ -55,7 +55,14 @@ function sanitizeRules(rules: PaymentWindowRule[]): PaymentWindowRule[] {
 export async function getPaymentSettings(): Promise<PaymentSettings> {
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
-    const row = await prisma.paymentSettings.findUnique({ where: { id: "default" } });
+    const row = await prisma.paymentSettings.findUnique({
+      where: { id: "default" },
+      include: {
+        paymentWindowRules: {
+          orderBy: [{ sortOrder: "asc" }],
+        },
+      },
+    });
     if (!row) {
       if (isStrictDatabaseMode()) {
         throw new Error("Missing required payment settings row 'default' in strict database mode");
@@ -65,20 +72,44 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
         data: {
           id: "default",
           adminDecisionHours: paymentSettingsDefaults.adminDecisionHours,
-          paymentWindowRules: paymentSettingsDefaults.paymentWindowRules,
           updatedAt: new Date(),
+          paymentWindowRules: {
+            create: paymentSettingsDefaults.paymentWindowRules.map((rule, index) => ({
+              minDaysBeforeStart: rule.minDaysBeforeStart,
+              maxDaysBeforeStart: rule.maxDaysBeforeStart,
+              paymentHours: rule.paymentHours,
+              sortOrder: index,
+            })),
+          },
+        },
+        include: {
+          paymentWindowRules: {
+            orderBy: [{ sortOrder: "asc" }],
+          },
         },
       });
 
       return {
         adminDecisionHours: created.adminDecisionHours,
-        paymentWindowRules: sanitizeRules(created.paymentWindowRules as PaymentWindowRule[]),
+        paymentWindowRules: sanitizeRules(
+          created.paymentWindowRules.map((rule) => ({
+            minDaysBeforeStart: rule.minDaysBeforeStart,
+            maxDaysBeforeStart: rule.maxDaysBeforeStart,
+            paymentHours: rule.paymentHours,
+          })),
+        ),
       };
     }
 
+    const normalizedRules = row.paymentWindowRules.map((rule) => ({
+      minDaysBeforeStart: rule.minDaysBeforeStart,
+      maxDaysBeforeStart: rule.maxDaysBeforeStart,
+      paymentHours: rule.paymentHours,
+    }));
+
     return {
       adminDecisionHours: Math.max(1, Math.floor(row.adminDecisionHours)),
-      paymentWindowRules: sanitizeRules(row.paymentWindowRules as PaymentWindowRule[]),
+      paymentWindowRules: sanitizeRules(normalizedRules),
     };
   }
 
@@ -101,19 +132,33 @@ export async function savePaymentSettings(input: PaymentSettings): Promise<Payme
 
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
-    await prisma.paymentSettings.upsert({
-      where: { id: "default" },
-      create: {
-        id: "default",
-        adminDecisionHours: next.adminDecisionHours,
-        paymentWindowRules: next.paymentWindowRules,
-        updatedAt: new Date(),
-      },
-      update: {
-        adminDecisionHours: next.adminDecisionHours,
-        paymentWindowRules: next.paymentWindowRules,
-        updatedAt: new Date(),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentSettings.upsert({
+        where: { id: "default" },
+        create: {
+          id: "default",
+          adminDecisionHours: next.adminDecisionHours,
+          updatedAt: new Date(),
+        },
+        update: {
+          adminDecisionHours: next.adminDecisionHours,
+          updatedAt: new Date(),
+        },
+      });
+
+      await tx.paymentWindowRule.deleteMany({ where: { settingsId: "default" } });
+
+      if (next.paymentWindowRules.length > 0) {
+        await tx.paymentWindowRule.createMany({
+          data: next.paymentWindowRules.map((rule, index) => ({
+            settingsId: "default",
+            minDaysBeforeStart: rule.minDaysBeforeStart,
+            maxDaysBeforeStart: rule.maxDaysBeforeStart,
+            paymentHours: rule.paymentHours,
+            sortOrder: index,
+          })),
+        });
+      }
     });
     return next;
   }

@@ -80,18 +80,42 @@ function sanitizeDurationDiscountRules(input: unknown): DurationDiscountRule[] {
 export async function getPricing(): Promise<PricingConfig> {
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
-    const row = await prisma.appConfig.findUnique({ where: { key: "pricing" } });
-    if (isStrictDatabaseMode() && !row) {
-      throw new Error("Missing required app config key 'pricing' in strict database mode");
-    }
-    const parsed = (row?.value ?? {}) as Partial<PricingConfig>;
-    return {
-      eveningStartHour: parsed.eveningStartHour ?? pricingDefaults.eveningStartHour,
-      sectors: {
-        ...pricingDefaults.sectors,
-        ...(parsed.sectors ?? {}),
+    const row = await prisma.pricingSettings.findUnique({
+      where: { id: "default" },
+      include: {
+        sectors: true,
+        durationDiscountRules: {
+          orderBy: [{ sortOrder: "asc" }],
+        },
       },
-      durationDiscountRules: sanitizeDurationDiscountRules(parsed.durationDiscountRules),
+    });
+
+    if (isStrictDatabaseMode() && !row) {
+      throw new Error("Missing required pricing settings row 'default' in strict database mode");
+    }
+
+    if (!row) {
+      return pricingDefaults;
+    }
+
+    const sectors = { ...pricingDefaults.sectors };
+    for (const sector of row.sectors) {
+      sectors[sector.sector] = {
+        dayPrice: sector.dayPrice,
+        eveningPrice: sector.eveningPrice,
+      };
+    }
+
+    return {
+      eveningStartHour: row.eveningStartHour ?? pricingDefaults.eveningStartHour,
+      sectors,
+      durationDiscountRules: sanitizeDurationDiscountRules(
+        row.durationDiscountRules.map((rule) => ({
+          minHours: rule.minHours,
+          maxHours: rule.maxHours,
+          discountPercent: rule.discountPercent,
+        })),
+      ),
     };
   }
 
@@ -114,17 +138,45 @@ export async function getPricing(): Promise<PricingConfig> {
 export async function savePricing(config: PricingConfig): Promise<void> {
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
-    await prisma.appConfig.upsert({
-      where: { key: "pricing" },
-      create: {
-        key: "pricing",
-        value: config,
-        updatedAt: new Date(),
-      },
-      update: {
-        value: config,
-        updatedAt: new Date(),
-      },
+    const normalizedRules = sanitizeDurationDiscountRules(config.durationDiscountRules);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.pricingSettings.upsert({
+        where: { id: "default" },
+        create: {
+          id: "default",
+          eveningStartHour: config.eveningStartHour,
+          updatedAt: new Date(),
+        },
+        update: {
+          eveningStartHour: config.eveningStartHour,
+          updatedAt: new Date(),
+        },
+      });
+
+      await tx.pricingSector.deleteMany({ where: { settingsId: "default" } });
+      await tx.pricingSector.createMany({
+        data: Object.entries(config.sectors).map(([sector, prices]) => ({
+          settingsId: "default",
+          sector,
+          dayPrice: prices.dayPrice,
+          eveningPrice: prices.eveningPrice,
+          updatedAt: new Date(),
+        })),
+      });
+
+      await tx.pricingDurationRule.deleteMany({ where: { settingsId: "default" } });
+      if (normalizedRules.length > 0) {
+        await tx.pricingDurationRule.createMany({
+          data: normalizedRules.map((rule, index) => ({
+            settingsId: "default",
+            minHours: rule.minHours,
+            maxHours: rule.maxHours,
+            discountPercent: rule.discountPercent,
+            sortOrder: index,
+          })),
+        });
+      }
     });
     return;
   }

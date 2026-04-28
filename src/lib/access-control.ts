@@ -29,8 +29,6 @@ type ManagerAccessPayload = {
 
 const clientAccessFilePath = path.join(process.cwd(), "src", "data", "client-access-control.json");
 const managerAccessFilePath = path.join(process.cwd(), "src", "data", "manager-access-control.json");
-const CLIENT_ACCESS_CONFIG_KEY = "client-access-control";
-const MANAGER_ACCESS_CONFIG_KEY = "manager-access-control";
 
 function phoneKey(phone: string): string {
   return phone.replace(/\D/g, "");
@@ -50,13 +48,6 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
 }
 
 async function readClientAccessPayload(): Promise<ClientAccessPayload> {
-  if (isDatabaseEnabled()) {
-    const prisma = getPrismaClient();
-    const row = await prisma.appConfig.findUnique({ where: { key: CLIENT_ACCESS_CONFIG_KEY } });
-    const parsed = (row?.value ?? {}) as Partial<ClientAccessPayload>;
-    return { clients: Array.isArray(parsed.clients) ? parsed.clients : [] };
-  }
-
   if (isStrictDatabaseMode()) {
     throw new Error("JSON fallback is disabled for access-control in strict database mode");
   }
@@ -66,23 +57,6 @@ async function readClientAccessPayload(): Promise<ClientAccessPayload> {
 }
 
 async function saveClientAccessPayload(payload: ClientAccessPayload): Promise<void> {
-  if (isDatabaseEnabled()) {
-    const prisma = getPrismaClient();
-    await prisma.appConfig.upsert({
-      where: { key: CLIENT_ACCESS_CONFIG_KEY },
-      create: {
-        key: CLIENT_ACCESS_CONFIG_KEY,
-        value: payload,
-        updatedAt: new Date(),
-      },
-      update: {
-        value: payload,
-        updatedAt: new Date(),
-      },
-    });
-    return;
-  }
-
   if (isStrictDatabaseMode()) {
     throw new Error("JSON fallback is disabled for access-control in strict database mode");
   }
@@ -91,13 +65,6 @@ async function saveClientAccessPayload(payload: ClientAccessPayload): Promise<vo
 }
 
 async function readManagerAccessPayload(): Promise<ManagerAccessPayload> {
-  if (isDatabaseEnabled()) {
-    const prisma = getPrismaClient();
-    const row = await prisma.appConfig.findUnique({ where: { key: MANAGER_ACCESS_CONFIG_KEY } });
-    const parsed = (row?.value ?? {}) as Partial<ManagerAccessPayload>;
-    return { managers: Array.isArray(parsed.managers) ? parsed.managers : [] };
-  }
-
   if (isStrictDatabaseMode()) {
     throw new Error("JSON fallback is disabled for access-control in strict database mode");
   }
@@ -107,23 +74,6 @@ async function readManagerAccessPayload(): Promise<ManagerAccessPayload> {
 }
 
 async function saveManagerAccessPayload(payload: ManagerAccessPayload): Promise<void> {
-  if (isDatabaseEnabled()) {
-    const prisma = getPrismaClient();
-    await prisma.appConfig.upsert({
-      where: { key: MANAGER_ACCESS_CONFIG_KEY },
-      create: {
-        key: MANAGER_ACCESS_CONFIG_KEY,
-        value: payload,
-        updatedAt: new Date(),
-      },
-      update: {
-        value: payload,
-        updatedAt: new Date(),
-      },
-    });
-    return;
-  }
-
   if (isStrictDatabaseMode()) {
     throw new Error("JSON fallback is disabled for access-control in strict database mode");
   }
@@ -132,6 +82,21 @@ async function saveManagerAccessPayload(payload: ManagerAccessPayload): Promise<
 }
 
 export async function getClientAccessRecords(): Promise<ClientAccessRecord[]> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.clientAccessControl.findMany({
+      orderBy: [{ updatedAt: "desc" }],
+    });
+
+    return rows.map((item) => ({
+      clientPhone: item.clientPhone,
+      clientPhoneKey: item.clientPhoneKey,
+      isBlocked: item.isBlocked,
+      updatedAt: item.updatedAt.toISOString(),
+      updatedById: item.updatedById ?? undefined,
+    }));
+  }
+
   const payload = await readClientAccessPayload();
   return payload.clients
     .map((item) => ({
@@ -163,7 +128,6 @@ export async function setClientBlocked(input: {
     throw new Error("Некоректний номер телефону клієнта");
   }
 
-  const records = await getClientAccessRecords();
   const now = new Date().toISOString();
 
   const nextRecord: ClientAccessRecord = {
@@ -174,16 +138,58 @@ export async function setClientBlocked(input: {
     updatedById: input.updatedById,
   };
 
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+
+    if (input.isBlocked) {
+      await prisma.clientAccessControl.upsert({
+        where: { clientPhoneKey: key },
+        create: {
+          clientPhoneKey: key,
+          clientPhone: normalizedPhone,
+          isBlocked: true,
+          updatedAt: new Date(now),
+          updatedById: input.updatedById ?? null,
+        },
+        update: {
+          clientPhone: normalizedPhone,
+          isBlocked: true,
+          updatedAt: new Date(now),
+          updatedById: input.updatedById ?? null,
+        },
+      });
+    } else {
+      await prisma.clientAccessControl.deleteMany({ where: { clientPhoneKey: key } });
+    }
+
+    return nextRecord;
+  }
+
+  const records = await getClientAccessRecords();
   const next = records.filter((item) => item.clientPhoneKey !== key);
   if (input.isBlocked) {
     next.push(nextRecord);
   }
-
   await saveClientAccessPayload({ clients: next });
   return nextRecord;
 }
 
 export async function getManagerAccessRecords(): Promise<ManagerAccessRecord[]> {
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.managerAccessControl.findMany({
+      orderBy: [{ updatedAt: "desc" }],
+    });
+
+    return rows.map((item) => ({
+      managerId: item.managerId,
+      isBlocked: item.isBlocked,
+      bonusPercent: item.bonusPercent,
+      updatedAt: item.updatedAt.toISOString(),
+      updatedById: item.updatedById ?? undefined,
+    }));
+  }
+
   const payload = await readManagerAccessPayload();
   return payload.managers
     .map((item) => ({
@@ -228,6 +234,28 @@ export async function upsertManagerAccess(input: {
   };
 
   const next = records.filter((item) => item.managerId !== id);
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.managerAccessControl.upsert({
+      where: { managerId: id },
+      create: {
+        managerId: id,
+        isBlocked: nextRecord.isBlocked,
+        bonusPercent: nextRecord.bonusPercent,
+        updatedAt: new Date(now),
+        updatedById: input.updatedById ?? null,
+      },
+      update: {
+        isBlocked: nextRecord.isBlocked,
+        bonusPercent: nextRecord.bonusPercent,
+        updatedAt: new Date(now),
+        updatedById: input.updatedById ?? null,
+      },
+    });
+    return nextRecord;
+  }
+
   next.push(nextRecord);
   await saveManagerAccessPayload({ managers: next });
   return nextRecord;
@@ -236,6 +264,12 @@ export async function upsertManagerAccess(input: {
 export async function removeManagerAccess(managerId: string): Promise<void> {
   const id = managerId.trim();
   if (!id) return;
+
+  if (isDatabaseEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.managerAccessControl.deleteMany({ where: { managerId: id } });
+    return;
+  }
 
   const records = await getManagerAccessRecords();
   const next = records.filter((item) => item.managerId !== id);

@@ -102,10 +102,22 @@ model ClientReview {
 }
 
 model PaymentSettings {
-  id                 String   @id
+  id                 String              @id
   adminDecisionHours Int
-  paymentWindowRules Json
   updatedAt          DateTime
+  paymentWindowRules PaymentWindowRule[]
+}
+
+model PaymentWindowRule {
+  id                 Int              @id @default(autoincrement())
+  settingsId         String
+  minDaysBeforeStart Int
+  maxDaysBeforeStart Int?
+  paymentHours       Int
+  sortOrder          Int
+  settings           PaymentSettings  @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@index([settingsId, sortOrder])
 }
 
 model ReferralAssignment {
@@ -129,10 +141,72 @@ model AdminUser {
   createdAt    DateTime
 }
 
-model AppConfig {
-  key       String   @id
-  value     Json
+model PricingSettings {
+  id                    String                 @id
+  eveningStartHour      Int
+  updatedAt             DateTime
+  sectors               PricingSector[]
+  durationDiscountRules PricingDurationRule[]
+}
+
+model PricingSector {
+  settingsId    String
+  sector        String
+  dayPrice      Int
+  eveningPrice  Int
+  updatedAt     DateTime
+  settings      PricingSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@id([settingsId, sector])
+  @@index([sector])
+}
+
+model PricingDurationRule {
+  id              Int             @id @default(autoincrement())
+  settingsId      String
+  minHours        Int
+  maxHours        Int?
+  discountPercent Int
+  sortOrder       Int
+  settings        PricingSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@index([settingsId, sortOrder])
+}
+
+model CmsConfig {
+  id        String   @id
+  content   Json
   updatedAt DateTime
+}
+
+model BookingCounter {
+  key        String   @id
+  nextNumber Int
+  updatedAt  DateTime
+}
+
+model RateLimitEntry {
+  key         String   @id
+  count       Int
+  windowStart BigInt
+  blockedUntil BigInt
+  updatedAt   DateTime
+}
+
+model ClientAccessControl {
+  clientPhoneKey String   @id
+  clientPhone    String
+  isBlocked      Boolean
+  updatedAt      DateTime
+  updatedById    String?
+}
+
+model ManagerAccessControl {
+  managerId    String   @id
+  isBlocked    Boolean
+  bonusPercent Int
+  updatedAt    DateTime
+  updatedById  String?
 }
 
 model BlockedSlot {

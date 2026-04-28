@@ -99,11 +99,11 @@ function mergeCmsContent(partial: Partial<CmsContent>): CmsContent {
 export async function getCmsContent(): Promise<CmsContent> {
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
-    const row = await prisma.appConfig.findUnique({ where: { key: "cms-content" } });
+    const row = await prisma.cmsConfig.findUnique({ where: { id: "default" } });
     if (isStrictDatabaseMode() && !row) {
-      throw new Error("Missing required app config key 'cms-content' in strict database mode");
+      throw new Error("Missing required cms config row 'default' in strict database mode");
     }
-    return mergeCmsContent((row?.value ?? {}) as Partial<CmsContent>);
+    return mergeCmsContent((row?.content ?? {}) as Partial<CmsContent>);
   }
 
   try {
@@ -120,15 +120,15 @@ export async function saveCmsContent(content: CmsContent): Promise<void> {
 
   if (isDatabaseEnabled()) {
     const prisma = getPrismaClient();
-    await prisma.appConfig.upsert({
-      where: { key: "cms-content" },
+    await prisma.cmsConfig.upsert({
+      where: { id: "default" },
       create: {
-        key: "cms-content",
-        value: merged,
+        id: "default",
+        content: merged,
         updatedAt: new Date(),
       },
       update: {
-        value: merged,
+        content: merged,
         updatedAt: new Date(),
       },
     });
