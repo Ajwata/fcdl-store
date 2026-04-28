@@ -57,6 +57,13 @@ export async function PATCH(
     );
   }
 
+  if (body.paymentStatus === "paid" && session.role === "manager") {
+    return NextResponse.json(
+      { error: "Менеджер не може підтверджувати оплату" },
+      { status: 403 },
+    );
+  }
+
   const next: Booking = { ...current, ...body };
   const cancelReason = body.cancelReason?.trim() ?? "";
 

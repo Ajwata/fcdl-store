@@ -472,7 +472,7 @@ export default function BookingsPage() {
                               Підтвердити
                             </button>
                           )}
-                          {b.paymentStatus === "verification" && b.paymentProofUrl && b.status !== "cancelled" && b.status !== "completed" && (
+                          {role === "superadmin" && b.paymentStatus === "verification" && b.paymentProofUrl && b.status !== "cancelled" && b.status !== "completed" && (
                             <button
                               disabled={saving === b.id}
                               onClick={() => void updateBooking(b.id, { paymentStatus: "paid" })}
