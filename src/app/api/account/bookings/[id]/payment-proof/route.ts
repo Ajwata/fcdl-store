@@ -32,6 +32,18 @@ function normalizeReceiptUrl(value: string): string | null {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return null;
     }
+
+    const lowerPath = parsed.pathname.toLowerCase();
+    const pdfInPath = lowerPath.endsWith(".pdf");
+    const pdfInQuery = ["file", "filename", "name"].some((key) => {
+      const value = parsed.searchParams.get(key)?.trim().toLowerCase();
+      return Boolean(value && value.endsWith(".pdf"));
+    });
+
+    if (!pdfInPath && !pdfInQuery) {
+      return null;
+    }
+
     return parsed.toString();
   } catch {
     return null;
@@ -58,7 +70,7 @@ export async function POST(
   const body = (await request.json().catch(() => ({}))) as { receiptUrl?: string };
   const normalizedReceiptUrl = normalizeReceiptUrl(body.receiptUrl ?? "");
   if (!normalizedReceiptUrl) {
-    return NextResponse.json({ error: "Вкажіть коректне посилання на квитанцію (http/https)" }, { status: 400 });
+    return NextResponse.json({ error: "Вкажіть коректне посилання на PDF-квитанцію (http/https)" }, { status: 400 });
   }
 
   const { id } = await params;

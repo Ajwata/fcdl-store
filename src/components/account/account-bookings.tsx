@@ -170,6 +170,25 @@ export function AccountBookings({ initialBookings, initialReviews, paymentRequis
       return;
     }
 
+    const looksLikePdf = (() => {
+      try {
+        const parsed = new URL(normalized);
+        const pdfInPath = parsed.pathname.toLowerCase().endsWith(".pdf");
+        const pdfInQuery = ["file", "filename", "name"].some((key) => {
+          const value = parsed.searchParams.get(key)?.trim().toLowerCase();
+          return Boolean(value && value.endsWith(".pdf"));
+        });
+        return pdfInPath || pdfInQuery;
+      } catch {
+        return false;
+      }
+    })();
+
+    if (!looksLikePdf) {
+      setRequisitesError("Квитанція має бути PDF-посиланням");
+      return;
+    }
+
     setRequisitesError("");
     setRequisitesStatus("");
     setBusyId(bookingId);
