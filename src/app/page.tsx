@@ -10,12 +10,15 @@ import { StatsSection } from "@/components/stats-section";
 import { HashScrollLink } from "@/components/ui/hash-scroll-link";
 import type { StatItem } from "@/data/cms-defaults";
 import { autoCompleteExpiredPaidBookings } from "@/lib/bookings";
-import { getAllClientUsers } from "@/lib/client-auth";
 import { getCmsContent } from "@/lib/cms-content";
 import { getPublicClientReviews } from "@/lib/client-engagement";
 import { formatDateUk, getDateSortValue } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
+
+function toBookingEndTimestamp(date: string, endTime: string): number {
+  return new Date(`${date}T${endTime}:00`).getTime();
+}
 
 function resolveLiveStatValue(item: StatItem, stats: { bookingsCount: number; clientsCount: number; averageRating: number }): number {
   const label = item.label.toLowerCase();
@@ -26,10 +29,9 @@ function resolveLiveStatValue(item: StatItem, stats: { bookingsCount: number; cl
 }
 
 export default async function Home() {
-  const [cms, bookings, users, allReviews] = await Promise.all([
+  const [cms, bookings, allReviews] = await Promise.all([
     getCmsContent(),
     autoCompleteExpiredPaidBookings(),
-    getAllClientUsers(),
     getPublicClientReviews(),
   ]);
   const { galleryItems, heroSlides, newsItems } = cms;
@@ -42,11 +44,14 @@ export default async function Home() {
   const averageRating = averageRatingNumber.toFixed(1);
   const averageStars = Math.floor(averageRatingNumber);
 
-  const nonCancelledBookings = bookings.filter((booking) => booking.status !== "cancelled");
-  const bookingsCount = nonCancelledBookings.length;
+  const now = Date.now();
+  const completedPlayedBookings = bookings.filter((booking) => (
+    booking.status === "completed" && toBookingEndTimestamp(booking.date, booking.endTime) <= now
+  ));
+
+  const bookingsCount = completedPlayedBookings.length;
   const uniquePhones = new Set<string>();
-  nonCancelledBookings.forEach((booking) => uniquePhones.add(booking.clientPhone.replace(/\D/g, "")));
-  users.forEach((user) => uniquePhones.add(user.phone.replace(/\D/g, "")));
+  completedPlayedBookings.forEach((booking) => uniquePhones.add(booking.clientPhone.replace(/\D/g, "")));
   const clientsCount = uniquePhones.size;
 
   const liveStats = {
